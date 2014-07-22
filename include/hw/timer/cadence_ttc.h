@@ -21,6 +21,8 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 
+typedef struct CadenceTTCState CadenceTTCState;
+
 typedef struct {
     QEMUTimer *timer;
     int freq;
@@ -37,6 +39,8 @@ typedef struct {
 
     uint64_t cpu_time;
     unsigned int cpu_time_valid;
+
+    CadenceTTCState *container;
 
     qemu_irq irq;
 } CadenceTimerState;

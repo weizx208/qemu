@@ -399,6 +399,7 @@ static void cadence_ttc_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < 3; ++i) {
         cadence_timer_init(133000000, &s->timer[i]);
+        s->timer[i].container = s;
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->timer[i].irq);
     }
 }
