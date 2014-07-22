@@ -29,9 +29,9 @@ typedef struct {
 
     uint32_t reg_clock;
     uint32_t reg_count;
-    uint32_t reg_value;
-    uint16_t reg_interval;
-    uint16_t reg_match[3];
+    uint64_t reg_value;
+    uint32_t reg_interval;
+    uint32_t reg_match[3];
     uint32_t reg_intr;
     uint32_t reg_intr_en;
     uint32_t reg_event_ctrl;
