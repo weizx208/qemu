@@ -52,6 +52,8 @@ struct CadenceTTCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+
+    uint8_t bit_width;
     CadenceTimerState timer[3];
 };
 

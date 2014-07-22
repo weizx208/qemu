@@ -20,6 +20,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
@@ -454,11 +455,16 @@ static const VMStateDescription vmstate_cadence_ttc = {
     }
 };
 
+static const Property cadence_ttc_props[] = {
+    DEFINE_PROP_UINT8("width", CadenceTTCState, bit_width, 16),
+};
+
 static void cadence_ttc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_cadence_ttc;
+    device_class_set_props(dc, cadence_ttc_props);
     dc->realize = cadence_ttc_realize;
 }
 
