@@ -767,6 +767,9 @@ typedef struct CPUArchState {
     /* Internal CPU feature flags.  */
     uint64_t features;
 
+    /* Controls the reset value of SCTLR_V.  */
+    bool vinithi;
+
     /* PMSAv7 MPU */
     struct {
         uint32_t *drbar;

@@ -253,6 +253,12 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
                                              || cs->arch_halt_pin ?
                            PSCI_OFF : PSCI_ON;
 
+    /* Reset value of SCTLR_V is controlled by input signal VINITHI.  */
+    env->cp15.sctlr_ns &= ~SCTLR_V;
+    env->cp15.sctlr_s &= ~SCTLR_V;
+    env->cp15.sctlr_ns |= env->vinithi ? SCTLR_V : 0;
+    env->cp15.sctlr_s |= env->vinithi ? SCTLR_V : 0;
+
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
         env->aarch64 = true;
@@ -839,6 +845,14 @@ static void arm_cpu_set_ncpuhalt(void *opaque, int irq, int level)
         cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
     }
 }
+
+static void arm_cpu_set_vinithi(void *opaque, int irq, int level)
+{
+    CPUState *cs = opaque;
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    cpu->env.vinithi = level;
+}
 #endif
 
 static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
@@ -1176,6 +1190,8 @@ static void arm_cpu_initfn(Object *obj)
     }
 
     qdev_init_gpio_in_named(DEVICE(cpu), arm_cpu_set_ncpuhalt, "ncpuhalt", 1);
+    qdev_init_gpio_in_named(DEVICE(cpu), arm_cpu_set_vinithi, "vinithi", 1);
+
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
                        ARRAY_SIZE(cpu->gt_timer_outputs));
 
