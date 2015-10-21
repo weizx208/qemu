@@ -293,6 +293,9 @@ struct CPUArchState {
     struct {} end_reset_fields;
 
     /* These fields are preserved on reset.  */
+    /* MicroBlaze does not have state that affects the memory attributes so
+     * we end up only needing one instance.  */
+    MemTxAttrs *memattr_p;
 };
 
 /*

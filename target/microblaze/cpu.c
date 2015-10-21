@@ -255,6 +255,10 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
 #else
     mb_cpu_write_msr(env, 0);
     mmu_init(&env->mmu);
+
+    if (cpu->env.memattr_p) {
+        cs->neg.tlb.memattr[0].attrs = *cpu->env.memattr_p;
+    }
 #endif
 }
 
@@ -373,6 +377,11 @@ static void mb_cpu_initfn(Object *obj)
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
+
+    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+                             (Object **)&cpu->env.memattr_p,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
 #endif
 
     /* Restricted 'endianness' property is equivalent of 'little-endian' */
