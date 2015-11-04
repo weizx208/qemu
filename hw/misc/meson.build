@@ -20,6 +20,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx-ddrc.c',
   'xilinx-ddr_phy.c',
   'xilinx-serdes.c',
+  'reset-dev.c',
 ))
 
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
