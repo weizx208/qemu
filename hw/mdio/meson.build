@@ -1,1 +1,1 @@
-system_ss.add(when: 'CONFIG_MDIO', if_true: files('core.c'))
+system_ss.add(when: 'CONFIG_MDIO', if_true: files('core.c', 'mdio.c'))
