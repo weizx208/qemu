@@ -175,6 +175,9 @@ config CLOCK
 config XLNX_VERSAL_PMC
 	bool
 
+config SI57X
+	bool
+
 config UNIMP
     bool
 
