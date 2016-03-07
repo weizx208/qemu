@@ -1,3 +1,6 @@
+system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
+  'xilinx-axi-gpio.c'))
+
 system_ss.add(when: 'CONFIG_GPIO_KEY', if_true: files('gpio_key.c'))
 system_ss.add(when: 'CONFIG_GPIO_MPC8XXX', if_true: files('mpc8xxx.c'))
 system_ss.add(when: 'CONFIG_GPIO_PWR', if_true: files('gpio_pwr.c'))
