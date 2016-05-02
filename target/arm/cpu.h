@@ -1599,6 +1599,7 @@ typedef enum CPSRWriteType {
  */
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
                 CPSRWriteType write_type);
+uint64_t mpidr_read_val(CPUARMState *env);
 
 /* Return the current xPSR value.  */
 static inline uint32_t xpsr_read(CPUARMState *env)

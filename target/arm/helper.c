@@ -3053,7 +3053,7 @@ static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return raw_read(env, ri);
 }
 
-static uint64_t mpidr_read_val(CPUARMState *env)
+uint64_t mpidr_read_val(CPUARMState *env)
 {
     ARMCPU *cpu = env_archcpu(env);
     uint64_t mpidr = cpu->mp_affinity;
