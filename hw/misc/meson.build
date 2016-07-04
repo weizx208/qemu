@@ -2,6 +2,7 @@ system_ss.add(when: 'CONFIG_CLOCK', if_true: files('zynq-pll.c'))
 
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'zynqmp-iou-slcr.c',
+  'xlnx-lpd-slcr-secure.c',
   'xlnx-zynqmp-boot.c',
 ))
 
