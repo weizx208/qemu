@@ -437,8 +437,11 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
     int i;
     QemuOpts *opts = qemu_find_opts_singleton("boot-opts");
+    int boot_mode;
 
     DB_PRINT("RESET\n");
+
+    boot_mode = qemu_opt_get_number(opts, "mode", 0);
 
     s->regs[R_LOCKSTA] = 1;
     /* 0x100 - 0x11C */
@@ -484,7 +487,7 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     s->regs[R_FPGA_RST_CTRL]  = 0x01F33F0F;
     s->regs[R_RST_REASON]     = 0x00000040;
 
-    s->regs[R_BOOT_MODE]      = s->boot_mode & R_BOOT_MODE_BOOT_MODE_MASK;
+    s->regs[R_BOOT_MODE]      = boot_mode;
 
     /* 0x700 - 0x7D4 */
     for (i = 0; i < 54; i++) {
