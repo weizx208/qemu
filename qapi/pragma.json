@@ -24,6 +24,7 @@
         'read_mem',
         'write_mem',
         'trigger_event',
+        'inject_gpio',
         'system_powerdown',
         'system_reset',
         'system_wakeup' ],
