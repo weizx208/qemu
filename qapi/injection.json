@@ -59,3 +59,30 @@
   'data': {'addr': 'int', 'val': 'int', 'size': 'int', '*cpu': 'int',
            '*qom': 'str'} }
 
+##
+# @trigger_event:
+#
+# Trigger an event
+#
+# @time-ns:  The event will be triggered at t + time-ns on the guest
+#     clock.
+# @event-id: The ID of the event.
+#
+# Since: 2.6
+##
+{ 'command': 'trigger_event',
+  'data': {'time-ns': 'int', 'event-id': 'int'} }
+
+##
+# @FAULT_EVENT:
+#
+# Emitted when a fault event is triggered
+#
+# @event-id: The id of the event which has been triggered
+# @time-ns: The time when the event happened
+#
+# Since: 2.6
+##
+{ 'event': 'FAULT_EVENT',
+  'data': { 'event-id': 'int', 'time-ns': 'int'} }
+

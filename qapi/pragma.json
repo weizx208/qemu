@@ -23,6 +23,7 @@
         'set_password',
         'read_mem',
         'write_mem',
+        'trigger_event',
         'system_powerdown',
         'system_reset',
         'system_wakeup' ],
