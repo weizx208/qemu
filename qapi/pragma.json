@@ -21,6 +21,8 @@
         'qmp_capabilities',
         'set_link',
         'set_password',
+        'read_mem',
+        'write_mem',
         'system_powerdown',
         'system_reset',
         'system_wakeup' ],

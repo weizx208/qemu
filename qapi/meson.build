@@ -36,6 +36,7 @@ qapi_all_modules = [
   'ebpf',
   'error',
   'introspect',
+  'injection',
   'job',
   'machine-common',
   'machine',

@@ -3850,6 +3850,7 @@ system_ss.add(files('cpu-target.c'))
 subdir('system')
 
 specific_ss.add(files('etrace.c', 'etrace-gpio.c'))
+specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files('injection.c'))
 
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
