@@ -116,6 +116,7 @@ void vm_resume(RunState state);
 
 int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
+void vm_stop_from_timer(RunState state);
 int vm_shutdown(void);
 void vm_set_suspended(bool suspended);
 bool vm_get_suspended(void);
