@@ -25,10 +25,12 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/dma/xlnx_dpdma.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-properties.h"
 
 #ifndef DEBUG_DPDMA
 #define DEBUG_DPDMA 0
@@ -565,6 +567,18 @@ static const MemoryRegionOps dma_ops = {
     },
 };
 
+static void xlnx_dpdma_realize(DeviceState *dev, Error **errp)
+{
+    XlnxDPDMAState *s = XLNX_DPDMA(dev);
+
+    if (s->dma_mr) {
+        s->dma_as = g_malloc0(sizeof(AddressSpace));
+        address_space_init(s->dma_as, s->dma_mr, NULL);
+    } else {
+        s->dma_as = &address_space_memory;
+    }
+}
+
 static void xlnx_dpdma_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -574,6 +588,10 @@ static void xlnx_dpdma_init(Object *obj)
                           TYPE_XLNX_DPDMA, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
+                             (Object **)&s->dma_mr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
 }
 
 static void xlnx_dpdma_reset(DeviceState *dev)
@@ -599,6 +617,7 @@ static void xlnx_dpdma_class_init(ObjectClass *oc, const void *data)
 
     dc->vmsd = &vmstate_xlnx_dpdma;
     device_class_set_legacy_reset(dc, xlnx_dpdma_reset);
+    dc->realize = xlnx_dpdma_realize;
 }
 
 static const TypeInfo xlnx_dpdma_info = {
@@ -618,7 +637,7 @@ static MemTxResult xlnx_dpdma_read_descriptor(XlnxDPDMAState *s,
                                               uint64_t desc_addr,
                                               DPDMADescriptor *desc)
 {
-    MemTxResult res = dma_memory_read(&address_space_memory, desc_addr,
+    MemTxResult res = dma_memory_read(s->dma_as, desc_addr,
                                       desc, sizeof(DPDMADescriptor),
                                       MEMTXATTRS_UNSPECIFIED);
     if (res) {
@@ -646,7 +665,8 @@ static MemTxResult xlnx_dpdma_read_descriptor(XlnxDPDMAState *s,
     return res;
 }
 
-static MemTxResult xlnx_dpdma_write_descriptor(uint64_t desc_addr,
+static MemTxResult xlnx_dpdma_write_descriptor(XlnxDPDMAState *s,
+                                               uint64_t desc_addr,
                                                DPDMADescriptor *desc)
 {
     DPDMADescriptor tmp_desc = *desc;
@@ -669,7 +689,7 @@ static MemTxResult xlnx_dpdma_write_descriptor(uint64_t desc_addr,
     tmp_desc.source_address5 = cpu_to_le32(tmp_desc.source_address5);
     tmp_desc.crc = cpu_to_le32(tmp_desc.crc);
 
-    return dma_memory_write(&address_space_memory, desc_addr, &tmp_desc,
+    return dma_memory_write(s->dma_as, desc_addr, &tmp_desc,
                             sizeof(DPDMADescriptor), MEMTXATTRS_UNSPECIFIED);
 }
 
@@ -763,7 +783,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             if (xlnx_dpdma_desc_is_contiguous(&desc)) {
                 source_addr[0] = xlnx_dpdma_desc_get_source_address(&desc, 0);
                 while (transfer_len != 0) {
-                    if (dma_memory_read(&address_space_memory,
+                    if (dma_memory_read(s->dma_as,
                                         source_addr[0],
                                         &s->data[channel][ptr],
                                         line_size,
@@ -792,7 +812,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
                     size_t fragment_len = DPDMA_FRAG_MAX_SZ
                                     - (source_addr[frag] % DPDMA_FRAG_MAX_SZ);
 
-                    if (dma_memory_read(&address_space_memory,
+                    if (dma_memory_read(s->dma_as,
                                         source_addr[frag],
                                         &(s->data[channel][ptr]),
                                         fragment_len,
@@ -813,7 +833,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             /* The descriptor need to be updated when it's completed. */
             DPRINTF("update the descriptor with the done flag set.\n");
             xlnx_dpdma_desc_set_done(&desc);
-            if (xlnx_dpdma_write_descriptor(desc_addr, &desc)) {
+            if (xlnx_dpdma_write_descriptor(s, desc_addr, &desc)) {
                 DPRINTF("Can't write the descriptor.\n");
                 /* TODO: check hardware behaviour for memory write failure */
             }
