@@ -1576,7 +1576,7 @@ long qemu_maxrampagesize(void)
     return pagesize;
 }
 
-#if defined(CONFIG_POSIX) && !defined(EMSCRIPTEN)
+#if !defined(EMSCRIPTEN)
 static int64_t get_file_size(int fd)
 {
     int64_t size;
@@ -1722,7 +1722,11 @@ static int file_ram_open(const char *path,
                                        sanitized_name);
             g_free(sanitized_name);
 
+#ifdef _WIN32
+            fd = _open(_mktemp(filename), _O_CREAT | _O_RDWR);
+#else
             fd = mkstemp(filename);
+#endif
             if (fd >= 0) {
                 unlink(filename);
                 g_free(filename);
@@ -1752,7 +1756,14 @@ static void *file_ram_alloc(RAMBlock *block,
     uint32_t qemu_map_flags;
     void *area;
 
+#ifdef _WIN32
+    SYSTEM_INFO SysInfo;
+    GetSystemInfo(&SysInfo);
+    block->page_size = SysInfo.dwPageSize;
+#else
     block->page_size = qemu_fd_getpagesize(fd);
+#endif
+
     if (block->mr->align % block->page_size) {
         error_setg(errp, "alignment 0x%" PRIx64
                    " must be multiples of page size 0x%zx",
@@ -1802,12 +1813,20 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
+#ifdef _WIN32
+    HANDLE fd_temp = (HANDLE)_get_osfhandle(fd);
+    HANDLE hMapFile = CreateFileMapping(fd_temp, NULL, PAGE_READWRITE,
+                                        0, memory, NULL);
+    area = MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    if (area == NULL) {
+#else
     qemu_map_flags = (block->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
     qemu_map_flags |= (block->flags & RAM_SHARED) ? QEMU_MAP_SHARED : 0;
     qemu_map_flags |= (block->flags & RAM_PMEM) ? QEMU_MAP_SYNC : 0;
     qemu_map_flags |= (block->flags & RAM_NORESERVE) ? QEMU_MAP_NORESERVE : 0;
     area = qemu_ram_mmap(fd, memory, block->mr->align, qemu_map_flags, offset);
     if (area == MAP_FAILED) {
+#endif
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
         return NULL;
@@ -2334,7 +2353,7 @@ out_free:
     }
 }
 
-#if defined(CONFIG_POSIX) && !defined(EMSCRIPTEN)
+#if !defined(EMSCRIPTEN)
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, ram_addr_t max_size,
                                  qemu_ram_resize_cb resized, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd, off_t offset,
