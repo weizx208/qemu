@@ -1,7 +1,8 @@
 system_ss.add(when: 'CONFIG_XILINX_IOMODULE_GPI', if_true: files('xilinx_iomod_gpi.c'))
 system_ss.add(when: 'CONFIG_XILINX_IOMODULE_GPO', if_true: files('xilinx_iomod_gpo.c'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
-  'xilinx-axi-gpio.c'))
+  'xilinx-axi-gpio.c',
+  'xlnx-zynqmp-gpio.c'))
 
 system_ss.add(when: 'CONFIG_GPIO_KEY', if_true: files('gpio_key.c'))
 system_ss.add(when: 'CONFIG_GPIO_MPC8XXX', if_true: files('mpc8xxx.c'))
