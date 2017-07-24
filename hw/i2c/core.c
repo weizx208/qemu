@@ -428,8 +428,12 @@ static bool i2c_slave_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
 static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
                             bool broadcast, I2CNodeList *current_devs)
 {
-    if ((candidate->address == address) || (broadcast)) {
-        I2CNode *node = g_new(struct I2CNode, 1);
+    I2CNode *node;
+
+    if ((candidate->address <= address &&
+         address < candidate->address + candidate->address_range) ||
+        broadcast) {
+        node = g_malloc(sizeof(struct I2CNode));
         node->elt = candidate;
         QLIST_INSERT_HEAD(current_devs, node, next);
         return true;
