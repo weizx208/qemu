@@ -433,6 +433,19 @@ static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
     if ((candidate->address <= address &&
          address < candidate->address + candidate->address_range) ||
         broadcast) {
+        /* If the device is mux/switch, probe for required slave.
+         * decode_address probes the requested slave and returns 1
+         * on failure, and returns 0 if a slave is found (or)
+         * address mached itself.
+         */
+        if (candidate->address == 0 && !broadcast) {
+            I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(candidate);
+            if (sc->decode_address) {
+                if (sc->decode_address(candidate, address)) {
+                    return false;
+                }
+            }
+        }
         node = g_malloc(sizeof(struct I2CNode));
         node->elt = candidate;
         QLIST_INSERT_HEAD(current_devs, node, next);
