@@ -22,7 +22,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/hw.h"
 #include "system/blockdev.h"
-#include "hw/i2c/pca9548.h"
+#include "hw/i2c/pca954x.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
