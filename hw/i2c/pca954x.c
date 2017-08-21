@@ -36,6 +36,19 @@
     } \
 } while (0);
 
+static pca954x_type known_devices[] = {
+    /* I2C Muxes */
+    { .name = "pca9542", .lanes = 2, .mux = true },
+    { .name = "pca9544", .lanes = 4, .mux = true },
+    { .name = "pca9547", .lanes = 8, .mux = true },
+    /* I2C Switches */
+    { .name = "pca9543", .lanes = 2, .mux = false },
+    { .name = "pca9545", .lanes = 4, .mux = false },
+    { .name = "pca9546", .lanes = 4, .mux = false },
+    { .name = "pca9548", .lanes = 8, .mux = false },
+    { .name = "pca9549", .lanes = 8, .mux = false },
+};
+
 static void pca954x_reset(DeviceState *dev)
 {
     PCA954XState *s = PCA954X(dev);
@@ -205,6 +218,7 @@ static void pca954x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    PCA954XClass *sc = PCA954X_CLASS(klass);
 
     k->event = pca954x_event;
     k->recv = pca954x_recv;
@@ -215,6 +229,7 @@ static void pca954x_class_init(ObjectClass *klass, const void *data)
     dc->reset = pca954x_reset;
     dc->vmsd = &vmstate_PCA954X;
     device_class_set_props(dc, pca954x_properties);
+    sc->device = data;
 }
 
 static TypeInfo pca954x_info = {
@@ -222,12 +237,22 @@ static TypeInfo pca954x_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(PCA954XState),
     .instance_init = pca954x_init,
-    .class_init    = pca954x_class_init,
 };
 
 static void pca954x_register_types(void)
 {
+    int i;
+
     type_register_static(&pca954x_info);
+    for (i = 0; i < ARRAY_SIZE(known_devices); i++) {
+        TypeInfo t = {
+            .name = known_devices[i].name,
+            .parent = TYPE_PCA954X,
+            .class_init = pca954x_class_init,
+            .class_data = &known_devices[i]
+        };
+        type_register_static(&t);
+    }
 }
 
 type_init(pca954x_register_types)
