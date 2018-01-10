@@ -44,6 +44,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-pmc-iou-slcr.c',
   'xlnx-versal-pmc-tap.c',
   'xlnx-versal-pmc-pzm.c',
+  'xlnx-versal-pmc-tamper.c',
   'xlnx-versal-cfu-v1.c',
   'xlnx-versal-cfu.c',
   'xlnx-cfi-if.c',
