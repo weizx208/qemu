@@ -235,7 +235,7 @@ static int ssi_auto_connect_peripheral(Object *child, void *opaque)
                                                           TYPE_SSI_PERIPHERAL);
     qemu_irq cs_line;
 
-    if (!dev) {
+    if (!dev || qdev_get_parent_bus(DEVICE(dev))) {
         return 0;
     }
 
