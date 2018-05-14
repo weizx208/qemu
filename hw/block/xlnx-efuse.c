@@ -200,30 +200,13 @@ unsigned int efuse_tbits_read(XLNXEFuse *s, int n)
     return data;
 }
 
-static void efuse_reset(DeviceState *dev)
-{
-    XLNXEFuse *s = XLNX_EFUSE(dev);
-    const char *prefix = object_get_canonical_path(OBJECT(dev));
-    unsigned int nr_bytes;
-
-    if (s->blk) {
-        nr_bytes = (s->efuse_nr * s->efuse_size) / 8;
-        if (blk_pread(s->blk, 0, (void *) s->fuse32, nr_bytes) < 0) {
-            error_report("%s: Unable to read-out contents."
-                         "backing file too small? Expecting %" PRIu32" bytes",
-                          prefix,
-                          (unsigned int) (nr_bytes));
-            exit(1);
-        }
-    }
-}
-
 static void efuse_realize(DeviceState *dev, Error **errp)
 {
     XLNXEFuse *s = XLNX_EFUSE(dev);
     BlockBackend *blk;
     DriveInfo *dinfo;
     unsigned int nr_bytes;
+    const char *prefix = object_get_canonical_path(OBJECT(dev));
 
     dinfo = drive_get_next(IF_PFLASH);
     blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
@@ -232,27 +215,12 @@ static void efuse_realize(DeviceState *dev, Error **errp)
     s->fuse32 = g_malloc0(nr_bytes);
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk);
-
-        s->blk_ro = !blk_supports_write_perm(s->blk);
-        if (!s->blk_ro) {
-            int rc;
-
-            rc = blk_set_perm(s->blk,
-                              (BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE),
-                              BLK_PERM_ALL, NULL);
-            if (rc) {
-                s->blk_ro = true;
-            }
-        }
-        if (s->blk_ro) {
-            warn_report("%s: update not saved: backstore is read-only",
-                        object_get_canonical_path(OBJECT(s)));
-        }
-        if (blk_pread(s->blk, 0,  nr_bytes, (void *) s->fuse32, 0) < 0) {
-            error_setg(&error_abort, "%s: Unable to read-out contents."
+        if (blk_pread(s->blk, 0, (void *) s->fuse32, nr_bytes) < 0) {
+            error_report("%s: Unable to read-out contents."
                          "backing file too small? Expecting %" PRIu32" bytes",
                           prefix,
                           (unsigned int) (nr_bytes));
+            exit(1);
         }
     }
 
@@ -295,7 +263,6 @@ static void efuse_class_init(ObjectClass *klass, void *data)
     dc->realize = efuse_realize;
     dc->vmsd = &vmstate_efuse;
     device_class_set_props(dc, efuse_properties);
-    dc->reset = efuse_reset;
 }
 
 static const TypeInfo efuse_info = {
