@@ -42,12 +42,14 @@ static QEMUTimer *timer;
 } while (0)
 
 void qmp_write_mem(int64_t addr, int64_t val, int64_t size, bool has_cpu,
-                   int64_t cpu, const char *qom, Error **errp)
+                   int64_t cpu, const char *qom, bool debug, Error **errp)
 {
     int cpu_id = 0;
     Object *obj;
     CPUState *s;
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
 
+    attrs.debug = debug;
     if (qom) {
         obj = object_resolve_path(qom, NULL);
         s = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
@@ -70,7 +72,7 @@ void qmp_write_mem(int64_t addr, int64_t val, int64_t size, bool has_cpu,
     }
 
     if (address_space_write(cpu_get_address_space(qemu_get_cpu(cpu_id), 0),
-                            addr, MEMTXATTRS_UNSPECIFIED, ((uint8_t *)&val), size)) {
+                            addr, attrs, ((uint8_t *)&val), size)) {
         DPRINTF("write memory failed.\n");
     } else {
         DPRINTF("write memory succeed.\n");
