@@ -41,6 +41,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-pmc-clk-rst.c',
   'xlnx-versal-pmc-global.c',
   'xlnx-versal-pmc-iou-slcr.c',
+  'xlnx-versal-cfu-v1.c',
+  'xlnx-versal-cfu.c',
   'xlnx-cfi-if.c',
   'xlnx-versal-cframe-reg-v1.c',
   'xlnx-versal-cframe-reg.c',
@@ -156,6 +158,7 @@ specific_ss.add(when: 'CONFIG_XLNX_VERSAL_ARM', if_true: files('xlnx-versal-crl.
 system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-xramc.c',
   'xlnx-versal-pmc-iou-slcr.c',
+  'xlnx-versal-cfu-v1.c',
   'xlnx-versal-cfu.c',
   'xlnx-cfi-if.c',
   'xlnx-versal-cframe-reg-v1.c',
