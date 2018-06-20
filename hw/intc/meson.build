@@ -13,6 +13,8 @@ system_ss.add(when: 'CONFIG_ARM_GICV3', if_true: files(
   'arm_gicv3_redist.c',
 ))
 
+system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files('xlnx-versal-pmc-gic-proxy.c'))
+
 system_ss.add(when: 'CONFIG_XILINX_IOMODULE_INTC', if_true: files('xilinx_iomod_intc.c'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx-zynqmp-gicp.c',
