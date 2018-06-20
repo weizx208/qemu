@@ -39,6 +39,7 @@ specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-pmc-clk-rst.c',
+  'xlnx-versal-pmc-global.c',
   'xlnx-cfi-if.c',
   'xlnx-versal-cframe-reg-v1.c',
   'xlnx-versal-cframe-reg.c',
