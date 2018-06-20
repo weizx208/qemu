@@ -40,6 +40,7 @@ specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-pmc-clk-rst.c',
   'xlnx-versal-pmc-global.c',
+  'xlnx-versal-pmc-iou-slcr.c',
   'xlnx-cfi-if.c',
   'xlnx-versal-cframe-reg-v1.c',
   'xlnx-versal-cframe-reg.c',
@@ -148,6 +149,7 @@ system_ss.add(when: 'CONFIG_RASPI', if_true: files(
 ))
 system_ss.add(when: 'CONFIG_SLAVIO', if_true: files('slavio_misc.c'))
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('zynq_slcr.c'))
+system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files('xlnx-versal-pmc-iou-slcr-v1.c'))
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp-crf.c'))
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp-apu-ctrl.c'))
 specific_ss.add(when: 'CONFIG_XLNX_VERSAL_ARM', if_true: files('xlnx-versal-crl.c'))
