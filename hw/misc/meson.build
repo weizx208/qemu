@@ -41,7 +41,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-cfi-if.c',
   'xlnx-versal-cframe-reg-v1.c',
   'xlnx-versal-cframe-reg.c',
-  'xlnx-versal-trng.c'))
+  'xlnx-versal-trng.c',
+  'sss-pmc.c'))
 
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('i2c-dev-dummy.c'))
 system_ss.add(when: 'CONFIG_M24CXX', if_true: files('sodimm-spd.c'))
