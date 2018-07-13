@@ -37,7 +37,9 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_CSU', if_true: files(
   'ipcores-rsa5-4k.c',
   'csu_rsa5_4k.c',
   'xlnx-versal-ecdsa-rsa.c',
+  'csu_aes.c',
   'zynqmp_aes_key.c',
+  'xlnx-aes.c',
   'xlnx-bbram-ctrl.c'
 ))
 
