@@ -88,6 +88,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-cmt-xpll.c',
   'xlnx-versal-cmt-dpll.c',
   'xlnx-versal-cmt-mmcm.c',
+  'xlnx-versal-aes.c',
   'pmc_sbi.c',
   'sss-pmc.c'))
 
