@@ -38,6 +38,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_CSU', if_true: files(
   'csu_rsa5_4k.c',
   'xlnx-versal-ecdsa-rsa.c',
   'zynqmp_aes_key.c',
+  'xlnx-bbram-ctrl.c'
 ))
 
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
