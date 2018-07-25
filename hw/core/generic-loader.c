@@ -129,7 +129,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_register_reset(generic_loader_reset, dev);
+    qemu_register_reset_loader(generic_loader_reset, dev);
 
     if (s->cpu_num != CPU_NONE) {
         s->cpu = qemu_get_cpu(s->cpu_num);
@@ -191,7 +191,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
 
 static void generic_loader_unrealize(DeviceState *dev)
 {
-    qemu_unregister_reset(generic_loader_reset, dev);
+    qemu_unregister_reset_loader(generic_loader_reset, dev);
 }
 
 static const Property generic_loader_props[] = {
