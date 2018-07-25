@@ -52,6 +52,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-cframe-reg.c',
   'xlnx-versal-trng.c',
   'xlnx-versal-crf.c',
+  'xlnx-versal-crl-v1.c',
   'xlnx-versal-noc-nmu.c',
   'xlnx-versal-noc-nsu.c',
   'xlnx-versal-noc-nps.c',
