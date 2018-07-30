@@ -1503,6 +1503,7 @@ static void memory_region_set_ram(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    mr->dirty_log_mask |= tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
     /* FIXME: Sanitize error handling */
     /* FIXME: Probably need all that transactions stuff */
     if (mr->ram == value) {
