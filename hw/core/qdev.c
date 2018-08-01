@@ -799,11 +799,15 @@ static void device_hlt_cntrl(void *opaque, int n, int level)
 static void device_rst_cntrl(void *opaque, int n, int level)
 {
     DeviceState *dev = DEVICE(opaque);
-    DeviceClass *klass = DEVICE_GET_CLASS(dev);
 
-    if (klass->reset) {
-        klass->reset(dev);
+    /* Apply reset on the negative edge.  */
+    if (level == 0&& dev->reset_level != !!level) {
+        DeviceClass *klass = DEVICE_GET_CLASS(dev);
+        if (klass->legacy_reset) {
+            klass->legacy_reset(dev);
+        }
     }
+    dev->reset_level = level;
 }
 
 static char *
