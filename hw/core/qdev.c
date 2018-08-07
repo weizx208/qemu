@@ -799,15 +799,18 @@ static void device_hlt_cntrl(void *opaque, int n, int level)
 static void device_rst_cntrl(void *opaque, int n, int level)
 {
     DeviceState *dev = DEVICE(opaque);
+    uint64_t p_level = dev->reset_level;
 
-    /* Apply reset on the negative edge.  */
-    if (level == 0&& dev->reset_level != !!level) {
-        DeviceClass *klass = DEVICE_GET_CLASS(dev);
-        if (klass->legacy_reset) {
-            klass->legacy_reset(dev);
+    /* Update the reset state.  */
+    dev->reset_level &= ~(1 << n);
+    dev->reset_level |= (!!level) << n;
+
+    /* Do not reset device on updates without state change.  */
+    if (p_level != dev->reset_level) {
+        if (!device_is_in_reset(dev)) {
+            device_cold_reset(dev);
         }
     }
-    dev->reset_level = level;
 }
 
 static char *

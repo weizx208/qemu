@@ -314,7 +314,7 @@ struct DeviceState {
 
     /* Xilinx: Remove  */
     PowerState ps;
-    bool reset_level;
+    uint64_t reset_level;
 };
 
 typedef struct DeviceListener DeviceListener;
