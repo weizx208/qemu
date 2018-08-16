@@ -776,6 +776,15 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->gic_vprebits = 5;
     cpu->gic_pribits = 5;
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
+
+    /* Xilinx FIXUPs.  */
+    /* These indicate the BP hardening and KPTI aren't needed.  */
+    uint64_t id_aa64pfr0;
+
+    id_aa64pfr0 = GET_IDREG(isar, ID_AA64PFR0);
+    id_aa64pfr0 |= (uint64_t)1 << 56; /* BP.  */
+    id_aa64pfr0 |= (uint64_t)1 << 60; /* KPTI.  */
+    SET_IDREG(isar, ID_AA64PFR0, id_aa64pfr0);
 }
 
 static void aarch64_host_initfn(Object *obj)
