@@ -38,6 +38,10 @@ specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
   'xlnx-versal-apu-ctrl.c'
 ))
 
+system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
+  'xlnx-versal-psm-local.c',
+))
+
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-pmc-clk-rst.c',
   'xlnx-versal-pmc-global.c',
