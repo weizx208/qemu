@@ -21,6 +21,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx-zynqmp-intc-redirect.c'))
 
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx_scu_gic.c'))
+system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files('xlnx-versal-ipi.c'))
 
 system_ss.add(when: 'CONFIG_ALLWINNER_A10_PIC', if_true: files('allwinner-a10-pic.c'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('aspeed_vic.c'))
