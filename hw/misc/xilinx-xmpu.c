@@ -988,7 +988,7 @@ static MemTxResult zero_read(void *opaque, hwaddr addr,
             addr = (DEP_AF_EX32(s->regs, POISON, BASE) << 12) | (addr & 0xfff);
             dma_memory_read(as, addr, &value, size, MEMTXATTRS_UNSPECIFIED);
         }
-        DEP_AF_DP32(s->regs, ERR_STATUS2, AXI_ID, attr.master_id);
+        DEP_AF_DP32(s->regs, ERR_STATUS2, AXI_ID, attr.requester_id);
         if (sec_vio) {
             DEP_AF_DP32(s->regs, ISR, SECURITYVIO, true);
         } else {
@@ -1026,7 +1026,7 @@ static MemTxResult zero_write(void *opaque, hwaddr addr, uint64_t value,
             addr = (DEP_AF_EX32(s->regs, POISON, BASE) << 12) | (addr & 0xfff);
             dma_memory_write(as, addr, &value, size, MEMTXATTRS_UNSPECIFIED);
         }
-        DEP_AF_DP32(s->regs, ERR_STATUS2, AXI_ID, attr.master_id);
+        DEP_AF_DP32(s->regs, ERR_STATUS2, AXI_ID, attr.requester_id);
         if (sec_vio) {
             DEP_AF_DP32(s->regs, ISR, SECURITYVIO, true);
         } else {
