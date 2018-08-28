@@ -895,6 +895,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    char *filename;
     RamDiscardManager *rdm; /* Only for RAM */
 
     /* For devices designed to perform re-entrant IO into their own IO MRs */
