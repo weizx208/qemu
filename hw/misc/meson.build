@@ -20,6 +20,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx_zynqmp_ams.c',
   'xilinx_zynqmp_sysmon.c',
   'mem_ctrl.c',
+  'xlnx-versal-pmc-analog.c',
   'test_component.c',
   'xilinx-smmu_reg.c',
   'arm-smmu.c',
