@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
+#include "qapi/error.h"
 #include "hw/fdt_generic_util.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -103,6 +104,11 @@ static bool ssi_slave_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
     DeviceState *parent = DEVICE(reg.parents[0]);
     BusState *parent_bus;
     char bus_name[16];
+
+    if (!parent) {
+        /* Not much we can do here but aborting.  */
+        error_setg(&error_fatal, "%s: No SSI Parent", DEVICE(s)->id);
+    }
 
     if (!parent->realized) {
         return true;
