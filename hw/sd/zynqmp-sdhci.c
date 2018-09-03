@@ -83,13 +83,9 @@ static void zynqmp_sdhci_slottype_handler(void *opaque, int n, int level)
 
 static void zynqmp_sdhci_reset(DeviceState *dev)
 {
-    ZynqMPSDHCIState *s = ZYNQMP_SDHCI(dev);
-    SDHCIState *ss = SYSBUS_SDHCI(dev);
     DeviceClass *dc_parent = DEVICE_CLASS(ZYNQMP_SDHCI_PARENT_CLASS);
 
     dc_parent->legacy_reset(dev);
-
-    sd_set_cb(s->card, ss->ro_cb, ss->eject_cb);
 }
 
 static void zynqmp_sdhci_realize(DeviceState *dev, Error **errp)
@@ -111,8 +107,9 @@ static void zynqmp_sdhci_realize(DeviceState *dev, Error **errp)
         index_offset++;
     }
 
-    qdev_prop_set_uint32(dev, "capareg",
-                         (uint32_t) SDHC_CAPAB_REG_DEFAULT | (1 << 28));
+    qdev_prop_set_uint8(dev, "sd-spec-version", 3);
+    qdev_prop_set_uint64(dev, "capareg", 0x280737ec6481);
+    qdev_prop_set_uint8(dev, "uhs", UHS_I);
     carddev_sd = qdev_new(TYPE_SD_CARD);
 
     /*
@@ -134,14 +131,13 @@ static void zynqmp_sdhci_realize(DeviceState *dev, Error **errp)
 
     if (di_sd) {
         qdev_prop_set_drive(carddev_sd, "drive", blk_by_legacy_dinfo(di_sd));
-        object_property_set_bool(OBJECT(carddev_sd), false, "mmc",
-                                 &error_fatal);
     }
 
     if (di_mmc) {
         qdev_prop_set_drive(carddev_sd, "drive", blk_by_legacy_dinfo(di_mmc));
-        object_property_set_bool(OBJECT(carddev_sd), true, "mmc", &error_fatal);
+        error_setg(&error_fatal, "MMC card not supported");
         s->is_mmc = true;
+        return;
     }
 
     qdev_realize(carddev_sd,
