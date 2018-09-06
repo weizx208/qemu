@@ -44,6 +44,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-psm-global.c',
   'xlnx-versal-ddrmc-ub.c',
   'xlnx-versal-ddrmc-main.c',
+  'xlnx-versal-ddrmc-noc.c',
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
