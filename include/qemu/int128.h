@@ -114,6 +114,16 @@ static inline Int128 int128_sub(Int128 a, Int128 b)
     return a - b;
 }
 
+static inline Int128 int128_mul(Int128 a, Int128 b)
+{
+    return a * b;
+}
+
+static inline Int128 int128_div(Int128 a, Int128 b)
+{
+    return a / b;
+}
+
 static inline bool int128_nonneg(Int128 a)
 {
     return a >= 0;
