@@ -40,6 +40,12 @@ struct GenericLoaderState {
     bool force_raw;
     bool data_be;
     bool set_pc;
+
+    struct {
+        bool secure;
+        bool debug;
+        uint16_t requester_id;
+    } attrs;
 };
 
 #define TYPE_GENERIC_LOADER "loader"

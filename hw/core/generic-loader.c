@@ -39,6 +39,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/core/generic-loader.h"
+#include "system/memory.h"
 
 #define CPU_NONE 0xFFFFFFFF
 
@@ -52,9 +53,20 @@ static void generic_loader_reset(void *opaque)
     }
 
     if (s->data_len) {
+        MemTxAttrs attrs = { .unspecified = 0,
+                             .secure = 0,
+                             .user = 0,
+                             .debug = 0,
+                             .requester_id = 0,
+        };
+
+        attrs.debug = s->attrs.debug;
+        attrs.secure = s->attrs.secure;
+        attrs.requester_id = s->attrs.requester_id;
+
         assert(s->data_len <= sizeof(s->data));
-        dma_memory_write(s->cpu->as, s->addr, &s->data, s->data_len,
-                         MEMTXATTRS_UNSPECIFIED);
+        address_space_rw(s->cpu->as, s->addr, attrs, (uint8_t *)&s->data,
+                         s->data_len, true);
     }
 }
 
@@ -206,6 +218,10 @@ static const Property generic_loader_props[] = {
     DEFINE_PROP_UINT32("cpu-num", GenericLoaderState, cpu_num, CPU_NONE),
     DEFINE_PROP_BOOL("force-raw", GenericLoaderState, force_raw, false),
     DEFINE_PROP_STRING("file", GenericLoaderState, file),
+    DEFINE_PROP_UINT16("attrs-requester-id", GenericLoaderState,
+                       attrs.requester_id, 0),
+    DEFINE_PROP_BOOL("attrs-debug", GenericLoaderState, attrs.debug, false),
+    DEFINE_PROP_BOOL("attrs-secure", GenericLoaderState, attrs.secure, false),
 };
 
 static void generic_loader_class_init(ObjectClass *klass, const void *data)
