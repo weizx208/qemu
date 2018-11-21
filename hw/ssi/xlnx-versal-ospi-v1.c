@@ -404,6 +404,7 @@ typedef struct OSPI {
     qemu_irq irq;
 
     DmaCtrl *dma_src;
+    bool dac_enable;
 
     IndOp rd_ind_op[2];
     IndOp wr_ind_op[2];
@@ -1703,7 +1704,8 @@ static uint64_t ospi_dac_read(void *opaque, hwaddr addr, unsigned int size)
         if (is_inside_indac_range(s, addr)) {
             return ospi_indac_read(s, size);
         }
-        if (DEP_AF_EX32(s->regs, CONFIG_REG, ENB_DIR_ACC_CTLR_FLD)) {
+        if (ARRAY_FIELD_EX32(s->regs, CONFIG_REG, ENB_DIR_ACC_CTLR_FLD)
+            && s->dac_enable) {
             if (ARRAY_FIELD_EX32(s->regs,
                                  CONFIG_REG, ENB_AHB_ADDR_REMAP_FLD)) {
                 addr += s->regs[R_REMAP_ADDR_REG];
@@ -1728,7 +1730,8 @@ static void ospi_dac_write(void *opaque, hwaddr addr, uint64_t value,
         if (is_inside_indac_range(s, addr)) {
             return ospi_indac_write(s, value, size);
         }
-        if (DEP_AF_EX32(s->regs, CONFIG_REG, ENB_DIR_ACC_CTLR_FLD)) {
+        if (ARRAY_FIELD_EX32(s->regs, CONFIG_REG, ENB_DIR_ACC_CTLR_FLD) &&
+            s->dac_enable) {
             if (ARRAY_FIELD_EX32(s->regs,
                                  CONFIG_REG, ENB_AHB_ADDR_REMAP_FLD)) {
                 addr += s->regs[R_REMAP_ADDR_REG];
@@ -1761,6 +1764,13 @@ static const MemoryRegionOps ospi_dac_ops = {
     },
 };
 
+static void ospi_update_dac_status(void *opaque, int n, int level)
+{
+    OSPI *s = XILINX_OSPI(opaque);
+
+    s->dac_enable = level;
+}
+
 static void ospi_realize(DeviceState *dev, Error **errp)
 {
     OSPI *s = XILINX_OSPI(dev);
@@ -1770,6 +1780,7 @@ static void ospi_realize(DeviceState *dev, Error **errp)
     s->cs_lines = g_new0(qemu_irq, s->num_cs);
     ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi);
     qdev_init_gpio_out(dev, s->cs_lines, s->num_cs);
+    qdev_init_gpio_in(dev, ospi_update_dac_status, 1);
 }
 
 static void ospi_init(Object *obj)
