@@ -44,6 +44,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-trng.c'))
 
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('i2c-dev-dummy.c'))
+system_ss.add(when: 'CONFIG_M24CXX', if_true: files('sodimm-spd.c'))
 system_ss.add(files('gpio-mr-mux.c'))
 
 system_ss.add(when: 'CONFIG_SI57X', if_true: files('si57x.c'))
