@@ -70,6 +70,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-gty-npi.c',
   'xlnx-versal-xpio-dci.c',
   'xlnx-versal-cmt-xpll.c',
+  'xlnx-versal-cmt-dpll.c',
+  'xlnx-versal-cmt-mmcm.c',
   'pmc_sbi.c',
   'sss-pmc.c'))
 
