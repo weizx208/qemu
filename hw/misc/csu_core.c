@@ -43,8 +43,9 @@
 #define XILINX_CSU_CORE(obj) \
      OBJECT_CHECK(CSU, (obj), TYPE_XILINX_CSU_CORE)
 
-#define XFSBL_PLATFORM_QEMU  0X00003000U
-#define QEMU_IDCODE          0x4600093
+#define VERSION_PLATFORM_QEMU   0x3
+#define VERSION_PS_VERSION_PROD 0x3
+#define QEMU_IDCODE             0x4600093
 
 DEP_REG32(CSU_STATUS, 0x0)
     DEP_FIELD(CSU_STATUS, BOOT_ENC, 1, 1)
@@ -171,6 +172,7 @@ DEP_REG32(JTAG_DAP_CFG, 0x3c)
     DEP_FIELD(JTAG_DAP_CFG, SSSS_APU_DBGEN, 1, 0)
 DEP_REG32(IDCODE, 0x40)
 DEP_REG32(VERSION, 0x44)
+    DEP_FIELD(VERSION, PLATFORM, 4, 12)
     DEP_FIELD(VERSION, PS_VERSION, 4, 0)
 DEP_REG32(CSU_ROM_DIGEST_0, 0x50)
 DEP_REG32(CSU_ROM_DIGEST_1, 0x54)
@@ -364,6 +366,14 @@ typedef struct CSU {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
+    struct {
+        uint32_t idcode;
+        struct {
+            uint8_t platform;
+            uint8_t ps_version;
+        } version;
+    } cfg;
+
     qemu_irq irq_csu;
 
     uint32_t regs[R_MAX];
@@ -429,10 +439,9 @@ static const DepRegisterAccessInfo csu_core_regs_info[] = {
     },{ .name = "JTAG_SEC",  .decode.addr = A_JTAG_SEC,
     },{ .name = "JTAG_DAP_CFG",  .decode.addr = A_JTAG_DAP_CFG,
     },{ .name = "IDCODE",  .decode.addr = A_IDCODE,
-        .ro = 0xffffffff, .reset = QEMU_IDCODE,
+        .ro = 0xffffffff,
     },{ .name = "VERSION",  .decode.addr = A_VERSION,
         .ro = 0xfffff,
-        .reset = XFSBL_PLATFORM_QEMU,
     },
 #define P(n) \
     {   .name = "CSU_ROM_DIGEST_" #n, \
@@ -532,7 +541,9 @@ static void csu_core_reset(DeviceState *dev)
     for (i = 0; i < R_MAX; ++i) {
         dep_register_reset(&s->regs_info[i]);
     }
-
+    s->regs[R_IDCODE] = s->cfg.idcode;
+    DEP_AF_DP32(s->regs, VERSION, PLATFORM, s->cfg.version.platform);
+    DEP_AF_DP32(s->regs, VERSION, PS_VERSION, s->cfg.version.ps_version);
     csu_update_irq(s);
 }
 
@@ -581,12 +592,21 @@ static const VMStateDescription vmstate_csu_core = {
     }
 };
 
+static const Property csu_core_properties[] = {
+    DEFINE_PROP_UINT8("version-platform", CSU, cfg.version.platform,
+                      VERSION_PLATFORM_QEMU),
+    DEFINE_PROP_UINT8("version-ps-version", CSU, cfg.version.ps_version,
+                      VERSION_PS_VERSION_PROD),
+    DEFINE_PROP_UINT32("idcode", CSU, cfg.idcode, QEMU_IDCODE),
+};
+
 static void csu_core_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, csu_core_reset);
     dc->realize = csu_core_realize;
+    device_class_set_props(dc, csu_core_properties);
     dc->vmsd = &vmstate_csu_core;
 }
 
