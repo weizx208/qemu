@@ -45,6 +45,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-ddrmc-ub.c',
   'xlnx-versal-ddrmc-main.c',
   'xlnx-versal-ddrmc-noc.c',
+  'xlnx-versal-rpu.c',
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
