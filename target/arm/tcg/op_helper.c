@@ -389,7 +389,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
     ARMCPU *cpu = env_archcpu(env);
     int target_el = check_wfx_trap(env, false, &excp);
 
-    if (cpu_has_work(cs)) {
+    if (cpu_has_work(cs) && 0) {
         cs->exception_index = -1;
         cpu_loop_exit(cs);
         return;
