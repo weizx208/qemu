@@ -37,6 +37,7 @@
 #include "hw/core/cpu.h"
 #include "exec/icount.h"
 #include "system/cpu-timers-internal.h"
+#include "qemu/log.h"
 
 /*
  * ICOUNT: Instruction Counter
@@ -110,8 +111,7 @@ static int64_t icount_get_raw_locked(void)
 
     if (cpu && cpu->running) {
         if (!cpu->neg.can_do_io) {
-            error_report("Bad icount read");
-            exit(1);
+            qemu_log("Bad icount read\n");
         }
         /* Take into account what has run */
         icount_update_locked(cpu);
