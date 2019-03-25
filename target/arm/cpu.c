@@ -2372,7 +2372,9 @@ static void update_wfi_out(void *opaque, int level)
 static void arm_cpu_pwr_cntrl(void *opaque, int n, int level)
 {
     DeviceClass *dc_parent = DEVICE_CLASS(ARM_CPU_PARENT_CLASS);
+    ARMCPU *cpu = ARM_CPU(opaque);
 
+    cpu->power_state = level ? PSCI_ON : PSCI_OFF;
     dc_parent->pwr_cntrl(opaque, n, level);
     update_wfi_out(opaque, level);
 }
