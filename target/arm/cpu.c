@@ -56,6 +56,10 @@
 #include "trace.h"
 #include "hw/irq.h"
 
+#if !defined(CONFIG_USER_ONLY)
+static void arm_cpu_set_irq(void *opaque, int irq, int level);
+#endif
+
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -231,6 +235,7 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 #ifndef CONFIG_USER_ONLY
     CPUClass *cc = CPU_GET_CLASS(cs);
     vaddr old_pc = is_a64(&cpu->env) ? cpu->env.pc : cpu->env.regs[15];
+    int i;
 #endif
 
     trace_arm_cpu_reset(arm_cpu_mp_affinity(cpu));
@@ -612,6 +617,13 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
             /* Only set secure mode if the CPU support EL3 */
             cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
     }
+
+    for (i = 0; i < ARRAY_SIZE(cpu->env.irq_wires); i++) {
+        if (!arm_feature(env, ARM_FEATURE_EL2) && i >= ARM_CPU_VIRQ) {
+            break;
+        }
+        arm_cpu_set_irq(cpu, i, cpu->env.irq_wires[i]);
+    }
 #endif
 }
 
@@ -758,6 +770,8 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
          */
         return;
     }
+
+    env->irq_wires[irq] = level;
 
     if (level) {
         env->irq_line_state |= mask[irq];

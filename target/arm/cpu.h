@@ -763,6 +763,7 @@ typedef struct CPUArchState {
     struct {} end_reset_fields;
 
     /* Fields after this point are preserved across CPU reset. */
+    bool irq_wires[4];
 
     /* Internal CPU feature flags.  */
     uint64_t features;
