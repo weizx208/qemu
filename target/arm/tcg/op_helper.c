@@ -406,6 +406,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
                         target_el);
     }
 
+    bql_lock();
     if (use_icount) {
         cs->exception_index = EXCP_YIELD;
     } else {
@@ -415,6 +416,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
 
     cpu->is_in_wfi = true;
     qemu_set_irq(cpu->wfi, 1);
+    bql_unlock();
 
     cpu_loop_exit(cs);
 #endif
