@@ -70,6 +70,11 @@ CPUState *cpu_create(const char *typename)
 void cpu_reset_interrupt(CPUState *cpu, int mask)
 {
     qatomic_and(&cpu->interrupt_request, ~mask);
+
+    /* Need to kick the CPU to get it out of qemu_tcg_wait_io_event if
+     * resetting CPU_INTERRUPT_HALT.
+     */
+    qemu_cpu_kick(cpu);
 }
 
 void cpu_exit(CPUState *cpu)
