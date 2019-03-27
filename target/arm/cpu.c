@@ -2374,15 +2374,6 @@ static const Property arm_cpu_properties[] = {
                       backcompat_pauth_default_use_qarma5, false),
 };
 
-/* Update state of wfi out gpio */
-static void update_wfi_out(void *opaque, int level)
-{
-    ARMCPU *cpu = ARM_CPU(opaque);
-
-    cpu->is_in_wfi = level;
-    qemu_set_irq(cpu->wfi, level);
-}
-
 static void arm_cpu_pwr_cntrl(void *opaque, int n, int level)
 {
     DeviceClass *dc_parent = DEVICE_CLASS(ARM_CPU_PARENT_CLASS);
@@ -2390,7 +2381,6 @@ static void arm_cpu_pwr_cntrl(void *opaque, int n, int level)
 
     cpu->power_state = level ? PSCI_ON : PSCI_OFF;
     dc_parent->pwr_cntrl(opaque, n, level);
-    update_wfi_out(opaque, level);
 }
 
 static const gchar *arm_gdb_arch_name(CPUState *cs)
