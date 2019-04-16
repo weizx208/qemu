@@ -47,6 +47,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-ddrmc-noc.c',
   'xlnx-versal-afi-fm.c',
   'xlnx-versal-rpu.c',
+  'xlnx-versal-cci_reg.c',
   'xlnx-versal-cci500.c',
 ))
 
