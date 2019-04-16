@@ -26,6 +26,7 @@
 #include "target/arm/idau.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "cpu.h"
 #ifdef CONFIG_TCG
 #include "exec/translation-block.h"
@@ -1274,6 +1275,24 @@ static const Property arm_cpu_reset_cbar_property =
 static const Property arm_cpu_reset_hivecs_property =
             DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
 
+static void arm_cpu_set_memattr_secure(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    CPUState *s = CPU(obj);
+    bool secure;
+    MemTxAttrs attrs;
+
+    visit_type_bool(v, name, &secure, errp);
+
+    attrs = cpu_address_space_get_memattrs(s, ARMASIdx_NS);
+    attrs.unspecified = false;
+    attrs.secure = secure;
+    cpu_address_space_set_memattrs(s, ARMASIdx_NS, attrs);
+
+    tlb_flush(s);
+}
+
 static const Property arm_cpu_has_el2_property =
             DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
 
@@ -1511,6 +1530,12 @@ static void arm_cpu_post_init(Object *obj)
         object_property_add_uint64_ptr(obj, "rvbar",
                                        &cpu->rvbar_prop,
                                        OBJ_PROP_FLAG_READWRITE);
+    }
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+        object_property_add(obj, "memattr-secure", "bool",
+                            NULL, arm_cpu_set_memattr_secure,
+                            NULL, NULL);
     }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
