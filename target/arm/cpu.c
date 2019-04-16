@@ -1275,6 +1275,7 @@ static const Property arm_cpu_reset_cbar_property =
 static const Property arm_cpu_reset_hivecs_property =
             DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
 
+#ifndef CONFIG_USER_ONLY
 static void arm_cpu_set_memattr_secure(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -1292,6 +1293,7 @@ static void arm_cpu_set_memattr_secure(Object *obj, Visitor *v,
 
     tlb_flush(s);
 }
+#endif
 
 static const Property arm_cpu_has_el2_property =
             DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
@@ -1532,11 +1534,13 @@ static void arm_cpu_post_init(Object *obj)
                                        OBJ_PROP_FLAG_READWRITE);
     }
 
+#ifndef CONFIG_USER_ONLY
     if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
         object_property_add(obj, "memattr-secure", "bool",
                             NULL, arm_cpu_set_memattr_secure,
                             NULL, NULL);
     }
+#endif
 
     if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
         /* Add the has_el3 state CPU property only if EL3 is allowed.  This will
