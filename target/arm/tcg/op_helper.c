@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/target_page.h"
+#include "exec/icount.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "accel/tcg/cpu-ldst.h"
@@ -407,7 +408,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
     }
 
     bql_lock();
-    if (use_icount) {
+    if (use_icount || 1) {
         cs->exception_index = EXCP_YIELD;
     } else {
         cs->halted = 1;
