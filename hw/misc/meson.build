@@ -32,6 +32,16 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'reset-domain.c',
 ))
 
+system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_CSU', if_true: files(
+  'csu_sha3.c',
+  'ipcores-rsa5-4k.c',
+  'csu_rsa5_4k.c',
+  'xlnx-versal-ecdsa-rsa.c',
+  'ipcores-rsa5-4k.c',
+  'csu_rsa5_4k.c',
+  'xlnx-versal-ecdsa-rsa.c',
+))
+
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
   'xilinx-lpd-slcr.c',
   'xilinx_zynqmp_apu_ctrl.c',
