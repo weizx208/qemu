@@ -153,6 +153,7 @@ static const Property cpu_system_props[] = {
      */
     DEFINE_PROP_LINK("memory", CPUState, memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
+    DEFINE_PROP_BOOL("halt", CPUState, reset_pin, false),
     DEFINE_PROP_STRING("gdb-id", CPUState, gdb_id),
 };
 
