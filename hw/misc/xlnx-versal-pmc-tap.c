@@ -45,7 +45,7 @@
 
 #define XILINX_PMC_TAP(obj) \
      OBJECT_CHECK(PMC_TAP, (obj), TYPE_XILINX_PMC_TAP)
-#define PLATFORM_VERSION_QEMU   (0x3 << 24)
+#define PLATFORM_VERSION_QEMU   0x3
 
 #define MAX_SEC_PAYLOAD (4 * 512)
 
@@ -703,6 +703,7 @@ typedef struct PMC_TAP {
     qemu_irq irq_pmc_tap_int;
     CharFrontend chr;
 
+    uint8_t platform;
     uint8_t sec_dbg_dis;
     uint32_t slr_type;
     uint32_t payload_received;
@@ -781,7 +782,6 @@ static RegisterAccessInfo pmc_tap_regs_info[] = {
         .ro = 0xffffffff,
     },{ .name = "VERSION",  .addr = A_VERSION,
         .ro = 0xffffffff,
-        .reset = PLATFORM_VERSION_QEMU,
     },{ .name = "USERCODE",  .addr = A_USERCODE,
     },{ .name = "PMC_TAP_INT_STATUS",  .addr = A_PMC_TAP_INT_STATUS,
         .w1c = 0x1f,
@@ -1853,6 +1853,7 @@ static void pmc_tap_reset(DeviceState *dev)
     s->regs[R_SLR_TYPE] = s->slr_type;
     s->auth_data_load = 0;
     s->payload_received = 0;
+    ARRAY_FIELD_DP32(s->regs, VERSION, PLATFORM, s->platform);
     sec_dbg_int_update_irq(s);
     pmc_tap_int_update_irq(s);
 }
@@ -1972,6 +1973,8 @@ static const Property pmc_tap_props[] = {
         DEFINE_PROP_CHR("chardev", PMC_TAP, chr),
         DEFINE_PROP_UINT32("slr-type", PMC_TAP, slr_type,
                            PMC_TAP_SLR_TYPE_MONO),
+        DEFINE_PROP_UINT8("platform", PMC_TAP, platform,
+                          PLATFORM_VERSION_QEMU),
 };
 
 static void pmc_tap_class_init(ObjectClass *klass, const void *data)
