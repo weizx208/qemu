@@ -41,7 +41,7 @@
 #define TYPE_XILINX_IPI "xlnx.versal-ipi"
 
 #define XILINX_IPI(obj) \
-     OBJECT_CHECK(XlnxZynq3IPI, (obj), TYPE_XILINX_IPI)
+     OBJECT_CHECK(XlnxVersalIPI, (obj), TYPE_XILINX_IPI)
 
 REG32(IPI_CTRL, 0x0)
     FIELD(IPI_CTRL, SLVERR_ENABLE, 0, 1)
@@ -923,7 +923,7 @@ REG32(IPI6_IDR, 0xa001c)
 
 #define IPI_R_MAX (R_IPI6_IDR + 1)
 
-typedef struct XlnxZynq3IPI {
+typedef struct XlnxVersalIPI {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
     qemu_irq irq_psm;
@@ -934,7 +934,7 @@ typedef struct XlnxZynq3IPI {
 
     uint32_t regs[IPI_R_MAX];
     RegisterInfo regs_info[IPI_R_MAX];
-} XlnxZynq3IPI;
+} XlnxVersalIPI;
 
 #define MAP_AGENT_TO_REG(agent, reg) \
     [R_PSM_TRIG_ ## agent ##_SHIFT] = R_ ## agent ## _ ## reg
@@ -987,7 +987,7 @@ static unsigned int map_base_to_agent(hwaddr addr)
 }
 
 /* Generate all observer bits.  */
-static void ipi_update_obs(XlnxZynq3IPI *s)
+static void ipi_update_obs(XlnxVersalIPI *s)
 {
     unsigned int agent2isr[] = {
         R_PSM_ISR,
@@ -1019,7 +1019,7 @@ static void ipi_update_obs(XlnxZynq3IPI *s)
 }
 
 /* The IPIs connected between agents.  */
-static void x_update_irq(XlnxZynq3IPI *s)
+static void x_update_irq(XlnxVersalIPI *s)
 {
     struct {
         unsigned int r_isr;
@@ -1054,7 +1054,7 @@ static void x_update_irq(XlnxZynq3IPI *s)
 
 static uint64_t ipi_int_trig_prew(RegisterInfo *reg, uint64_t val64)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(reg->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg->opaque);
     uint32_t val = val64;
 
     s->regs[R_IPI_ISR] |= val;
@@ -1064,13 +1064,13 @@ static uint64_t ipi_int_trig_prew(RegisterInfo *reg, uint64_t val64)
 
 static void x_isr_postw(RegisterInfo *reg, uint64_t val64)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(reg->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg->opaque);
     x_update_irq(s);
 }
 
 static uint64_t x_ier_prew(RegisterInfo *reg, uint64_t val64)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(reg->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg->opaque);
     hwaddr addr = reg->access->addr;
     uint32_t val = val64;
 
@@ -1081,7 +1081,7 @@ static uint64_t x_ier_prew(RegisterInfo *reg, uint64_t val64)
 
 static uint64_t x_idr_prew(RegisterInfo *reg, uint64_t val64)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(reg->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg->opaque);
     hwaddr addr = reg->access->addr;
     uint32_t val = val64;
 
@@ -1092,7 +1092,7 @@ static uint64_t x_idr_prew(RegisterInfo *reg, uint64_t val64)
 
 static void x_trig_postw(RegisterInfo *reg, uint64_t val64)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(reg->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg->opaque);
     /*
      * Maps agent index to corresponding ISR register.
      */
@@ -1314,7 +1314,7 @@ static const RegisterAccessInfo ipi_regs_info[] = {
     GEN_IPI_REG_ACCESS_INFO(IPI6),
 };
 
-static void ipi_report_error(XlnxZynq3IPI *s, hwaddr addr, MemTxAttrs attrs)
+static void ipi_report_error(XlnxVersalIPI *s, hwaddr addr, MemTxAttrs attrs)
 {
     /* Report the failed target address.  */
     ARRAY_FIELD_DP32(s->regs, IPI_PROT_ERR_STATUS1_LOW, ADDR, addr);
@@ -1324,7 +1324,7 @@ static void ipi_report_error(XlnxZynq3IPI *s, hwaddr addr, MemTxAttrs attrs)
                      attrs.requester_id);
 }
 
-static bool ipi_valid_access(XlnxZynq3IPI *s, hwaddr addr,
+static bool ipi_valid_access(XlnxVersalIPI *s, hwaddr addr,
                              bool rw, MemTxAttrs attrs)
 {
     bool agent_area_access = false;
@@ -1447,7 +1447,7 @@ static MemTxResult ipi_read(void *opaque, hwaddr addr,
                             uint64_t *data, unsigned size, MemTxAttrs attrs)
 {
     RegisterInfoArray *reg_array = opaque;
-    XlnxZynq3IPI *s = XILINX_IPI(reg_array->r[0]->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg_array->r[0]->opaque);
     bool hide_errors = ARRAY_FIELD_EX32(s->regs, IPI_PROT_CTRL, HIDEALLOWED);
 
     if (!ipi_valid_access(s, addr, false, attrs)) {
@@ -1462,7 +1462,7 @@ static MemTxResult ipi_write(void *opaque, hwaddr addr,
                              uint64_t data, unsigned size, MemTxAttrs attrs)
 {
     RegisterInfoArray *reg_array = opaque;
-    XlnxZynq3IPI *s = XILINX_IPI(reg_array->r[0]->opaque);
+    XlnxVersalIPI *s = XILINX_IPI(reg_array->r[0]->opaque);
     bool hide_errors = ARRAY_FIELD_EX32(s->regs, IPI_PROT_CTRL, HIDEALLOWED);
 
     if (!ipi_valid_access(s, addr, false, attrs)) {
@@ -1485,7 +1485,7 @@ static const MemoryRegionOps ipi_ops = {
 
 static void ipi_reset(DeviceState *dev)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(dev);
+    XlnxVersalIPI *s = XILINX_IPI(dev);
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
@@ -1496,7 +1496,7 @@ static void ipi_reset(DeviceState *dev)
 
 static void ipi_init(Object *obj)
 {
-    XlnxZynq3IPI *s = XILINX_IPI(obj);
+    XlnxVersalIPI *s = XILINX_IPI(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     RegisterInfoArray *reg_array;
     int i;
@@ -1528,7 +1528,7 @@ static const VMStateDescription vmstate_ipi = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynq3IPI, IPI_R_MAX),
+        VMSTATE_UINT32_ARRAY(regs, XlnxVersalIPI, IPI_R_MAX),
         VMSTATE_END_OF_LIST(),
     }
 };
@@ -1544,7 +1544,7 @@ static void ipi_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo ipi_info = {
     .name          = TYPE_XILINX_IPI,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxZynq3IPI),
+    .instance_size = sizeof(XlnxVersalIPI),
     .class_init    = ipi_class_init,
     .instance_init = ipi_init,
 };
