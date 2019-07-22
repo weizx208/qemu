@@ -1950,8 +1950,32 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         this_size = 1 << this_mop;
         this_mop |= MO_BE;
 
-        r = memory_region_dispatch_read(mr, mr_offset, &val,
-                                        this_mop, full->attrs);
+        {
+            /*
+             * Xilinx: Make sure we first check if the MemoryRegion is an IOMMU region.
+             * This is required to make sure the XMPU works as expected.
+             */
+            if (memory_region_get_iommu(mr)) {
+                r = address_space_rw(cpu->as, mr_offset, full->attrs,
+                                     (void *) &val, this_size, false);
+                switch(this_size) {
+                case 8:
+                    val = bswap64(val);
+                    break;
+                case 4:
+                    val = bswap32(val);
+                    break;
+                case 2:
+                    val = bswap16(val);
+                    break;
+                default:
+                    break;
+                }
+            } else {
+                r = memory_region_dispatch_read(mr, mr_offset, &val,
+                                                this_mop, full->attrs);
+            }
+        }
         if (unlikely(r != MEMTX_OK)) {
             io_failed(cpu, full, addr, this_size, type, mmu_idx, r, ra);
         }
@@ -2491,8 +2515,19 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
         this_size = 1 << this_mop;
         this_mop |= MO_LE;
 
-        r = memory_region_dispatch_write(mr, mr_offset, val_le,
-                                         this_mop, full->attrs);
+        {
+            /*
+             * Xilinx: Make sure we first check if iommu_ops is avaliable. This is
+             * required to make sure the XMPU works as expected.
+             */
+            if (memory_region_get_iommu(mr)) {
+                r = address_space_rw(cpu->as, mr_offset, full->attrs,
+                                     (void *) &val_le, this_size, true);
+            } else {
+                r = memory_region_dispatch_write(mr, mr_offset, val_le,
+                                                 this_mop, full->attrs);
+            }
+        }
         if (unlikely(r != MEMTX_OK)) {
             io_failed(cpu, full, addr, this_size, MMU_DATA_STORE,
                       mmu_idx, r, ra);
