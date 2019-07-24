@@ -784,6 +784,9 @@ static void zdma_realize(DeviceState *dev, Error **errp)
     }
 
     s->attr = MEMTXATTRS_UNSPECIFIED;
+    if (s->attr_ptr) {
+        s->attr = *s->attr_ptr;
+    }
 }
 
 static void zdma_init(Object *obj)
@@ -795,6 +798,10 @@ static void zdma_init(Object *obj)
                           TYPE_XLNX_ZDMA, ZDMA_R_MAX * 4);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq_zdma_ch_imr);
+    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+                             (Object **)&s->attr_ptr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
 }
 
 static const VMStateDescription vmstate_zdma = {
