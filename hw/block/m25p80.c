@@ -477,6 +477,7 @@ typedef enum {
     MAN_SST,
     MAN_ISSI,
     MAN_GENERIC,
+    MAN_MICRON_OCTAL,
 } Manufacturer;
 
 typedef enum {
@@ -557,6 +558,8 @@ static inline Manufacturer get_man(Flash *s)
         return MAN_MACRONIX;
     case 0xBF:
         return MAN_SST;
+    case 0x2C:
+        return MAN_MICRON_OCTAL;
     case 0x9D:
         return MAN_ISSI;
     default:
