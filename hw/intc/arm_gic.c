@@ -1694,13 +1694,7 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         break;
     }
     case 0xfc:
-        if (s->revision == REV_11MPCORE) {
-            /* Reserved on 11MPCore */
-            *data = 0;
-        } else {
-            /* GICv1 or v2; Arm implementation */
-            *data = (s->revision << 16) | 0x43b;
-        }
+        *data = s->c_iidr;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -2162,6 +2156,10 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (!s->c_iidr) {
+        s->c_iidr |= s->revision << 16;
+        s->c_iidr |= 0x43B;
+    }
 }
 
 static void arm_gic_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
