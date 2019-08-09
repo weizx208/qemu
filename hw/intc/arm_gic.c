@@ -1781,6 +1781,8 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         s->running_priority[cpu] = gic_get_prio_from_apr_bits(s, cpu);
         break;
     }
+    /* TODO: Remove the 0x10000 offset together with deprecating map-stride.  */
+    case 0x10000:
     case 0x1000:
         /* GICC_DIR */
         gic_deactivate_irq(s, cpu, value & 0x3ff, attrs);
