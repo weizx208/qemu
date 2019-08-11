@@ -32,6 +32,7 @@
 #include "qom/object.h"
 
 #define TYPE_XLNX_ZYNQMP_RTC "xlnx-zynmp.rtc"
+#define TYPE_XLNX_ZYNQMP_ALIAS_RTC "xlnx-zynqmp-rtc"
 
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPRTC, XLNX_ZYNQMP_RTC)
 
