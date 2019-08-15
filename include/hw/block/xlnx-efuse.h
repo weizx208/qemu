@@ -45,6 +45,7 @@
 typedef struct XLNXEFuse {
     DeviceState parent_obj;
     BlockBackend *blk;
+    bool blk_ro;
     uint32_t *fuse32;
 
     void (*pgm_done)(DeviceState *dev, bool failed);
