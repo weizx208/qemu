@@ -15,6 +15,10 @@ void qemu_init_vcpu(CPUState *cpu)
 {
 }
 
+void cpu_exec_reset(CPUState *cpu)
+{
+}
+
 void cpu_exec_reset_hold(CPUState *cpu)
 {
 }

@@ -24,6 +24,7 @@
 #include "exec/cputlb.h"
 #include "system/memory.h"
 #include "qemu/target-info.h"
+#include "hw/core/cpu-exec-gpio.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/sysemu-cpu-ops.h"
@@ -190,10 +191,24 @@ void cpu_exec_class_post_init(CPUClass *cc)
     g_assert(cc->sysemu_ops->has_work);
 }
 
+void cpu_exec_reset(CPUState *cpu)
+{
+    /* Desired state before lost to pin-driven action */
+    bool old_halt = cpu->halt_pin;
+    bool old_reset = cpu->reset_pin;
+
+    cpu_halt_gpio(cpu, 0, old_halt);
+    cpu_reset_gpio(cpu, 0, old_reset);
+}
+
 void cpu_exec_initfn(CPUState *cpu)
 {
     cpu->memory = get_system_memory();
     object_ref(OBJECT(cpu->memory));
+
+    /* Xilinx: The GPIO lines we use */
+    qdev_init_gpio_in_named(DEVICE(cpu), cpu_reset_gpio, "reset", 1);
+    qdev_init_gpio_in_named(DEVICE(cpu), cpu_halt_gpio, "halt", 1);
 }
 
 static int cpu_common_post_load(void *opaque, int version_id)

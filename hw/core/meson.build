@@ -50,6 +50,7 @@ specific_ss.add(when: 'CONFIG_REMOTE_PORT_PCI', if_true: files(
 ))
 
 specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
+  'cpu-exec-gpio.c',
   'remote-port-qdev.c'
 ))
 

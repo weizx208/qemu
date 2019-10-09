@@ -1186,6 +1186,7 @@ AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx);
 
 G_NORETURN void cpu_abort(CPUState *cpu, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
+void cpu_exec_reset(CPUState *cpu);
 
 /**
  * qemu_process_cpu_events:
@@ -1207,10 +1208,6 @@ void cpu_exec_unrealizefn(CPUState *cpu);
 void cpu_exec_reset_hold(CPUState *cpu);
 
 extern const VMStateDescription vmstate_cpu_common;
-
-void cpu_halt_gpio(void *opaque, int irq, int level);
-void cpu_reset_gpio(void *opaque, int irq, int level);
-void cpu_halt_update(CPUState *cpu);
 
 #define UNASSIGNED_CPU_INDEX -1
 #define UNASSIGNED_CLUSTER_INDEX -1

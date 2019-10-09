@@ -56,6 +56,7 @@
 
 #include "trace.h"
 #include "hw/irq.h"
+#include "hw/core/cpu-exec-gpio.h"
 
 #if !defined(CONFIG_USER_ONLY)
 static void arm_cpu_set_irq(void *opaque, int irq, int level);

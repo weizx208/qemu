@@ -34,6 +34,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
+#include "hw/core/cpu-exec-gpio.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/fdt_generic_util.h"
@@ -540,10 +541,10 @@ static void mb_cpu_class_init(ObjectClass *oc, const void *data)
 
 #ifndef CONFIG_USER_ONLY
     fggc->controller_gpios = mb_ctrl_gpios;
+    dc->rst_cntrl = cpu_reset_gpio;
 #endif
     cc->disas_set_info = mb_disas_set_info;
     cc->tcg_ops = &mb_tcg_ops;
-    cc->rst_cntrl = cpu_reset_gpio;
 }
 
 static const TypeInfo mb_cpu_type_info = {
