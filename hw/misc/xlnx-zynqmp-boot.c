@@ -36,6 +36,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "system/reset.h"
 
 #include "hw/misc/xlnx-zynqmp-pmufw-cfg.h"
 
@@ -107,6 +108,8 @@ typedef struct ZynqMPBoot {
 
     /* ZynqMP Boot reset is active-low.  */
     bool n_reset;
+
+    bool boot_ready;
 
     struct {
         uint32_t cpu_num;
@@ -280,6 +283,7 @@ static void boot_sequence(void *opaque)
             release_cpu(s);
         }
         s->state = STATE_DONE;
+        s->boot_ready = false;
         break;
 
     case STATE_DONE:
@@ -295,6 +299,16 @@ static void irq_handler(void *opaque, int irq, int level)
     ZynqMPBoot *s = XILINX_ZYNQMP_BOOT(opaque);
 
     if (!s->n_reset && level) {
+        s->boot_ready = true;
+    }
+    s->n_reset = level;
+}
+
+static void zynqmp_boot_reset(void *opaque)
+{
+    ZynqMPBoot *s = XILINX_ZYNQMP_BOOT(opaque);
+
+    if (s->boot_ready) {
         /* Start the boot sequence.  */
         DB_PRINT("Starting the boot sequence\n");
         s->state = STATE_WAIT_PMUFW;
@@ -302,7 +316,6 @@ static void irq_handler(void *opaque, int irq, int level)
         boot_sequence(s);
         ptimer_transaction_commit(s->ptimer);
     }
-    s->n_reset = level;
 }
 
 static void zynqmp_boot_realize(DeviceState *dev, Error **errp)
@@ -316,10 +329,17 @@ static void zynqmp_boot_realize(DeviceState *dev, Error **errp)
     s->dma_as = s->dma_mr ? address_space_init_shareable(s->dma_mr, NULL)
                           : &address_space_memory;
 
+    qemu_register_reset_loader(zynqmp_boot_reset, dev);
+
     s->ptimer = ptimer_init(boot_sequence, s, PTIMER_POLICY_LEGACY);
     ptimer_transaction_begin(s->ptimer);
     ptimer_set_freq(s->ptimer, 1000000);
     ptimer_transaction_commit(s->ptimer);
+}
+
+static void zynqmp_boot_unrealize(DeviceState *dev)
+{
+    qemu_unregister_reset_loader(zynqmp_boot_reset, dev);
 }
 
 static void zynqmp_boot_init(Object *obj)
@@ -345,6 +365,7 @@ static void zynqmp_boot_class_init(ObjectClass *klass, const void *data)
 
     dc->realize = zynqmp_boot_realize;
     device_class_set_props(dc, zynqmp_boot_props);
+    dc->unrealize = zynqmp_boot_unrealize;
 }
 
 static const TypeInfo zynqmp_boot_info = {
