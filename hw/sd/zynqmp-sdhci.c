@@ -118,6 +118,8 @@ static void zynqmp_sdhci_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_uint64(dev, "capareg", 0x280737ec6481);
     qdev_prop_set_uint8(dev, "uhs", UHS_I);
     carddev_sd = qdev_new(TYPE_SD_CARD);
+    object_property_add_child(OBJECT(dev), "sd-card",
+                              OBJECT(carddev_sd));
 
     /*
      * drive_index is used to attach a card in SD mode.
