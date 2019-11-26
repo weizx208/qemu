@@ -863,7 +863,6 @@ static void crp_reset(DeviceState *dev)
         }
         switch (addr) {
         case A_RESET_REASON:
-        case A_RST_PS:
             continue;
         default:
             register_reset(&s->regs_info[i]);
