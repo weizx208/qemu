@@ -83,6 +83,7 @@ enum {
     VIRT_IMSIC_S,
     VIRT_FLASH,
     VIRT_DRAM,
+    VIRT_COSIM,
     VIRT_PCIE_MMIO,
     VIRT_PCIE_PIO,
     VIRT_PLATFORM_BUS,
@@ -97,6 +98,7 @@ enum {
     VIRTIO_COUNT = 8,
     PCIE_IRQ = 0x20, /* 32 to 35 */
     IOMMU_SYS_IRQ = 0x24, /* 36-39 */
+    COSIM_IRQ = 0x30, /* 0x35 - */
     VIRT_PLATFORM_BUS_IRQ = 64, /* 64 to 95 */
 };
 

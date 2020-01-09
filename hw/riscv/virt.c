@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
+#include "qemu/help-texts.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
@@ -51,6 +52,7 @@
 #include "system/kvm.h"
 #include "system/tpm.h"
 #include "system/qtest.h"
+#include "system/reset.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
@@ -96,6 +98,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_VIRTIO] =       { 0x10001000,        0x1000 },
     [VIRT_FW_CFG] =       { 0x10100000,          0x18 },
     [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
+    [VIRT_COSIM] =        { 0x28000000,    0x01000000 },
     [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
     [VIRT_PCIE_ECAM] =    { 0x30000000,    0x10000000 },
@@ -1270,6 +1273,73 @@ static inline DeviceState *gpex_pcie_init(MemoryRegion *sys_mem,
     return dev;
 }
 
+static void virt_create_remoteport(MachineState *machine,
+                                   MemoryRegion *system_memory)
+{
+    const MemMapEntry *memmap = virt_memmap;
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
+    SysBusDevice *sbd;
+    DeviceClass *dc;
+    Object *rp_obj;
+    Object *rpm_obj;
+    Object *rpms_obj;
+    Object *rpirq_obj;
+    int i;
+
+    rp_obj = object_new("remote-port");
+    object_property_add_child(OBJECT(machine), "cosim", rp_obj);
+    object_property_set_str(rp_obj, "chrdev-id", "cosim", &error_fatal);
+    object_property_set_bool(rp_obj, "sync", true, &error_fatal);
+
+    rpm_obj = object_new("remote-port-memory-master");
+    object_property_add_child(OBJECT(machine), "cosim-mmap-0", rpm_obj);
+    object_property_set_int(rpm_obj, "map-num", 1, &error_fatal);
+    object_property_set_int(rpm_obj, "map-offset", memmap[VIRT_COSIM].base, &error_fatal);
+    object_property_set_int(rpm_obj, "map-size", memmap[VIRT_COSIM].size, &error_fatal);
+    object_property_set_int(rpm_obj, "rp-chan0", 9, &error_fatal);
+
+    rpms_obj = object_new("remote-port-memory-slave");
+    object_property_add_child(OBJECT(machine), "cosim-mmap-slave-0", rpms_obj);
+//    object_property_set_int(rpms_obj, 0, "rp-chan0", &error_fatal);
+
+    rpirq_obj = object_new("remote-port-gpio");
+    object_property_add_child(OBJECT(machine), "cosim-irq-0", rpirq_obj);
+    object_property_set_int(rpirq_obj, "rp-chan0", 12, &error_fatal);
+
+
+    object_property_set_link(rpm_obj, "rp-adaptor0", rp_obj, &error_abort);
+    object_property_set_link(rpms_obj, "rp-adaptor0", rp_obj, &error_abort);
+    object_property_set_link(rpirq_obj, "rp-adaptor0", rp_obj, &error_abort);
+    object_property_set_link(rp_obj, "remote-port-dev0", rpms_obj, &error_abort);
+    object_property_set_link(rp_obj, "remote-port-dev9", rpm_obj, &error_abort);
+    object_property_set_link(rp_obj, "remote-port-dev12", rpirq_obj, &error_abort);
+
+    object_property_set_bool(rp_obj, "realized", true, &error_fatal);
+    dc = DEVICE_GET_CLASS(DEVICE(rp_obj));
+    if (dc->legacy_reset) {
+        /*
+         * RP adaptors don't connect to busses that reset them,
+         * manually register the handler.
+         */
+        qemu_register_reset((void (*)(void *))dc->legacy_reset, rp_obj);
+    }
+
+    sysbus_realize(SYS_BUS_DEVICE(rpms_obj), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(rpm_obj), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(rpirq_obj), &error_fatal);
+
+    /* Connect things to the machine.  */
+    sbd = SYS_BUS_DEVICE(rpm_obj);
+    memory_region_add_subregion(system_memory, memmap[VIRT_COSIM].base,
+                                sysbus_mmio_get_region(sbd, 0));
+
+    /* Hook up IRQs.  */
+    for (i = 0; i < 5; i++) {
+        qemu_irq irq = qdev_get_gpio_in(DEVICE(s->irqchip[0]), COSIM_IRQ + i);
+        sysbus_connect_irq(SYS_BUS_DEVICE(rpirq_obj), i, irq);
+    }
+};
+
 static FWCfgState *create_fw_cfg(const MachineState *ms, hwaddr base)
 {
     FWCfgState *fw_cfg;
@@ -1746,6 +1816,14 @@ static void virt_machine_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&s->machine_done);
 }
 
+static void virt_cosim_board_init(MachineState *machine)
+{
+    MemoryRegion *system_memory = get_system_memory();
+
+    virt_machine_init(machine);
+    virt_create_remoteport(machine, system_memory);
+}
+
 static void virt_machine_instance_init(Object *obj)
 {
     RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
@@ -1980,6 +2058,21 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "Enable IOMMU platform device");
 }
 
+static void virt_machine_class_init_cosim(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "RISC-V VirtIO board Cosim";
+    mc->init = virt_cosim_board_init;
+    mc->max_cpus = VIRT_CPUS_MAX;
+    mc->default_cpu_type = TYPE_RISCV_CPU_BASE;
+    mc->pci_allow_0_address = true;
+    mc->possible_cpu_arch_ids = riscv_numa_possible_cpu_arch_ids;
+    mc->cpu_index_to_instance_props = riscv_numa_cpu_index_to_props;
+    mc->get_default_cpu_node_id = riscv_numa_get_default_cpu_node_id;
+    mc->numa_mem_supported = true;
+}
+
 static const TypeInfo virt_machine_typeinfo = {
     .name       = MACHINE_TYPE_NAME("virt"),
     .parent     = TYPE_MACHINE,
@@ -1992,9 +2085,16 @@ static const TypeInfo virt_machine_typeinfo = {
     },
 };
 
+static const TypeInfo virt_cosim_machine_typeinfo = {
+    .name       = MACHINE_TYPE_NAME("virt-cosim"),
+    .parent     = TYPE_MACHINE,
+    .class_init = virt_machine_class_init_cosim,
+};
+
 static void virt_machine_init_register_types(void)
 {
     type_register_static(&virt_machine_typeinfo);
+    type_register_static(&virt_cosim_machine_typeinfo);
 }
 
 type_init(virt_machine_init_register_types)
