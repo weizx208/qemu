@@ -40,6 +40,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_CSU', if_true: files(
   'csu_aes.c',
   'zynqmp_aes_key.c',
   'xlnx-aes.c',
+  'xlnx-aes-devkey.c',
   'xlnx-bbram-ctrl.c'
 ))
 
