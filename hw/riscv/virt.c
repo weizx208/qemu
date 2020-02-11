@@ -2087,7 +2087,7 @@ static const TypeInfo virt_machine_typeinfo = {
 
 static const TypeInfo virt_cosim_machine_typeinfo = {
     .name       = MACHINE_TYPE_NAME("virt-cosim"),
-    .parent     = TYPE_MACHINE,
+    .parent     = MACHINE_TYPE_NAME("virt"),
     .class_init = virt_machine_class_init_cosim,
 };
 
