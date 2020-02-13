@@ -13,7 +13,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xlnx-zynqmp-boot.c',
   'xlnx-zynqmp-xmpu.c',
   'xlnx-xmpu.c',
-  'xilinx-xppu.c',
+  'xlnx-zynqmp-xppu.c',
   'xlnx-xppu.c',
   'xilinx_zynqmp_pmu_local.c',
   'xilinx_zynqmp_pmu_global.c',
