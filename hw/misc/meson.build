@@ -66,6 +66,9 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-noc-ncrb.c',
   'xlnx-versal-cpm-crcpm.c',
   'xlnx-versal-cpm-pcsr.c',
+  'xlnx-versal-ddrmc-xmpu.c',
+  'xlnx-versal-xmpu.c',
+  'xlnx-xmpu.c',
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
