@@ -178,12 +178,17 @@ static void bbram_bdrv_sync(BBRAMCtrl *s, uint64_t hwaddr)
 
     assert(A_BBRAM_0 <= hwaddr && hwaddr <= A_BBRAM_8);
 
+    /* Backstore is always in little-endian */
+    le32 = cpu_to_le32(s->regs[hwaddr / 4]);
+
+    /* Update zeroized flag */
+    if (le32 && (hwaddr != A_BBRAM_8 || s->bbram8_wo)) {
+        ARRAY_FIELD_DP32(s->regs, BBRAM_STATUS, BBRAM_ZEROIZED, 0);
+    }
+
     if (!s->blk || s->blk_ro) {
         return;
     }
-
-    /* Backstore is always in little-endian */
-    le32 = cpu_to_le32(s->regs[hwaddr / 4]);
 
     offset = hwaddr - A_BBRAM_0;
     rc = blk_pwrite(s->blk, offset, 4, &le32, 0);
@@ -195,6 +200,8 @@ static void bbram_bdrv_sync(BBRAMCtrl *s, uint64_t hwaddr)
 static void bbram_bdrv_zero(BBRAMCtrl *s)
 {
     int rc;
+
+    ARRAY_FIELD_DP32(s->regs, BBRAM_STATUS, BBRAM_ZEROIZED, 1);
 
     if (!s->blk || s->blk_ro) {
         return;
@@ -235,7 +242,6 @@ static void bbram_ctrl_postw(RegisterInfo *reg, uint64_t val64)
 
     if (val & R_BBRAM_CTRL_ZEROIZE_MASK) {
         bbram_zeroize(s);
-        s->regs[R_BBRAM_STATUS] |= R_BBRAM_STATUS_BBRAM_ZEROIZED_MASK;
         /* The bit is self clearing */
         s->regs[R_BBRAM_CTRL] &= ~R_BBRAM_CTRL_ZEROIZE_MASK;
     }
