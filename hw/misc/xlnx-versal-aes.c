@@ -337,6 +337,12 @@ struct Zynq3AES {
     /* AES needs blocks of 16 bytes.  */
     uint8_t buf[16];
     uint8_t bufpos;
+
+    /* GCM residual handling */
+    uint8_t gcm_tag[16];
+    uint8_t gcm_pos;
+    uint8_t gcm_len;
+    bool gcm_push_eop;
 };
 
 static void bswap32_buf8(uint8_t *buf, int len)
@@ -582,6 +588,7 @@ static void aes_start_msg_postw(RegisterInfo *reg, uint64_t val)
 {
     Zynq3AES *s = XILINX_AES(reg->opaque);
     if (val) {
+        s->gcm_len = 0;
         s->data_count = 0;
         xlnx_aes_start_message(s->aes,
                      s->regs[R_AES_MODE] & R_AES_MODE_ENC_DEC_N_MASK);
@@ -918,6 +925,7 @@ static void aes_reset(DeviceState *dev)
     }
     aes_imr_update_irq(s);
     s->key_loaded = false;
+    s->gcm_len = 0;
     s->data_count = 0;
     s->key_dec_done = false;
     s->inSoftRst = false;
@@ -1062,6 +1070,68 @@ static void xlx_aes_feedback(Zynq3AES *s, unsigned char *buf, int len)
     }
 }
 
+static void aes_stream_gcm_push(void *opaque)
+{
+    Zynq3AES *s = XILINX_AES(opaque);
+
+    while (s->gcm_len && stream_can_push(s->tx_dev, aes_stream_gcm_push, s)) {
+        size_t ret;
+
+        ret = stream_push(s->tx_dev, (s->gcm_tag + s->gcm_pos),
+                          s->gcm_len, s->gcm_push_eop);
+        s->gcm_pos += ret;
+        s->gcm_len -= ret;
+    }
+}
+
+static void aes_stream_dst_push(Zynq3AES *s, uint8_t *outbuf, int outlen,
+                                size_t len, bool eop, bool encrypt)
+{
+    int limit = sizeof(s->gcm_tag);
+    size_t pushed;
+
+    pushed = stream_push(s->tx_dev, outbuf, outlen, eop);
+
+    /* Done if there is no generated GCM-tag */
+    if (!encrypt || !eop) {
+        return;
+    }
+
+    /* Done if the entire GCM-tag has been received inline */
+    if (pushed >= outlen) {
+        return;
+    }
+
+    /* GCM-tag is the only allowed residual */
+    if (pushed < len) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: DST channel dropping %zd b of data.\n",
+                      s->prefix, (len - pushed));
+        return;
+    }
+
+    outlen -= pushed;
+    if (outlen > limit) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Excessive GCM-tag data dropped: %d - %d\n",
+                      s->prefix, outlen, limit);
+        outlen = limit;
+    }
+
+    /*
+     * Capture the GCM-tag (or whatever left) for residual push.
+     *
+     * Receiving the gcm-tag is optional; thus, it is important
+     * to discard the residual by reset or a new start-message.
+     */
+    memcpy(s->gcm_tag, (outbuf + pushed), outlen);
+    s->gcm_len = outlen;
+    s->gcm_pos = 0;
+    s->gcm_push_eop = eop;
+
+    aes_stream_gcm_push(s);
+}
+
 static size_t aes_stream_push(StreamSink *obj, uint8_t *buf, size_t len,
                               bool eop)
 {
@@ -1069,10 +1139,12 @@ static size_t aes_stream_push(StreamSink *obj, uint8_t *buf, size_t len,
     unsigned char outbuf[8 * 1024 + 16];
     int outlen = 0;
     bool feedback;
+    bool encrypt;
     size_t ret;
 
     /* When encrypting, we need to be prepared to receive the 16 byte tag.  */
-    if (len > (sizeof(outbuf) - 16)) {
+    encrypt = s->aes->encrypt;
+    if (encrypt && len > (sizeof(outbuf) - 16)) {
         len = sizeof(outbuf) - 16;
         eop = false;
     }
@@ -1095,9 +1167,9 @@ static size_t aes_stream_push(StreamSink *obj, uint8_t *buf, size_t len,
                 & (R_AES_KUP_WR_IV_SAVE_MASK | R_AES_KUP_WR_KEY_SAVE_MASK));
     if (feedback) {
         xlx_aes_feedback(s, outbuf, outlen);
-        memset(outbuf, 0, outlen);
+    } else {
+        aes_stream_dst_push(s, outbuf, outlen, ret, eop, encrypt);
     }
-    stream_push(s->tx_dev, outbuf, outlen, attr);
 
     /* printf("%s len=%zd ret=%zd outlen=%d eop=%d\n",
            __func__, len, ret, outlen, eop); */
