@@ -39,6 +39,10 @@ struct RAMBlock {
     QLIST_HEAD(, RAMBlockNotifier) ramblock_notifiers;
     Error *cpr_blocker;
     int fd;
+    /* Xilinx: For Win32 filemappings.  */
+#ifdef _WIN32
+    HANDLE hMapFile;
+#endif
     uint64_t fd_offset;
     int guest_memfd;
     RamBlockAttributes *attributes;

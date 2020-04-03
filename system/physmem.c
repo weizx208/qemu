@@ -1681,7 +1681,15 @@ static int file_ram_open(const char *path,
 
     *created = false;
     for (;;) {
+#ifdef _WIN32
+        fd = _open_osfhandle((intptr_t)CreateFile(path,
+                   GENERIC_READ | readonly ? 0 : GENERIC_WRITE,
+                   FILE_SHARE_READ | FILE_SHARE_WRITE,
+                   NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL),
+                   _O_RDWR);
+#else
         fd = open(path, readonly ? O_RDONLY : O_RDWR);
+#endif
         if (fd >= 0) {
             /*
              * open(O_RDONLY) won't fail with EISDIR. Check manually if we
@@ -1823,10 +1831,10 @@ static void *file_ram_alloc(RAMBlock *block,
 
 #ifdef _WIN32
     HANDLE fd_temp = (HANDLE)_get_osfhandle(fd);
-    HANDLE hMapFile = CreateFileMapping(fd_temp, NULL, PAGE_READWRITE,
+    block->hMapFile = CreateFileMapping(fd_temp, NULL, PAGE_READWRITE,
                                         memory >> 32,
                                         memory, NULL);
-    area = MapViewOfFile(hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    area = MapViewOfFile(block->hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (area == NULL) {
 #else
     qemu_map_flags = (block->flags & RAM_READONLY) ? QEMU_MAP_READONLY : 0;
@@ -2486,7 +2494,11 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         if (created) {
             unlink(mem_path);
         }
+#ifdef _WIN32
+        _close(fd);
+#else
         close(fd);
+#endif
         return NULL;
     }
 
@@ -2640,10 +2652,16 @@ static void reclaim_ramblock(RAMBlock *block)
         ;
     } else if (xen_enabled()) {
         xen_invalidate_map_cache_entry(block->host);
-#if !defined(_WIN32) && !defined(EMSCRIPTEN)
+#if !defined(EMSCRIPTEN)
     } else if (block->fd >= 0) {
+#ifdef _WIN32
+        UnmapViewOfFile(block->host);
+        CloseHandle(block->hMapFile);
+        _close(block->fd);
+#else
         qemu_ram_munmap(block->fd, block->host, block->max_length);
         close(block->fd);
+#endif
 #endif
     } else {
         qemu_anon_ram_free(block->host, block->max_length);
