@@ -1821,7 +1821,9 @@ static void virt_cosim_board_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
 
     virt_machine_init(machine);
-    virt_create_remoteport(machine, system_memory);
+    if (machine_path) {
+        virt_create_remoteport(machine, system_memory);
+    }
 }
 
 static void virt_machine_instance_init(Object *obj)
