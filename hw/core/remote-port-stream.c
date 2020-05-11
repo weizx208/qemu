@@ -176,7 +176,7 @@ static void rp_stream_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "rp-adaptor0", "remote-port",
                              (Object **)&s->rp,
-                             qdev_prop_allow_set_link_before_realize,
+                             qdev_prop_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 }
 
