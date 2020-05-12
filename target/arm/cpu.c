@@ -577,7 +577,8 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
         kvm_arm_reset_vcpu(cpu);
     }
 
-    if (!runstate_is_running()) {
+    if (!runstate_is_running() && !arm_feature(env, ARM_FEATURE_M)) {
+        /* FIXME: This should be done differently.  */
         cc->set_pc(cs, old_pc);
     }
 #endif
