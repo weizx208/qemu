@@ -41,6 +41,7 @@ struct RemotePort {
     Chardev *chrdev;
     CharFrontend chr;
     bool do_sync;
+    bool doing_sync;
     bool finalizing;
     /* To serialize writes to fd.  */
     QemuMutex write_mutex;
