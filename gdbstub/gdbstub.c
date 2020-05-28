@@ -1710,6 +1710,7 @@ static void handle_query_supported(GArray *params, void *user_ctx)
     }
 
     g_string_append(gdbserver_state.str_buf, ";vContSupported+;multiprocess+");
+    g_string_append(gdbserver_state.str_buf, ";qXfer:osdata:read+");
 
     if (extra_query_flags) {
         int extras = g_strv_length(extra_query_flags);
@@ -1719,6 +1720,76 @@ static void handle_query_supported(GArray *params, void *user_ctx)
     }
 
     gdb_put_strbuf();
+}
+
+static char *gdb_get_process_list(void)
+{
+#define MAX_PLIST (8 * 1024)
+
+    static const char *header = "<?xml version=\"1.0\"?>\n" \
+    "<!DOCTYPE target SYSTEM \"osdata.dtd\">\n<osdata type=\"processes\">\n";
+    unsigned int i;
+    CPUState *cpu;
+    char *buf = g_malloc0(MAX_PLIST);
+
+    pstrcat(buf, MAX_PLIST, header);
+    for (i = 0; i < gdbserver_state.process_num - 1; i++) {
+        char lbuf[128];
+        unsigned int num_cores = 0;
+
+        /* PIDs should start at 1, 0 is reserved by GDB */
+        snprintf(lbuf, sizeof(lbuf),
+                       "<item>\n<column name=\"pid\">%u</column>\n"
+                       "<column name=\"cores\">", i + 1);
+        pstrcat(buf, MAX_PLIST, lbuf);
+
+        cpu = gdb_get_first_cpu_in_process(&gdbserver_state.processes[i]);
+        while (cpu) {
+            /* cpu_index starts at 0, which is reserved by GDB */
+            snprintf(lbuf, sizeof(lbuf), "%s%u",
+                           num_cores ? "," : "", cpu->cpu_index + 1);
+            pstrcat(buf, MAX_PLIST, lbuf);
+            cpu = gdb_next_cpu_in_process(cpu);
+            num_cores++;
+        }
+        pstrcat(buf, MAX_PLIST, "</column>\n</item>\n");
+    }
+    pstrcat(buf, MAX_PLIST, "</osdata>");
+
+    return buf;
+}
+
+static void handle_query_xfer_osdata_read_proc(GArray *params,
+                                               void *user_ctx)
+{
+    unsigned long total_len;
+    size_t addr = gdb_get_cmd_param(params, 0)->val_ul;
+    size_t len = gdb_get_cmd_param(params, 1)->val_ul;
+    const char *plist = gdb_get_process_list();
+
+    total_len = strlen(plist);
+
+    if (addr > total_len) {
+        gdb_put_packet("E00");
+
+        g_free((void *) plist);
+        return;
+    }
+
+    if (len > (MAX_PACKET_LENGTH - 5) / 2) {
+        len = (MAX_PACKET_LENGTH - 5) / 2;
+    }
+    if (len < total_len - addr) {
+        g_string_assign(gdbserver_state.str_buf, "m");
+        gdb_memtox(gdbserver_state.str_buf, plist + addr, len);
+    } else {
+        g_string_assign(gdbserver_state.str_buf, "l");
+        gdb_memtox(gdbserver_state.str_buf, plist + addr, total_len - addr);
+    }
+
+    gdb_put_packet_binary(gdbserver_state.str_buf->str,
+                      gdbserver_state.str_buf->len, true);
+    g_free((void *) plist);
 }
 
 static void handle_query_xfer_features(GArray *params, void *user_ctx)
@@ -1926,6 +1997,12 @@ static const GdbCmdParseEntry gdb_gen_query_table[] = {
         .schema = "l:l,l0"
     },
 #endif
+    {
+        .handler = handle_query_xfer_osdata_read_proc,
+        .cmd = "Xfer:osdata:read:processes:",
+        .cmd_startswith = 1,
+        .schema = "l,l0"
+    },
     {
         .handler = gdb_handle_query_attached,
         .cmd = "Attached:",
