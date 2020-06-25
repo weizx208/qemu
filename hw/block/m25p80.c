@@ -411,7 +411,8 @@ typedef enum {
     QPP = 0x32,
     QPP_4 = 0x34,
     RDID_90 = 0x90,
-    RDID_AB = 0xab,
+    /* On Winbond, exit HPM if HPM is enabled. Otherwise, RDID. */
+    RDID_AB_EXIT_HPM = 0xab,
     AAI = 0xad,
     OPP = 0x82,
     OPP4 = 0x84,
@@ -441,6 +442,7 @@ typedef enum {
      */
     RDCR_EQIO = 0x35,
     RSTQIO = 0xf5,
+    HPM = 0xa3,
 
     /*
      * Winbond: 0x31 - write status register 2
@@ -529,6 +531,7 @@ struct Flash {
     bool four_bytes_address_mode;
     bool reset_enable;
     bool quad_enable;
+    bool hpm_enable;
     bool aai_enable;
     bool block_protect0;
     bool block_protect1;
@@ -913,7 +916,7 @@ static void complete_collecting_data(Flash *s)
         s->enh_volatile_cfg = s->data[0];
         break;
     case RDID_90:
-    case RDID_AB:
+    case RDID_AB_EXIT_HPM:
         if (get_man(s) == MAN_SST) {
             if (s->cur_addr <= 1) {
                 if (s->cur_addr) {
@@ -936,6 +939,9 @@ static void complete_collecting_data(Flash *s)
                           "M25P80: Read id (command 0x90/0xAB) is not supported"
                           " by device\n");
         }
+        break;
+    case HPM:
+        s->hpm_enable = true;
         break;
     case RDSFDP:
         s->state = STATE_READING_SFDP;
@@ -1245,12 +1251,15 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case OPP4:
     case DIE_ERASE:
     case RDID_90:
-    case RDID_AB:
         s->needed_bytes = get_addr_length(s);
         s->pos = 0;
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
         break;
+    case HPM:
+        s->needed_bytes = 3;
+        s->state = STATE_COLLECTING_DATA;
+        /* Fallthrough */
     case READ:
     case READ4:
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) == MODE_STD) {
@@ -1288,6 +1297,17 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
 
+        break;
+    /* do EXIT_HPM if HPM is enabled. Otherwise, do RDID_AB */
+    case RDID_AB_EXIT_HPM:
+        if (s->hpm_enable) {
+            s->hpm_enable = false;
+        } else {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        }
         break;
     case FAST_READ:
     case FAST_READ4:
@@ -1872,6 +1892,7 @@ static int m25p80_pre_load(void *opaque)
     Flash *s = (Flash *)opaque;
 
     s->data_read_loop = false;
+    s->hpm_enable = false;
     return 0;
 }
 
@@ -1887,6 +1908,13 @@ static bool m25p80_cfg_large_needed(void *opaque)
     Flash *s = M25P80(opaque);
 
     return get_man(s) == MAN_MICRON_OCTAL;
+}
+
+static bool m25p80_hpm_enable_needed(void *opaque)
+{
+    Flash *s = (Flash *)opaque;
+
+    return s->hpm_enable;
 }
 
 static const VMStateDescription vmstate_m25p80_data_read_loop = {
@@ -1912,6 +1940,17 @@ static const VMStateDescription vmstate_m25p80_cfg_large = {
         VMSTATE_VARRAY_UINT32(nonvolatile_cfg_large, Flash,
                             nv_cfg_large_len, 0,
                             vmstate_info_uint8, uint8_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_m25p80_hpm_enable = {
+    .name = "m25p80/hpm_enable",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = m25p80_hpm_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(hpm_enable, Flash),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -2010,6 +2049,7 @@ static const VMStateDescription vmstate_m25p80 = {
     .subsections = (const VMStateDescription * const []) {
         &vmstate_m25p80_data_read_loop,
         &vmstate_m25p80_cfg_large,
+        &vmstate_m25p80_hpm_enable,
         &vmstate_m25p80_aai_enable,
         &vmstate_m25p80_write_protect,
         &vmstate_m25p80_block_protect,
