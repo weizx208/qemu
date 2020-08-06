@@ -34,6 +34,7 @@
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
+#include "hw/fdt_generic_util.h"
 
 #include "qapi/qmp/qerror.h"
 
@@ -69,6 +70,7 @@ typedef struct SWDTState {
     MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq rst;
+    qemu_irq wdt_timeout_irq;
     QEMUTimer *timer;
     /* model the irq and rst line high time. */
     QEMUTimer *irq_done_timer;
@@ -122,6 +124,7 @@ static void swdt_time_elapsed(void *opaque)
     bool do_an_irq = ARRAY_FIELD_EX32(s->regs, MODE, IRQEN);
 
     s->regs[R_STATUS] = 1;
+    qemu_set_irq(s->wdt_timeout_irq, 1);
 
     if (do_a_reset) {
         swdt_reset_irq_update(s);
@@ -291,6 +294,9 @@ static void swdt_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
 
+    qdev_init_gpio_out_named(DEVICE(obj), &s->wdt_timeout_irq,
+                             "wdt_timeout_error_out", 1);
+
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, swdt_time_elapsed, s);
     s->irq_done_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, swdt_irq_done, s);
     s->rst_done_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, swdt_reset_done, s);
@@ -299,6 +305,17 @@ static void swdt_init(Object *obj)
 static const Property swdt_properties[] = {
     /* pclk in Hz */
     DEFINE_PROP_UINT64("pclk", SWDTState, pclk, 0),
+};
+
+static const FDTGenericGPIOSet wdt_client_gpios[] = {
+    {
+        .names = &fdt_generic_gpio_name_set_gpio,
+        .gpios = (FDTGenericGPIOConnection[]) {
+            { .name = "wdt_timeout_error_out", .fdt_index = 0, .range = 1 },
+            { },
+        }
+    },
+    { },
 };
 
 static const VMStateDescription vmstate_swdt = {
@@ -314,11 +331,13 @@ static const VMStateDescription vmstate_swdt = {
 static void swdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
     device_class_set_legacy_reset(dc, swdt_reset);
     dc->realize = swdt_realize;
     dc->vmsd = &vmstate_swdt;
     device_class_set_props(dc, swdt_properties);
+    fggc->client_gpios = wdt_client_gpios;
 }
 
 static const TypeInfo swdt_info = {
@@ -327,6 +346,10 @@ static const TypeInfo swdt_info = {
     .instance_size = sizeof(SWDTState),
     .class_init    = swdt_class_init,
     .instance_init = swdt_init,
+    .interfaces    = (InterfaceInfo[]) {
+        { TYPE_FDT_GENERIC_GPIO },
+        { }
+    },
 };
 
 static void swdt_register_types(void)
