@@ -118,6 +118,7 @@ static void aarch64_a78_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     ARMISARegisters *isar = &cpu->isar;
+    uint64_t t;
 
     cpu->dtb_compatible = "arm,cortex-a78";
     set_feature(&cpu->env, ARM_FEATURE_V8);
@@ -136,6 +137,8 @@ static void aarch64_a78_initfn(Object *obj)
     isar->mvfr2 = 0x00000043;
     cpu->ctr = 0x8444c004;
     cpu->reset_sctlr = 0x00c50838;
+
+    /* Xilinx: Overrides since some of the new stuff does not work.  */
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x03010066);
@@ -154,11 +157,13 @@ static void aarch64_a78_initfn(Object *obj)
     /* TOP Bit zero until we implement RAS.  */
     SET_IDREG(isar, ID_AA64PFR0, 0x01111112);
     SET_IDREG(isar, ID_AA64PFR1, 0x00000010);
-    SET_IDREG(isar, ID_AA64DFR0, 0x110305408ULL);
+    /* id_aa64dfr0 = 0x110305408ULL; Unsupported PMcnt features */
+    SET_IDREG(isar, ID_AA64DFR0, 0x10305408ULL);
     SET_IDREG(isar, ID_AA64ISAR0, 0x0010100010211120ULL);
     SET_IDREG(isar, ID_AA64ISAR1, 0x01200031);
     SET_IDREG(isar, ID_AA64MMFR0, 0x000101125);
     SET_IDREG(isar, CLIDR, 0x0c300023);
+
     cpu->isar.dbgdidr = 0x3516d000;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -169,9 +174,44 @@ static void aarch64_a78_initfn(Object *obj)
     cpu->gic_vprebits = 5;
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 
-    /* Xilinx FIXUPs.  */
+    /* Xilinx: Overrides since some of the new stuff does not work.  */
+    t = GET_IDREG(isar, ID_AA64PFR0);
+    t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
+    t = FIELD_DP64(t, ID_AA64PFR0, FP, 1);
+    t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 1);
+    SET_IDREG(isar, ID_AA64PFR0, t);
+
+    t = GET_IDREG(isar, ID_AA64ISAR0);
+    t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2); /* AES + PMULL */
+    t = FIELD_DP64(t, ID_AA64ISAR0, SHA1, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, SHA2, 2); /* SHA512 */
+    t = FIELD_DP64(t, ID_AA64ISAR0, CRC32, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, ATOMIC, 0);
+    t = FIELD_DP64(t, ID_AA64ISAR0, RDM, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, SHA3, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, SM3, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, SM4, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, DP, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, FHM, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR0, TS, 2); /* v8.5-CondM */
+    t = FIELD_DP64(t, ID_AA64ISAR0, RNDR, 1);
+    SET_IDREG(isar, ID_AA64ISAR0, t);
+
+    t = GET_IDREG(isar, ID_AA64ISAR1);
+    t = FIELD_DP64(t, ID_AA64ISAR1, DPB, 2);
+    t = FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 0);
+    t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 0);
+    t = FIELD_DP64(t, ID_AA64ISAR1, APA, 0); /* PAuth, architected only */
+    t = FIELD_DP64(t, ID_AA64ISAR1, API, 0);
+    t = FIELD_DP64(t, ID_AA64ISAR1, GPA, 0);
+    t = FIELD_DP64(t, ID_AA64ISAR1, GPI, 0);
+    t = FIELD_DP64(t, ID_AA64ISAR1, SB, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR1, SPECRES, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR1, FRINTTS, 1);
+    t = FIELD_DP64(t, ID_AA64ISAR1, LRCPC, 0); /* ARMv8.4-RCPC */
+    SET_IDREG(isar, ID_AA64ISAR1, t);
+
     /* These indicate the BP hardening and KPTI aren't needed.  */
-    uint64_t t;
     t = GET_IDREG(isar, ID_AA64PFR0);
     t |= (uint64_t)1 << 56; /* BP.  */
     t |= (uint64_t)1 << 60; /* KPTI.  */
