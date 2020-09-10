@@ -477,6 +477,11 @@ static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)
     return object_class_by_name(TYPE_MICROBLAZE_CPU);
 }
 
+static const gchar *mb_gdb_arch_name(CPUState *cs)
+{
+    return "microblaze";
+}
+
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/sysemu-cpu-ops.h"
 
@@ -538,6 +543,7 @@ static void mb_cpu_class_init(ObjectClass *oc, const void *data)
 #endif
     device_class_set_props(dc, mb_properties);
     cc->gdb_core_xml_file = "microblaze-core.xml";
+    cc->gdb_arch_name = mb_gdb_arch_name;
 
 #ifndef CONFIG_USER_ONLY
     fggc->controller_gpios = mb_ctrl_gpios;
