@@ -73,6 +73,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-xmpu.c',
   'xlnx-versal-xppu.c',
   'xlnx-versal-fpd-slcr-secure.c',
+  'xlnx-versal-lpd-slcr-secure.c',
   'xlnx-versal-fpd-slcr.c',
   'xlnx-versal-lpd-slcr.c',
   'xlnx-xmpu.c',
