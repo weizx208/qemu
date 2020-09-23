@@ -1952,6 +1952,11 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
 
         {
             /*
+             * Xilinx: Initialize to 0 because address_space_rw() does no
+             * initialization.
+             */
+            val = 0;
+            /*
              * Xilinx: Make sure we first check if the MemoryRegion is an IOMMU region.
              * This is required to make sure the XMPU works as expected.
              */
