@@ -416,6 +416,8 @@ typedef enum {
     AAI = 0xad,
     OPP = 0x82,
     OPP4 = 0x84,
+    EOPP = 0xc2,
+    EOPP4 = 0x8e,
     RDID_AB = 0xab,
     AAI_WP = 0xad,
 
@@ -743,6 +745,7 @@ static inline int get_addr_length(Flash *s)
    case PP4_4:
    case QPP_4:
    case OPP4:
+   case EOPP4:
    case READ4:
    case QIOR4:
    case OIOR4:
@@ -788,7 +791,9 @@ static void complete_collecting_data(Flash *s)
     case PP4:
     case PP4_4:
     case OPP:
+    case EOPP:
     case OPP4:
+    case EOPP4:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case AAI_WP:
@@ -1249,6 +1254,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case PP4:
     case OPP:
     case OPP4:
+    case EOPP:
+    case EOPP4:
     case DIE_ERASE:
     case RDID_90:
         s->needed_bytes = get_addr_length(s);
