@@ -77,7 +77,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-fpd-slcr.c',
   'xlnx-versal-lpd-slcr.c',
   'xlnx-xmpu.c',
-  'xlnx-xppu.c'
+  'xlnx-xppu.c',
+  'iomem-cache.c'
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
