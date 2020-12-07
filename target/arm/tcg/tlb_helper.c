@@ -330,6 +330,40 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     arm_deliver_fault(cpu, addr, access_type, mmu_idx, &fi);
 }
 
+/*
+ * Map ARMCacheAttrs into MemTxAttrs.
+ */
+static void map_cacheattrs(uint64_t addr,
+                           MemTxAttrs *attrs, ARMCacheAttrs *cacheattrs)
+{
+    uint8_t mair_high = cacheattrs->attrs >> 4;
+    uint8_t mair_low =  cacheattrs->attrs & 0xf;
+
+    if (mair_high) {
+        /*
+         * Memory:
+         * We're only looking for cacheability, not the WB/WT hints.
+         */
+        if (cacheattrs->shareability == 2 && mair_high != 4) {
+            /* Outer.  */
+            attrs->cache = 1;
+        } else if (cacheattrs->shareability == 3 && mair_low != 4) {
+            /* Inner.  */
+            attrs->cache = 1;
+        }
+    } else {
+        /*
+         * Device:
+         * We ignore Early ACK and Reordering bits.
+         */
+        if (mair_low == 12) {
+            /* Device GRE.  */
+            attrs->buffer = 1;
+            attrs->modify = 1;
+        }
+    }
+}
+
 bool arm_cpu_tlb_fill_align(CPUState *cs, CPUTLBEntryFull *out, vaddr address,
                             MMUAccessType access_type, int mmu_idx,
                             MemOp memop, int size, bool probe, uintptr_t ra)
@@ -366,6 +400,8 @@ bool arm_cpu_tlb_fill_align(CPUState *cs, CPUTLBEntryFull *out, vaddr address,
     } else if (!get_phys_addr(&cpu->env, address, access_type, memop,
                               core_to_arm_mmu_idx(&cpu->env, mmu_idx),
                               &res, fi)) {
+        /* Map cache attributes into memory attributes.  */
+        map_cacheattrs(res.f.phys_addr, &res.f.attrs, &res.cacheattrs);
         res.f.extra.arm.pte_attrs = res.cacheattrs.attrs;
         res.f.extra.arm.shareability = res.cacheattrs.shareability;
         *out = res.f;
