@@ -720,6 +720,8 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, S1Translate *ptw,
     CPUState *cs = env_cpu(env);
     void *host = ptw->out_host;
     uint32_t data;
+    /* XILINX: Propagate the cacheable attribute of PTW memory accesses */
+    uint64_t tcr = regime_tcr(env, ptw->in_mmu_idx);
 
     if (likely(host)) {
         /* Page tables are in RAM, and we have the host address. */
@@ -737,6 +739,11 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, S1Translate *ptw,
         };
         AddressSpace *as = arm_addressspace(cs, attrs);
         MemTxResult result = MEMTX_OK;
+
+        if ((tcr & TTBCR_ORGN0) != 0 ||
+             (tcr & TTBCR_IRGN0) != 0) {
+            attrs.cache = 1;
+        }
 
         if (ptw->out_be) {
             data = address_space_ldl_be(as, ptw->out_phys, attrs, &result);
@@ -758,6 +765,8 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw,
     CPUState *cs = env_cpu(env);
     void *host = ptw->out_host;
     uint64_t data;
+    /* XILINX: Propagate the cacheable attribute of PTW memory accesses */
+    uint64_t tcr = regime_tcr(env, ptw->in_mmu_idx);
 
     if (likely(host)) {
         /* Page tables are in RAM, and we have the host address. */
@@ -783,6 +792,11 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw,
         };
         AddressSpace *as = arm_addressspace(cs, attrs);
         MemTxResult result = MEMTX_OK;
+
+        if ((tcr & TTBCR_ORGN0) != 0 ||
+             (tcr & TTBCR_IRGN0) != 0) {
+            attrs.cache = 1;
+        }
 
         if (ptw->out_be) {
             data = address_space_ldq_be(as, ptw->out_phys, attrs, &result);
