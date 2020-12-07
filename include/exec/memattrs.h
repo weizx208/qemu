@@ -70,7 +70,15 @@ typedef struct MemTxAttrs {
     bool unspecified;
 
     uint8_t _reserved1;
-    uint16_t _reserved2;
+    uint16_t _reserved2:13;
+
+    /* XILINX: More details for interconnect emulation.  */
+    /* Memory access may be buffered and early acked.  */
+    unsigned int buffer:1;
+    /* Memory access may be split, merged or otherwise modified.  */
+    unsigned int modify:1;
+    /* Memory access may be cached.  */
+    unsigned int cache:1;
 } MemTxAttrs;
 
 /* The following can't be true ATM in our fork since MemTxAttrs is an object and
