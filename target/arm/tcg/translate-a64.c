@@ -2968,6 +2968,10 @@ static void handle_sys(DisasContext *s, bool isread,
     case 0:
         break;
     case ARM_CP_NOP:
+        /* XILINX: cache maintenance support. */
+        if (generate_cache_maintenance(ri)) {
+            gen_helper_clean_inv_cache(tcg_env);
+        }
         return;
     case ARM_CP_NZCV:
         tcg_rt = cpu_reg(s, rt);

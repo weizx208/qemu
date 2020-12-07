@@ -1227,4 +1227,8 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
                        (arm_is_secure(_env) && !arm_el_is_aa64((_env), 3)), \
                        (_val))
 
+/* XILINX: cache maintenance support */
+bool generate_cache_maintenance(const ARMCPRegInfo *ri);
+void cpu_clean_inv_one(CPUState *cpu, run_on_cpu_data d);
+
 #endif /* TARGET_ARM_CPREGS_H */
