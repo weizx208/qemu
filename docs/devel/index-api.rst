@@ -8,6 +8,7 @@ generated from in-code annotations to function prototypes.
    :maxdepth: 2
 
    bitops
+   iomem-cache
    loads-stores
    lockcnt
    memory
