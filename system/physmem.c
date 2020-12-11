@@ -3609,8 +3609,7 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
                                                    true, attrs);
 
         if (!memory_region_supports_direct_access(mr)) {
-            address_space_rw(as, addr, MEMTXATTRS_UNSPECIFIED, (uint8_t *)buf,
-                             len, true);
+            address_space_rw(as, addr, attrs, (uint8_t *)buf, len, true);
         } else {
             /* ROM/RAM case */
             void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
