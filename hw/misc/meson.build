@@ -125,6 +125,10 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'pmc_sbi.c',
   'sss-pmc.c'))
 
+system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
+  'xlnx-versal-psx-crf.c'
+))
+
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('i2c-dev-dummy.c'))
 system_ss.add(when: 'CONFIG_M24CXX', if_true: files('sodimm-spd.c'))
 system_ss.add(files('gpio-mr-mux.c'))
