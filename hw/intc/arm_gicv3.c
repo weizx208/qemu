@@ -443,7 +443,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
 
-    if (s->nb_redist_regions != 1) {
+    if (s->nb_redist_regions == 0) {
         /* Xilinx: Backwards compat, we default to 1 region 2 entries.  */
         s->nb_redist_regions = 1;
         s->redist_region_count = g_malloc(sizeof(s->redist_region_count));
