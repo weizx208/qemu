@@ -1,5 +1,6 @@
 system_ss.add(files('watchdog.c'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files('xlnx-swdt.c'))
+system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files('xlnx-versal-wwdt.c'))
 system_ss.add(when: 'CONFIG_ALLWINNER_WDT', if_true: files('allwinner-wdt.c'))
 system_ss.add(when: 'CONFIG_CMSDK_APB_WATCHDOG', if_true: files('cmsdk-apb-watchdog.c'))
 system_ss.add(when: 'CONFIG_WDT_IB6300ESB', if_true: files('wdt_i6300esb.c'))
