@@ -111,7 +111,8 @@ static int64_t icount_get_raw_locked(void)
 
     if (cpu && cpu->running) {
         if (!cpu->neg.can_do_io) {
-            qemu_log("Bad icount read\n");
+            /* Xilinx */
+            qemu_log_mask(LOG_UNIMP, "Bad icount read\n");
         }
         /* Take into account what has run */
         icount_update_locked(cpu);
