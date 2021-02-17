@@ -565,6 +565,16 @@ typedef struct CPUArchState {
         uint64_t vdisr_el2;
         uint64_t vsesr_el2;
 
+        /* DynamIQ Shared Unit (DSU) Registers.  */
+        struct {
+            uint64_t clusterectrl;
+            uint64_t clusterpwrctrl;
+            uint64_t clusterpwrdn;
+            uint64_t clusterpartcr;
+            uint64_t clusterbusqos;
+            uint64_t clusterthreadsidovr;
+        } dsu;
+
         /*
          * Fine-Grained Trap registers. We store these as arrays so the
          * access checking code doesn't have to manually select
