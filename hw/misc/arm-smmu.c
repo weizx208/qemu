@@ -1072,6 +1072,7 @@ struct SMMU {
     AddressSpace dma_as;
 
     TBU tbu[MAX_TBU];
+    uint8_t num_tbu;
 
     struct {
         qemu_irq global;
@@ -2076,6 +2077,7 @@ static void smmu500_reset(DeviceState *dev)
     ARRAY_FIELD_DP32(s->regs, SMMU_SIDR0, NUMSMRG, s->cfg.num_smr);
     ARRAY_FIELD_DP32(s->regs, SMMU_SIDR1, NUMCB, s->cfg.num_cb);
     ARRAY_FIELD_DP32(s->regs, SMMU_SIDR1, NUMPAGENDXB, num_pages_log2 - 1);
+    s->regs[R_SMMU_TBU_PWR_STATUS] = (1 << s->num_tbu) - 1;
 }
 
 static const MemoryRegionOps smmu500_ops = {
@@ -2308,6 +2310,8 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
         sysbus_init_mmio(sbd, MEMORY_REGION(&s->tbu[i].iommu));
         g_free(name);
     }
+
+    s->num_tbu = reg.n - 1;
 
     return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
 }
