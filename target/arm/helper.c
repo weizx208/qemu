@@ -7096,6 +7096,12 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .accessfn = access_tid1,
               .type = ARM_CP_CONST, .resetvalue = 0 },
         };
+        /* MIDR opc=4 alias is specific to VMSA < v8 */
+        ARMCPRegInfo id_midr_opc4_non_pmsav8_reginfo = {
+              .name = "MIDR", .type = ARM_CP_ALIAS | ARM_CP_CONST,
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 4,
+              .access = PL1_R, .resetvalue = cpu->midr,
+        };
         /* TLBTR is specific to VMSA */
         ARMCPRegInfo id_tlbtr_reginfo = {
               .name = "TLBTR",
@@ -7161,6 +7167,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             }
         } else {
             define_arm_cp_regs(cpu, id_pre_v8_midr_cp_reginfo);
+            if (!arm_feature(env, ARM_FEATURE_PMSA)) {
+                define_one_arm_cp_reg(cpu, &id_midr_opc4_non_pmsav8_reginfo);
+            }
         }
         define_arm_cp_regs(cpu, id_cp_reginfo);
         if (!arm_feature(env, ARM_FEATURE_PMSA)) {
