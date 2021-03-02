@@ -62,6 +62,7 @@ struct XlnxZDMA {
 
     struct {
         uint32_t bus_width;
+        bool has_parity;
     } cfg;
 
     XlnxZDMAState state;
