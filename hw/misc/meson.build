@@ -102,6 +102,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-versal-noc-nsu.c',
   'xlnx-versal-noc-nps.c',
   'xlnx-versal-noc-npi-dev.c',
+  'xlnx-versal-noc-nir.c',
   'xlnx-versal-me-npi.c',
   'xlnx-versal-gty-npi.c',
   'xlnx-versal-xpio-dci.c',
