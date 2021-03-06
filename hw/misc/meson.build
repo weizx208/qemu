@@ -126,6 +126,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'sss-pmc.c'))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
+  'arm-cmn600ae.c',
   'xlnx-versal-psx-crf.c'
 ))
 
