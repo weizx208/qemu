@@ -43,6 +43,7 @@ specific_ss.add(when: 'CONFIG_REMOTE_PORT', if_true: files(
   'remote-port-gpio.c',
   'remote-port-stream.c',
   'remote-port-net.c',
+  'remote-port-ats.c',
 ))
 
 specific_ss.add(when: 'CONFIG_REMOTE_PORT_PCI', if_true: files(
