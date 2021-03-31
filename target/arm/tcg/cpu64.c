@@ -285,12 +285,12 @@ static void aarch64_a78_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64ISAR0, 0x0010100010211120ULL);
     SET_IDREG(isar, ID_AA64ISAR1, 0x01200031);
     SET_IDREG(isar, ID_AA64MMFR0, 0x000101125);
-    SET_IDREG(isar, CLIDR, 0x0c300023);
+    SET_IDREG(isar, CLIDR, 0x10400023);
 
     cpu->isar.dbgdidr = 0x3516d000;
-    cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
-    cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
-    cpu->ccsidr[2] = 0x707fe07a; /* 1MB L2 cache */
+    cpu->ccsidr[0] = 0x701fe01a; /* 64KB L1 dcache */
+    cpu->ccsidr[1] = 0x201fe01a; /* 64KB L1 icache */
+    cpu->ccsidr[2] = 0x707fe03a; /* 512K L2 cache */
     cpu->dcz_blocksize = 4; /* 64 bytes */
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
