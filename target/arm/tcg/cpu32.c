@@ -641,6 +641,24 @@ static void cortex_r5_initfn(Object *obj)
     define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
 }
 
+static uint64_t v8r_buildopt_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = env_archcpu(env);
+    uint64_t r;
+
+    r = cpu->core_count - 1;
+
+    /* 1 GIC.  */
+    r |= 1 << 8;
+
+    /* Signal integrity protection.  */
+    r |= 1 << 28;
+
+    /* Split/Lock configuration.  */
+    r |= 2 << 30;
+    return r;
+}
+
 static const ARMCPRegInfo cortex_r52_cp_reginfo[] = {
     { .name = "CPUACTLR", .cp = 15, .opc1 = 0, .crm = 15,
       .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_64BIT, .resetvalue = 0 },
@@ -673,7 +691,7 @@ static const ARMCPRegInfo cortex_r52_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "IMP_BUILDOPTR",
       .cp = 15, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 0,
-      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+      .access = PL1_R, .type = ARM_CP_NO_RAW, .readfn = v8r_buildopt_read },
     { .name = "IMP_PINOPTR",
       .cp = 15, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 7,
       .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
