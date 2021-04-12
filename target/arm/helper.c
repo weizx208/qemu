@@ -7094,7 +7094,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
               .access = PL1_R,
               .accessfn = access_tid1,
-              .type = ARM_CP_CONST, .resetvalue = 0 },
+              .type = ARM_CP_CONST, .resetvalue = cpu->tcmtr },
         };
         /* MIDR opc=4 alias is specific to VMSA < v8 */
         ARMCPRegInfo id_midr_opc4_non_pmsav8_reginfo = {
