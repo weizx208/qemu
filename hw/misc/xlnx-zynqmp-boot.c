@@ -36,6 +36,8 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "system/reset.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
 
 #include "hw/misc/xlnx-zynqmp-pmufw-cfg.h"
 
@@ -116,6 +118,9 @@ typedef struct ZynqMPBoot {
         bool load_pmufw_cfg;
     } cfg;
 
+    BlockBackend *blk;
+    uint8_t *cfg_buf;
+    uint32_t cfg_size;
     unsigned char *buf;
 } ZynqMPBoot;
 
@@ -248,12 +253,21 @@ static void boot_sequence(void *opaque)
             return;
         }
 
+        s->cfg_size = s->blk ? blk_getlength(s->blk) :
+                      sizeof(pmufw_cfg);
+        s->cfg_buf = g_new0(uint8_t, s->cfg_size);
+        if (s->blk) {
+            blk_pread(s->blk, 0, s->cfg_size, s->cfg_buf, 0);
+        } else {
+            memcpy(s->cfg_buf, pmufw_cfg, s->cfg_size);
+        }
+
         /* Save DDR contents.  */
-        s->buf = g_malloc(sizeof pmufw_cfg);
+        s->buf = g_malloc(s->cfg_size);
         address_space_read(s->dma_as, 0, mattr_secure,
-                           s->buf, sizeof pmufw_cfg);
+                           s->buf, s->cfg_size);
         address_space_write(s->dma_as, 0, mattr_secure,
-                            (void *) pmufw_cfg, sizeof pmufw_cfg);
+                            (void *) s->cfg_buf, s->cfg_size);
         pay[0] = PM_SET_CONFIGURATION;
         pay[1] = 0;
         pm_ipi_send(s, pay);
@@ -269,9 +283,11 @@ static void boot_sequence(void *opaque)
 
         /* Restore DDR contents.  */
         address_space_write(s->dma_as, 0, mattr_secure,
-                            s->buf, sizeof pmufw_cfg);
+                            s->buf, s->cfg_size);
         g_free(s->buf);
         s->buf = NULL;
+        g_free(s->cfg_buf);
+        s->cfg_buf = NULL;
 
         s->state = STATE_RELEASE_CPU;
         boot_sequence(s);
@@ -356,6 +372,7 @@ static const Property zynqmp_boot_props[] = {
     DEFINE_PROP_UINT32("cpu-num", ZynqMPBoot, cfg.cpu_num, CPU_NONE),
     DEFINE_PROP_BOOL("use-pmufw", ZynqMPBoot, cfg.use_pmufw, false),
     DEFINE_PROP_BOOL("load-pmufw-cfg", ZynqMPBoot, cfg.load_pmufw_cfg, true),
+    DEFINE_PROP_DRIVE("drive", ZynqMPBoot, blk),
 };
 
 static void zynqmp_boot_class_init(ObjectClass *klass, const void *data)
