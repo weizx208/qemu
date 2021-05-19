@@ -254,8 +254,9 @@ static inline MemTxResult pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
                                      void *buf, dma_addr_t len,
                                      DMADirection dir, MemTxAttrs attrs)
 {
-    return dma_memory_rw(pci_get_address_space(dev), addr, buf, len,
-                         dir, attrs);
+    attrs.requester_id = pci_requester_id(dev);
+    dma_memory_rw_attr(pci_get_address_space(dev), addr, buf, len, dir, attrs);
+    return 0;
 }
 
 /**
@@ -337,8 +338,15 @@ PCI_DMA_DEFINE_LDST(q_be, q_be, 64);
 static inline void *pci_dma_map(PCIDevice *dev, dma_addr_t addr,
                                 dma_addr_t *plen, DMADirection dir)
 {
-    return dma_memory_map(pci_get_address_space(dev), addr, plen, dir,
-                          MEMTXATTRS_UNSPECIFIED);
+    MemTxAttrs attr = MEMTXATTRS_UNSPECIFIED;
+    attr.requester_id = pci_requester_id(dev);
+    hwaddr xlen = *plen;
+    void *buf;
+
+    buf = address_space_map(pci_get_address_space(dev), addr, &xlen,
+                            dir == DMA_DIRECTION_FROM_DEVICE, attr);
+    *plen = xlen;
+    return buf;
 }
 
 static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len,
