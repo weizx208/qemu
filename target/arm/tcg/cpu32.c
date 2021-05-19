@@ -821,8 +821,8 @@ static void cortex_r52_initfn(Object *obj)
 
     cpu->pmsav7_dregion = 16;
     cpu->pmsav8r_hdregion = 16;
-    /* Has TCM A and B.  */
-    cpu->tcmtr = 0x80000003;
+    /* Has TCM A, B & C.  */
+    cpu->tcmtr = 0x80000007;
 
     define_arm_cp_regs(cpu, cortex_r52_cp_reginfo);
     cpu->gic_num_lrs = 4;
