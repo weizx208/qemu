@@ -816,6 +816,13 @@ typedef struct CPUArchState {
         uint32_t ctrl;
     } sau;
 
+    struct {
+    /* TCM region registers A, B & C */
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    } tcmregion;
+
 #if !defined(CONFIG_USER_ONLY)
     NVICState *nvic;
     const struct arm_boot_info *boot_info;
