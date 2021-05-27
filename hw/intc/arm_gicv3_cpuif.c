@@ -3049,6 +3049,7 @@ static void gicv3_cpuif_el_change_hook(ARMCPU *cpu, void *opaque)
 
 void gicv3_init_cpuif(GICv3State *s)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     /* Called from the GICv3 realize function; register our system
      * registers with the CPU
      */
@@ -3129,6 +3130,9 @@ void gicv3_init_cpuif(GICv3State *s)
 
         if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
             int j;
+
+            /* Xilinx backwards compat.  */
+            sysbus_init_irq(sbd, &cpu->gicv3_maintenance_interrupt);
 
             cs->num_list_regs = cpu->gic_num_lrs ?: 4;
             cs->vpribits = cpu->gic_vpribits ?: 5;
