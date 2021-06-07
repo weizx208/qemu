@@ -39,6 +39,7 @@
 
 #define CACHED_ENTRY_TO_ADDR(ent, addr)      ((ent)->entry.translated_addr + \
                                              ((addr) & (ent)->entry.addr_mask))
+#define SMMU_MAX_TBU          16
 
 /*
  * Page table walk error types
@@ -124,6 +125,7 @@ typedef struct SMMUDevice {
     int                devfn;
     IOMMUMemoryRegion  iommu;
     AddressSpace       as;
+    AddressSpace       as_downstream;
     uint32_t           cfg_cache_hits;
     uint32_t           cfg_cache_misses;
     QLIST_ENTRY(SMMUDevice) next;
@@ -162,6 +164,10 @@ struct SMMUState {
     uint8_t bus_num;
     PCIBus *primary_bus;
     bool smmu_per_bus; /* SMMU is specific to the primary_bus */
+
+    struct {
+        MemoryRegion *mr;
+    } tbu[SMMU_MAX_TBU];
 };
 
 struct SMMUBaseClass {
