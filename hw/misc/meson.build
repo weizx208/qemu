@@ -136,7 +136,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
-  'xlnx-versal-pmx-iou-slcr.c'
+  'xlnx-versal-pmx-iou-slcr.c',
+  'xlnx-versal-pmx-global.c'
 ))
 
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('i2c-dev-dummy.c'))
