@@ -447,6 +447,7 @@ typedef struct CPUArchState {
         uint64_t c9_pmuserenr; /* perf monitor user enable */
         uint64_t c9_pmselr; /* perf monitor counter selection register */
         uint64_t c9_pminten; /* perf monitor interrupt enables */
+        uint32_t c9_imp_bpctlr; /* branch predictor control register */
         /* Memory attribute redirection */
         union {
             struct {
