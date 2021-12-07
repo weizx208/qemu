@@ -121,7 +121,7 @@ typedef struct SMMU_REG {
     MemoryRegion iomem;
     qemu_irq irq_imr_0;
 
-    uint32_t irq_src;
+    uint64_t irq_src;
 
     uint32_t regs[R_MAX];
     RegisterInfo regs_info[R_MAX];
@@ -134,7 +134,7 @@ static void imr_0_update_irq(SMMU_REG *s)
     bool pending;
 
     global_irq = s->irq_src & 1;
-    ctxt_irq = s->irq_src & (~1);
+    ctxt_irq = s->irq_src & (~1ULL);
     s->regs[R_ISR_0] |= ctxt_irq << 0;
     s->regs[R_ISR_0] |= ctxt_irq << 1;
     s->regs[R_ISR_0] |= global_irq << 3;
@@ -276,7 +276,7 @@ static void smmu_reg_init(Object *obj)
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq_imr_0);
-    qdev_init_gpio_in(DEVICE(obj), irq_handler, 17);
+    qdev_init_gpio_in(DEVICE(obj), irq_handler, 33);
 }
 
 static int smmu_reg_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
