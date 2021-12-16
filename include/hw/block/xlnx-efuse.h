@@ -28,13 +28,40 @@
 #ifndef XLNX_EFUSE__H
 #define XLNX_EFUSE__H
 
-#define TYPE_XLNX_EFUSE "xlnx.efuse"
+#include "qom/object.h"
+
+#define TYPE_XLNX_EFUSE "xlnx-efuse"
 #include "hw/ptimer.h"
 #include "system/block-backend.h"
 #include "hw/zynqmp_aes_key.h"
 
 #define XLNX_EFUSE(obj) \
      OBJECT_CHECK(XLNXEFuse, (obj), TYPE_XLNX_EFUSE)
+
+#define TYPE_XLNX_EFUSE_SYSMON_DATA_SOURCE \
+    "xlnx.efuse-sysmon-data-source-interface"
+typedef struct XlnxEFuseSysmonDataSourceClass XlnxEFuseSysmonDataSourceClass;
+DECLARE_CLASS_CHECKERS(XlnxEFuseSysmonDataSourceClass,
+                       XLNX_EFUSE_SYSMON_DATA_SOURCE,
+                       TYPE_XLNX_EFUSE_SYSMON_DATA_SOURCE)
+
+typedef struct XlnxEFuseSysmonData {
+    uint32_t rdata_low;
+    uint32_t rdata_high;
+} XlnxEFuseSysmonData;
+
+struct XlnxEFuseSysmonDataSourceClass {
+    /*< private >*/
+    InterfaceClass parent_class;
+    /*< public >*/
+
+    /**
+     * get_data:
+     * @obj: the object implementing this interface
+     * @data: pointer to receive sysmon data
+     */
+    void (*get_data)(Object *obj, XlnxEFuseSysmonData *data);
+};
 
 #define FBIT_UNKNOWN (~0)
 
