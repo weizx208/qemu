@@ -132,7 +132,8 @@ specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
 system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'arm-cmn600ae.c',
   'xlnx-versal-psx-crf.c',
-  'xlnx-versal-psx-crl.c'
+  'xlnx-versal-psx-crl.c',
+  'xlnx-versal-psx-pki-rng.c',
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
