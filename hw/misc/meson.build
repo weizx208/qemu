@@ -134,6 +134,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-psx-crf.c',
   'xlnx-versal-psx-crl.c',
   'xlnx-versal-psx-pki-rng.c',
+  'xlnx-ksb-psmx-global.c',
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
