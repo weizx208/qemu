@@ -195,10 +195,8 @@ void cpu_exec_reset(CPUState *cpu)
 {
     /* Desired state before lost to pin-driven action */
     bool old_halt = cpu->halt_pin;
-    bool old_reset = cpu->reset_pin;
 
     cpu_halt_gpio(cpu, 0, old_halt);
-    cpu_reset_gpio(cpu, 0, old_reset);
 }
 
 void cpu_exec_initfn(CPUState *cpu)
