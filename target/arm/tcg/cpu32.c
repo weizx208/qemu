@@ -828,6 +828,7 @@ static void cortex_r52_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
 }
 
 static void cortex_r5f_initfn(Object *obj)
