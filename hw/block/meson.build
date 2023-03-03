@@ -8,6 +8,7 @@ system_ss.add(when: 'CONFIG_PL35X', if_true: files('pl35x.c'))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'ufshc-if.c',
+  'ufshc.c'
 ))
 
 system_ss.add(when: 'CONFIG_M24CXX', if_true: files('m24cxx.c'))
