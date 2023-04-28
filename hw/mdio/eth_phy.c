@@ -98,7 +98,7 @@ static void eth_phy_reset(DeviceState *dev)
     s->regs[PHY_STATUS] |= M(PHY_STAT_LINK_STAT);
 }
 
-static int eth_phy_read(MDIOSlave *slave, uint8_t req)
+static uint16_t eth_phy_read(MDIOSlave *slave, uint8_t req)
 {
     EthPhy *phy = ETHPHY(slave);
     int regnum;
@@ -121,7 +121,7 @@ static int eth_phy_read(MDIOSlave *slave, uint8_t req)
     return r;
 }
 
-static int eth_phy_write(MDIOSlave *slave, uint8_t req, uint8_t data)
+static int eth_phy_write(MDIOSlave *slave, uint8_t req, uint16_t data)
 {
     EthPhy *phy = ETHPHY(slave);
     int regnum = req & 0x1f;
