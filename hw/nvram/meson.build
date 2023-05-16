@@ -11,6 +11,8 @@ system_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_nvm.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE_CRC', if_true: files('xlnx-efuse-crc.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE', if_true: files('xlnx-efuse.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE_VERSAL', if_true: files(
+                                                   'xlnx-pmx-efuse-cache.c',
+                                                   'xlnx-pmx-efuse-ctrl.c',
                                                    'xlnx-versal-efuse-cache.c',
                                                    'xlnx-versal-efuse-ctrl.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE_ZYNQMP', if_true: files(
