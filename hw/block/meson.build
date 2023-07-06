@@ -12,6 +12,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'ufs-scsi-if.c',
   'ufs-scsi-core.c',
   'ufs-dev.c',
+  'unipro.c'
 ))
 
 system_ss.add(when: 'CONFIG_M24CXX', if_true: files('m24cxx.c'))
