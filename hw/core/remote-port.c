@@ -182,7 +182,8 @@ RemotePortRespSlot *rp_dev_wait_resp(RemotePort *s, uint32_t dev, uint32_t id)
         }
     }
 
-    if (s->dev_state[dev].rsp_queue[i].used == true) {
+    if (i == ARRAY_SIZE(s->dev_state[dev].rsp_queue) ||
+        s->dev_state[dev].rsp_queue[i].used == true) {
         error_report("Number of outstanding transactions exceeded! %d",
                       RP_MAX_OUTSTANDING_TRANSACTIONS);
         rp_fatal_error(s, "Internal error");
