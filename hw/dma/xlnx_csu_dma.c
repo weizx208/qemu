@@ -734,7 +734,7 @@ static const Property xlnx_csu_dma_properties[] = {
      * the SRC (read) channel and DST (write) channel. "is-dst" is used to mark
      * which channel the device is connected to.
      */
-    DEFINE_PROP_BOOL("is-dst", XlnxCSUDMA, is_dst, true),
+    DEFINE_PROP_BOOL("is-dst", XlnxCSUDMA, is_dst, false),
     DEFINE_PROP_LINK("stream-connected-dma", XlnxCSUDMA, tx_dev,
                      TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("dma", XlnxCSUDMA, dma_mr,

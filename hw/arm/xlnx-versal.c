@@ -1484,6 +1484,7 @@ static DeviceState *versal_create_ospi(Versal *s,
     /* Create the OSPI destination DMA */
     dma_dst = qdev_new(TYPE_XLNX_CSU_DMA);
     object_property_add_child(OBJECT(dev), "dma-dst-dev", OBJECT(dma_dst));
+    object_property_set_bool(OBJECT(dma_dst), "is-dst", true, &error_abort);
     object_property_set_link(OBJECT(dma_dst), "dma",
                              OBJECT(get_system_memory()), &error_abort);
 
