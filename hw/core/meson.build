@@ -28,9 +28,6 @@ system_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files('stream.c'))
 system_ss.add(when: 'CONFIG_PLATFORM_BUS', if_true: files('sysbus-fdt.c'))
 system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutls])
 
-common_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files(
-  'dma-ctrl.c'))
-
 system_ss.add(files(
   'fdt_generic_util.c',
   ))
