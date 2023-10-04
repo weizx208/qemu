@@ -577,6 +577,8 @@ typedef struct CPUArchState {
             uint64_t clusterthreadsidovr;
         } dsu;
 
+        uint32_t c15_imp_periphpregionr; /* LLP region config */
+
         /*
          * Fine-Grained Trap registers. We store these as arrays so the
          * access checking code doesn't have to manually select
