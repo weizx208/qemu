@@ -142,6 +142,28 @@ static int eth_phy_write(MDIOSlave *slave, uint8_t req, uint16_t data)
     return 0;
 }
 
+static void eth_phy_mdio_transfer(MDIOSlave *slave, MDIOFrame *frame)
+{
+    if (frame->st != MDIO_ST_CLAUSE_22) {
+        frame->data = 0xffff;
+        return;
+    }
+
+    switch (frame->op) {
+    case MDIO_OP_READ:
+        frame->data = eth_phy_read(slave, frame->addr1);
+        break;
+
+    case MDIO_OP_WRITE:
+        eth_phy_write(slave, frame->addr1, frame->data);
+        break;
+
+    default:
+        /* Other operations are not supported by clause 22 */
+        frame->data = 0xffff;
+    }
+}
+
 static void eth_phy_init(Object *obj)
 {
     EthPhy *s = ETHPHY(obj);
@@ -159,6 +181,7 @@ static void eth_phy_class_init(ObjectClass *klass, const void *data)
 
     sc->send = eth_phy_write;
     sc->recv = eth_phy_read;
+    sc->transfer = eth_phy_mdio_transfer;
 }
 
 static void phy_class_init(ObjectClass *klass, const void *data)
