@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "system/blockdev.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -504,6 +505,29 @@ static const PropertyInfo bbram_prop_drive = {
     .release = bbram_prop_release_drive,
 };
 
+static void bbram_prop_set_erase(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
+{
+    bool do_erase = false;
+
+    visit_type_bool(v, name, &do_erase, errp);
+    if (*errp) {
+        return;
+    }
+
+    if (do_erase) {
+        bbram_zeroize(XLNX_BBRAM(obj));
+    }
+}
+
+static const PropertyInfo bbram_prop_erase = {
+    .type = "bool",
+    .description = "Set true to erase entire bbram",
+    .set = bbram_prop_set_erase,
+    .realized_set_allowed = true,
+};
+
 static const VMStateDescription vmstate_bbram_ctrl = {
     .name = TYPE_XLNX_BBRAM,
     .version_id = 1,
@@ -516,6 +540,7 @@ static const VMStateDescription vmstate_bbram_ctrl = {
 
 static const Property bbram_ctrl_props[] = {
     DEFINE_PROP("drive", XlnxBBRam, blk, bbram_prop_drive, BlockBackend *),
+    DEFINE_PROP("erase", XlnxBBRam, ext_erase, bbram_prop_erase, bool),
     DEFINE_PROP_UINT32("crc-zpads", XlnxBBRam, crc_zpads, 1),
 };
 
