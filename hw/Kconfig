@@ -87,4 +87,3 @@ config XLNX_ZYNQMP
     select REGISTER
     select CAN_BUS
     select PTIMER
-    select XLNX_EFUSE_ZYNQMP
