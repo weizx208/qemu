@@ -25,6 +25,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/zynqmp_aes_key.h"
 #include "hw/nvram/xlnx-efuse.h"
 
 #define XLNX_ZYNQMP_EFUSE_R_MAX ((0x10fc / 4) + 1)
@@ -38,6 +39,8 @@ struct XlnxZynqMPEFuse {
 
     XlnxEFuse *efuse;
     RegisterInfoArray *reg_array;
+    ZynqMPAESKeySink *aes_key_sink;
+
     uint32_t regs[XLNX_ZYNQMP_EFUSE_R_MAX];
     RegisterInfo regs_info[XLNX_ZYNQMP_EFUSE_R_MAX];
 };
