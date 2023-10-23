@@ -4,18 +4,9 @@ system_ss.add(files(
   'hd-geometry.c'
 ))
 
-softmmu_ss.add(when: 'CONFIG_XLNX_ZYNQMP_CSU', if_true: files(
-  'csu_efuse.c',
-  'xlnx-efuse.c'
-))
-
 system_ss.add(when: 'CONFIG_PL35X', if_true: files('pl35x.c'))
 system_ss.add(when: 'CONFIG_M24CXX', if_true: files('m24cxx.c'))
 system_ss.add(when: 'CONFIG_ARASAN_NFC', if_true: files('arasan_nfc.c'))
-softmmu_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
-  'xlnx-versal-pmc-efuse-cache.c',
-  'xlnx-versal-pmc-efuse-ctrl.c',
-))
 system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))
 system_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.c'))
 system_ss.add(when: 'CONFIG_FDC_SYSBUS', if_true: files('fdc-sysbus.c'))
