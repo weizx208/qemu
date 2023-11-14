@@ -372,9 +372,15 @@ static void aarch64_a78_initfn(Object *obj)
 
     /* These indicate the BP hardening and KPTI aren't needed.  */
     t = GET_IDREG(isar, ID_AA64PFR0);
+    t |= (uint64_t)1 << 28; /* RAS.  */
     t |= (uint64_t)1 << 56; /* BP.  */
     t |= (uint64_t)1 << 60; /* KPTI.  */
     SET_IDREG(isar, ID_AA64PFR0, t);
+
+    t = GET_IDREG(isar, ID_AA64MMFR1);
+    t |= (uint64_t)2 << 20; /* PAN */
+    t |= (uint64_t)1 << 8; /* VHE */
+    t = SET_IDREG(isar, ID_AA64MMFR1, t);
 }
 
 static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
