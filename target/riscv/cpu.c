@@ -3124,6 +3124,10 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .misa_mxl_max = MXL_RV32,
     ),
 
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_MICROBLAZE_V, TYPE_RISCV_CPU_BASE32,
+        .cfg.mmu = false,
+    ),
+
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_RV32I, TYPE_RISCV_BARE_CPU,
         .misa_mxl_max = MXL_RV32,
         .misa_ext = RVI
