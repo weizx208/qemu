@@ -32,7 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(CadenceGEMState, CADENCE_GEM)
 #include "net/net.h"
 #include "hw/sysbus.h"
 
-#define CADENCE_GEM_MAXREG        (0x00000800 / 4) /* Last valid GEM address */
+#define CADENCE_GEM_MAXREG        (0x00000f00 / 4) /* Last valid GEM address */
 
 /* Max number of words in a DMA descriptor.  */
 #define DESC_MAX_NUM_WORDS              6
@@ -65,6 +65,7 @@ struct CadenceGEMState {
     uint32_t revision;
     uint16_t jumbo_max_len;
     bool pcs_enabled;
+    bool has_usxgmii;
 
     /* GEM registers backing store */
     uint32_t regs[CADENCE_GEM_MAXREG];
