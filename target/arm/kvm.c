@@ -2019,6 +2019,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
     cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
+    cpu->mpidr_feat = mpidr & ARM_MPIDR_FEATURE;
 
     return kvm_arm_init_cpreg_list(cpu);
 }
