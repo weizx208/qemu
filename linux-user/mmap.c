@@ -28,6 +28,7 @@
 #include "user-mmap.h"
 #include "target_mman.h"
 #include "qemu/interval-tree.h"
+#include "mmap-fixed.h"
 
 #ifdef TARGET_ARM
 #include "target/arm/cpu-features.h"
@@ -284,9 +285,9 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 static int do_munmap(void *addr, size_t len)
 {
     if (reserved_va) {
-        void *ptr = mmap(addr, len, PROT_NONE,
-                         MAP_FIXED | MAP_ANONYMOUS
-                         | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+        void *ptr = mmap_fixed_noreplace(addr, len, PROT_NONE,
+                                         MAP_FIXED | MAP_ANONYMOUS
+                                         | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
         return ptr == addr ? 0 : -1;
     }
     return munmap(addr, len);
@@ -374,9 +375,9 @@ static bool mmap_frag(abi_ulong real_start, abi_ulong start, abi_ulong last,
          * outside of the fragment we need to map.  Allocate a new host
          * page to cover, discarding whatever else may have been present.
          */
-        void *p = mmap(host_start, host_page_size,
-                       target_to_host_prot(prot),
-                       flags | MAP_ANONYMOUS, -1, 0);
+        void *p = mmap_fixed_noreplace(host_start, host_page_size,
+                                       target_to_host_prot(prot),
+                                       flags | MAP_ANONYMOUS, -1, 0);
         if (p != host_start) {
             if (p != MAP_FAILED) {
                 do_munmap(p, host_page_size);
@@ -477,8 +478,9 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
          *  - mremap() with MREMAP_FIXED flag
          *  - shmat() with SHM_REMAP flag
          */
-        ptr = mmap(g2h_untagged(addr), size, PROT_NONE,
-                   MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+        ptr = mmap_fixed_noreplace(g2h_untagged(addr), size, PROT_NONE,
+                                   MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE,
+                                   -1, 0);
 
         /* ENOMEM, if host address space has no memory */
         if (ptr == MAP_FAILED) {

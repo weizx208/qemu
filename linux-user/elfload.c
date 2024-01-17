@@ -31,6 +31,7 @@
 #include "target_elf.h"
 #include "target_signal.h"
 #include "tcg/debuginfo.h"
+#include "mmap-fixed.h"
 
 #ifdef TARGET_ARM
 #include "target/arm/cpu-features.h"
@@ -782,9 +783,9 @@ bool init_guest_commpage(void) { return true; }
 static int pgb_try_mmap(uintptr_t addr, uintptr_t addr_last, bool keep)
 {
     size_t size = addr_last - addr + 1;
-    void *p = mmap((void *)addr, size, PROT_NONE,
-                   MAP_ANONYMOUS | MAP_PRIVATE |
-                   MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+    void *p = mmap_fixed_noreplace((void *)addr, size, PROT_NONE,
+                                   MAP_ANONYMOUS | MAP_PRIVATE |
+                                   MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
     int ret;
 
     if (p == MAP_FAILED) {

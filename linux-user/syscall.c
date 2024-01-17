@@ -147,6 +147,7 @@
 #include "qapi/error.h"
 #include "fd-trans.h"
 #include "user/cpu_loop.h"
+#include "mmap-fixed.h"
 
 #if defined(__powerpc__)
 /*
