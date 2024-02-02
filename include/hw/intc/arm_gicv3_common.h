@@ -336,4 +336,10 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
  */
 const char *gicv3_class_name(void);
 
+/*
+ * XXX: for now since there are no easy way of specifying the maximum number
+ * of GPIO set dynamically, hardcode that to 32 (but it might be more).
+ */
+#define ARM_GICV3_MAX_WAKE_REQUEST 32
+
 #endif
