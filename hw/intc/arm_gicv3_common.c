@@ -348,6 +348,11 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
     }
 #endif
 
+    for (i = 0; i < s->num_cpu; i++) {
+        qdev_init_gpio_out_named(DEVICE(s), &s->cpu[i].wake_request,
+                                 "wake-request", 1);
+    }
+
     memory_region_init_io(&s->iomem_dist, OBJECT(s), ops, s,
                           "gicv3_dist", 0x10000);
     sysbus_init_mmio(sbd, &s->iomem_dist);
