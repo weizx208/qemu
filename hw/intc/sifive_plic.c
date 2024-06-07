@@ -31,6 +31,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "system/kvm.h"
+#include "hw/fdt_generic_util.h"
 
 static bool addr_between(uint32_t addr, uint32_t base, uint32_t num)
 {
@@ -446,14 +447,37 @@ static const Property sifive_plic_properties[] = {
     DEFINE_PROP_UINT32("aperture-size", SiFivePLICState, aperture_size, 0),
 };
 
+static int sifive_plic_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
+                                   uint32_t *cells, int ncells, int max,
+                                   Error **errp)
+{
+    *irqs = qdev_get_gpio_in(DEVICE(obj), cells[0]);
+    return 1;
+}
+
+static const FDTGenericGPIOSet sifive_plic_client_gpios[] = {
+    {
+        .names = &fdt_generic_gpio_name_set_interrupts,
+        .gpios = (FDTGenericGPIOConnection []) {
+            { .range = 256 },
+            { },
+        },
+    },
+    { },
+};
+
 static void sifive_plic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
+    FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
     device_class_set_legacy_reset(dc, sifive_plic_reset);
     device_class_set_props(dc, sifive_plic_properties);
     dc->realize = sifive_plic_realize;
     dc->vmsd = &vmstate_sifive_plic;
+    fgic->get_irq = sifive_plic_fdt_get_irq;
+    fggc->client_gpios = sifive_plic_client_gpios;
 }
 
 static const TypeInfo sifive_plic_info = {
@@ -461,6 +485,11 @@ static const TypeInfo sifive_plic_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SiFivePLICState),
     .class_init    = sifive_plic_class_init,
+    .interfaces    = (InterfaceInfo []) {
+        { TYPE_FDT_GENERIC_INTC },
+        { TYPE_FDT_GENERIC_GPIO },
+        { },
+    },
 };
 
 static void sifive_plic_register_types(void)
