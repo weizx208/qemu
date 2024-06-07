@@ -2077,6 +2077,56 @@ static const PropertyInfo prop_marchid = {
     .set = prop_marchid_set,
 };
 
+#ifndef CONFIG_USER_ONLY
+static void prop_mhartid_set(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    uint64_t value, invalid_val;
+    uint32_t mxlen = 0;
+
+    if (!visit_type_uint64(v, name, &value, errp)) {
+        return;
+    }
+
+    switch (riscv_cpu_mxl(&cpu->env)) {
+    case MXL_RV32:
+        mxlen = 32;
+        break;
+    case MXL_RV64:
+    case MXL_RV128:
+        mxlen = 64;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    invalid_val = 1LL << (mxlen - 1);
+
+    if (value == invalid_val) {
+        error_setg(errp, "Unable to set mhartid with MSB (%u) bit set "
+                         "and the remaining bits zero", mxlen);
+        return;
+    }
+
+    cpu->env.mhartid = value;
+}
+
+static void prop_mhartid_get(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    uint64_t value = RISCV_CPU(obj)->env.mhartid;
+
+    visit_type_uint64(v, name, &value, errp);
+}
+
+static const PropertyInfo prop_mhartid = {
+    .type = "mhartid",
+    .get = prop_mhartid_get,
+    .set = prop_mhartid_set,
+};
+#endif /* !CONFIG_USER_ONLY */
+
 /*
  * RVA22U64 defines some 'named features' that are cache
  * related: Za64rs, Zic64b, Ziccif, Ziccrse, Ziccamoa
@@ -2663,6 +2713,9 @@ static const Property riscv_cpu_properties[] = {
     {.name = "mvendorid", .info = &prop_mvendorid},
     {.name = "mimpid", .info = &prop_mimpid},
     {.name = "marchid", .info = &prop_marchid},
+#ifndef CONFIG_USER_ONLY
+    {.name = "mhartid", .info = &prop_mhartid},
+#endif /* !CONFIG_USER_ONLY */
 
 #ifndef CONFIG_USER_ONLY
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, env.resetvec, DEFAULT_RSTVEC),
