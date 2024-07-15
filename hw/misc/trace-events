@@ -403,3 +403,7 @@ ivshmem_flat_interrupt_peer(uint16_t peer_id, uint16_t vector_id) "Interrupting 
 i2c_echo_event(const char *id, const char *event) "%s: %s"
 i2c_echo_recv(const char *id, uint8_t data) "%s: recv 0x%02" PRIx8
 i2c_echo_send(const char *id, uint8_t data) "%s: send 0x%02" PRIx8
+
+# xlnx-versal-net-apu-pcil.c
+xlnx_versal_net_apu_pcil_core_request_pstate_change(size_t core, uint32_t new_pactive, bool success) "core %zu, new pactive: 0x%08x, success: %d"
+xlnx_versal_net_apu_pcil_core_read_current_pstate(size_t core, uint32_t pactive) "core %zu, pactive: 0x%08x"
