@@ -19,6 +19,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/i3c/i3c.h"
+#include "hw/hotplug.h"
 #include "hw/qdev-properties.h"
 
 static const Property i3c_props[] = {
@@ -28,11 +29,27 @@ static const Property i3c_props[] = {
     DEFINE_PROP_UINT64("pid", struct I3CTarget, pid, 0),
 };
 
+static void i3c_realize(BusState *bus, Error **errp)
+{
+    qbus_set_bus_hotplug_handler(bus);
+}
+
+static void i3c_class_init(ObjectClass *klass, const void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+    k->realize = i3c_realize;
+}
+
 static const TypeInfo i3c_bus_info = {
     .name = TYPE_I3C_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(I3CBus),
     .class_size = sizeof(I3CBusClass),
+    .class_init = i3c_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 I3CBus *i3c_init_bus(DeviceState *parent, const char *name)
@@ -602,7 +619,7 @@ I2CSlave *legacy_i2c_device_create_simple(I3CBus *bus, const char *name,
     return dev;
 }
 
-static void i3c_target_class_init(ObjectClass *klass, void *data)
+static void i3c_target_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
