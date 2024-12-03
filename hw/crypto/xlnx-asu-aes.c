@@ -1949,7 +1949,7 @@ static const VMStateDescription vmstate_asu_aes = {
     }
 };
 
-static Property asu_aes_properties[] = {
+static const Property asu_aes_properties[] = {
     DEFINE_PROP_BOOL("kv-qtest",
                      XlnxAsuAes, kv_qtest, false),
     DEFINE_PROP_BOOL("noisy-gerr",
@@ -1960,10 +1960,9 @@ static Property asu_aes_properties[] = {
     DEFINE_PROP_LINK("pmxc-aes", XlnxAsuAes,
                     pmxc_aes, TYPE_PMXC_KEY_XFER_IF,
                     PmxcKeyXferIf *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void asu_aes_class_init(ObjectClass *klass, void *data)
+static void asu_aes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
