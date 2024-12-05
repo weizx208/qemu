@@ -1526,7 +1526,7 @@ static const Property xilinx_asu_aes_properties[] = {
                      TYPE_XILINX_ASU_KV, XilinxAsuKvState *),
 };
 
-static void xilinx_asu_aes_class_init(ObjectClass *klass, void *data)
+static void xilinx_asu_aes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
