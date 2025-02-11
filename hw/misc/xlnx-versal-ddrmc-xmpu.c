@@ -866,7 +866,7 @@ static bool xmpu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
 }
 
 static const Property xmpu_properties[] = {
-    DEFINE_PROP_UINT64("protected-base", XMPU, cfg.base, 0),
+    XMPU_COMMON_PROPS(),
 };
 
 static const VMStateDescription vmstate_xmpu = {
