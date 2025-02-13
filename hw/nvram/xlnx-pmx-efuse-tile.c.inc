@@ -438,6 +438,73 @@
     EFUSE_TILE(46, 80, 1), \
     EFUSE_TILE(47, 81, 1))
 
+#define EFUSE_U32_TILES_PUF EFUSE_LIST( \
+    EFUSE_TILE_U32(0, 0, 192, 5), \
+    EFUSE_TILE_U32(1, 0, 193, 5), \
+    EFUSE_TILE_U32(2, 0, 194, 5), \
+    EFUSE_TILE_U32(3, 0, 195, 5), \
+    EFUSE_TILE_U32(4, 0, 196, 5), \
+    EFUSE_TILE_U32(5, 0, 197, 5), \
+    EFUSE_TILE_U32(6, 0, 198, 5), \
+    EFUSE_TILE_U32(7, 0, 199, 5), \
+    EFUSE_TILE_U32(8, 0, 200, 5), \
+    EFUSE_TILE_U32(9, 0, 201, 5), \
+    EFUSE_TILE_U32(10, 0, 202, 5), \
+    EFUSE_TILE_U32(11, 0, 203, 5), \
+    EFUSE_TILE_U32(12, 0, 204, 5), \
+    EFUSE_TILE_U32(13, 0, 205, 5), \
+    EFUSE_TILE_U32(14, 0, 206, 5), \
+    EFUSE_TILE_U32(15, 0, 207, 5), \
+    EFUSE_TILE_U32(16, 0, 208, 5), \
+    EFUSE_TILE_U32(17, 0, 209, 5), \
+    EFUSE_TILE_U32(18, 0, 210, 5), \
+    EFUSE_TILE_U32(19, 0, 211, 5), \
+    EFUSE_TILE_U32(20, 0, 212, 5), \
+    EFUSE_TILE_U32(21, 0, 213, 5), \
+    EFUSE_TILE_U32(22, 0, 214, 5), \
+    EFUSE_TILE_U32(23, 0, 215, 5), \
+    EFUSE_TILE_U32(24, 0, 216, 5), \
+    EFUSE_TILE_U32(25, 0, 217, 5), \
+    EFUSE_TILE_U32(26, 0, 218, 5), \
+    EFUSE_TILE_U32(27, 0, 219, 5), \
+    EFUSE_TILE_U32(28, 0, 220, 5), \
+    EFUSE_TILE_U32(29, 0, 221, 5), \
+    EFUSE_TILE_U32(30, 0, 222, 5), \
+    EFUSE_TILE_U32(31, 0, 223, 5), \
+    EFUSE_TILE_U32(32, 0, 224, 5), \
+    EFUSE_TILE_U32(33, 0, 225, 5), \
+    EFUSE_TILE_U32(34, 0, 226, 5), \
+    EFUSE_TILE_U32(35, 0, 227, 5), \
+    EFUSE_TILE_U32(36, 0, 228, 5), \
+    EFUSE_TILE_U32(37, 0, 229, 5), \
+    EFUSE_TILE_U32(38, 0, 230, 5), \
+    EFUSE_TILE_U32(39, 0, 231, 5), \
+    EFUSE_TILE_U32(40, 0, 232, 5), \
+    EFUSE_TILE_U32(41, 0, 233, 5), \
+    EFUSE_TILE_U32(42, 0, 234, 5), \
+    EFUSE_TILE_U32(43, 0, 235, 5), \
+    EFUSE_TILE_U32(44, 0, 236, 5), \
+    EFUSE_TILE_U32(45, 0, 237, 5), \
+    EFUSE_TILE_U32(46, 0, 238, 5), \
+    EFUSE_TILE_U32(47, 0, 239, 5), \
+    EFUSE_TILE_U32(48, 0, 240, 5), \
+    EFUSE_TILE_U32(49, 0, 241, 5), \
+    EFUSE_TILE_U32(50, 0, 242, 5), \
+    EFUSE_TILE_U32(51, 0, 243, 5), \
+    EFUSE_TILE_U32(52, 0, 244, 5), \
+    EFUSE_TILE_U32(53, 0, 245, 5), \
+    EFUSE_TILE_U32(54, 0, 246, 5), \
+    EFUSE_TILE_U32(55, 0, 247, 5), \
+    EFUSE_TILE_U32(56, 0, 248, 5), \
+    EFUSE_TILE_U32(57, 0, 249, 5), \
+    EFUSE_TILE_U32(58, 0, 250, 5), \
+    EFUSE_TILE_U32(59, 0, 251, 5), \
+    EFUSE_TILE_U32(60, 0, 252, 5), \
+    EFUSE_TILE_U32(61, 0, 253, 5), \
+    EFUSE_TILE_U32(62, 0, 254, 5), \
+    EFUSE_TILE_U32(63, 0, 255, 5), \
+)
+
 /*
  * Access control's level-1 table initializers
  */
