@@ -69,6 +69,10 @@ static const XlnxPmxEfuseTile pmx_efuse_u8_uds[] = {
     EFUSE_U8_TILES_UDS
 };
 
+static const XlnxPmxEfuseTile pmx_efuse_puf[] = {
+    EFUSE_U32_TILES_PUF
+};
+
 static const XlnxPmxEfuseTile *pmx_efuse_mapping_pmx_get(XlnxEfuseMapIf *iface,
                                                          XlnxEfuseMapIdx idx,
                                                          size_t *len)
@@ -97,6 +101,10 @@ static const XlnxPmxEfuseTile *pmx_efuse_mapping_pmx_get(XlnxEfuseMapIf *iface,
     case XLNX_EFUSE_MAP_SYSMON:
         *len = ARRAY_SIZE(pmx_efuse_u8_sysmon_rd64);
         return pmx_efuse_u8_sysmon_rd64;
+
+    case XLNX_EFUSE_MAP_PUF:
+        *len = ARRAY_SIZE(pmx_efuse_puf);
+        return pmx_efuse_puf;
 
     default:
         return NULL;

@@ -47,6 +47,7 @@ typedef enum XlnxEfuseMapIdx {
     XLNX_EFUSE_MAP_USER1_KEY,
     XLNX_EFUSE_MAP_UDS,
     XLNX_EFUSE_MAP_SYSMON,
+    XLNX_EFUSE_MAP_PUF,
 } XlnxEfuseMapIdx;
 
 struct XlnxEfuseMapIfClass {
