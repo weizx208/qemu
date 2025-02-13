@@ -232,7 +232,7 @@ static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
         return false;
     case XLNX_EFUSE_AC_ALWAYS:
         return true;
-    case XLNX_EFUSE_AC_37F:
+    case XLNX_EFUSE_AC_GLITCH_DET_WR_LK:
         return xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_GLITCH_DET_WR_LK);
     case XLNX_EFUSE_AC_TBIT0:
@@ -245,48 +245,48 @@ static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
         return s->ac_factory;
     case XLNX_EFUSE_AC_RFSOC:
         return s->ac_rfsoc;
-    case XLNX_EFUSE_AC_FACTORY_5EC:
+    case XLNX_EFUSE_AC_FACTORY_BOOT_ENV_WR_LK:
         return s->ac_factory
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_BOOT_ENV_WR_LK);
     case XLNX_EFUSE_AC_FACTORY_ROW0:
         return s->ac_factory || s->ac_row0;
-    case XLNX_EFUSE_AC_TBIT0_58C:
+    case XLNX_EFUSE_AC_TBIT0_UDS_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_UDS_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_58E:
+    case XLNX_EFUSE_AC_TBIT0_PPK0_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PPK0_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_58F:
+    case XLNX_EFUSE_AC_TBIT0_PPK1_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PPK1_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_5A8:
+    case XLNX_EFUSE_AC_TBIT0_PPK2_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PPK2_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_5AB:
+    case XLNX_EFUSE_AC_TBIT0_AES_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_AES_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_5AD:
+    case XLNX_EFUSE_AC_TBIT0_USER_KEY_0_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_USER_KEY_0_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_5AF:
+    case XLNX_EFUSE_AC_TBIT0_USER_KEY_1_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_USER_KEY_1_WR_LK);
-    case XLNX_EFUSE_AC_TBIT0_5C8:
+    case XLNX_EFUSE_AC_TBIT0_PUF_SYN_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PUF_SYN_LK);
     case XLNX_EFUSE_AC_TBIT0_REVOKE:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || ARRAY_FIELD_EX32(s->regs, EFUSE_PGM_LOCK, REVOCATION_ID_LOCK);
-    case XLNX_EFUSE_AC_TBIT1_5C8:
+    case XLNX_EFUSE_AC_TBIT1_PUF_SYN_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PUF_SYN_LK);
