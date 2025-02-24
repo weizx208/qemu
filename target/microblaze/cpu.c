@@ -38,6 +38,7 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/fdt_generic_util.h"
+#include "hw/core/cpu-exec-gpio.h"
 #endif
 
 static const struct {
@@ -264,6 +265,10 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
         cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = *cpu->env.memattr_p;
         cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
     }
+#endif
+
+#ifndef CONFIG_USER_ONLY
+    cpu_halt_update(cs);
 #endif
 }
 

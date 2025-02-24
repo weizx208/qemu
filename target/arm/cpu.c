@@ -628,6 +628,10 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
         arm_cpu_set_irq(cpu, i, cpu->env.irq_wires[i]);
     }
 #endif
+
+#ifndef CONFIG_USER_ONLY
+    cpu_halt_update(cs);
+#endif
 }
 
 void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
