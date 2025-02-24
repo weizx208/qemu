@@ -398,11 +398,6 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
         return tcg_code_gen_epilogue;
     }
 
-    /* Avoid fast lookups when etracing.  */
-    if (qemu_etrace_mask(ETRACE_F_EXEC)) {
-        return tcg_code_gen_epilogue;
-    }
-
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
         log_cpu_exec(s.pc, cpu, tb);
     }

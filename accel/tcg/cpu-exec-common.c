@@ -22,6 +22,7 @@
 #include "system/tcg.h"
 #include "qemu/plugin.h"
 #include "internal-common.h"
+#include "qemu/etrace.h"
 
 bool tcg_allowed;
 
@@ -52,6 +53,13 @@ uint32_t curr_cflags(CPUState *cpu)
         cflags |= CF_NO_GOTO_TB | 1;
     } else if (qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
         cflags |= CF_NO_GOTO_TB;
+    }
+
+    if (qemu_etrace_mask(ETRACE_F_EXEC)) {
+        /*
+         * Fast TB lookup must be disabled in order to trace each TB execution.
+         */
+        cflags |= CF_NO_GOTO_PTR;
     }
 
     return cflags;
