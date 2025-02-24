@@ -18,10 +18,6 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "qemu/timer.h"
-#include "qemu/log.h"
-#include "system/tcg.h"
-#include "system/cpus.h"
 #include "system/runstate.h"
 #include "hw/irq.h"
 
@@ -68,9 +64,9 @@ static void cpu_reset_exit(CPUState *cpu, run_on_cpu_data data)
     cpu_reset(cpu);
 }
 
-static void cpu_exec_pin_update(CPUState *cpu, bool reset_pin)
+static void cpu_exec_pin_update(CPUState *cpu)
 {
-    bool val = reset_pin || cpu->halt_pin || cpu->arch_halt_pin;
+    bool val = cpu->reset_pin || cpu->halt_pin || cpu->arch_halt_pin;
     bool async = runstate_is_running();
 
     /*
@@ -136,14 +132,14 @@ void cpu_reset_gpio(void *opaque, int irq, int level)
         } else {
             cpu_reset_enter(cpu, RUN_ON_CPU_NULL);
         }
-        cpu_exec_pin_update(cpu, cpu->reset_pin);
+        cpu_exec_pin_update(cpu);
     } else {
         if (async) {
             async_run_on_cpu(cpu, cpu_reset_exit, RUN_ON_CPU_NULL);
         } else {
             cpu_reset_exit(cpu, RUN_ON_CPU_NULL);
         }
-        cpu_exec_pin_update(cpu, cpu->reset_pin);
+        cpu_exec_pin_update(cpu);
     }
 
 done:
@@ -156,11 +152,11 @@ void cpu_halt_gpio(void *opaque, int irq, int level)
 
     assert(bql_locked());
     cpu->halt_pin = level;
-    cpu_exec_pin_update(cpu, cpu->reset_pin); /* TBD: _sync not working */
+    cpu_exec_pin_update(cpu); /* TBD: _sync not working */
 }
 
 void cpu_halt_update(CPUState *cpu)
 {
     assert(bql_locked());
-    cpu_exec_pin_update(cpu, cpu->reset_pin); /* TBD: _sync not working */
+    cpu_exec_pin_update(cpu); /* TBD: _sync not working */
 }
