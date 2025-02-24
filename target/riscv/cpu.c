@@ -36,6 +36,7 @@
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
 #include "tcg/tcg.h"
+#include "hw/core/cpu-exec-gpio.h"
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCPVH";
@@ -940,6 +941,10 @@ static void riscv_cpu_reset_hold(Object *obj)
     if (kvm_enabled()) {
         kvm_riscv_reset_vcpu(cpu);
     }
+#endif
+
+#ifndef CONFIG_USER_ONLY
+    cpu_halt_update(cs);
 #endif
 }
 

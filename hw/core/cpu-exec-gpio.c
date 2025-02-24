@@ -149,10 +149,16 @@ done:
 void cpu_halt_gpio(void *opaque, int irq, int level)
 {
     CPUState *cpu = CPU(opaque);
+    bool changed;
 
     assert(qemu_mutex_iothread_locked());
-    cpu->halt_pin = level;
-    cpu_exec_pin_update(cpu); /* TBD: _sync not working */
+
+    changed = cpu->halt_pin != level;
+
+    if (changed) {
+        cpu->halt_pin = level;
+        cpu_exec_pin_update(cpu); /* TBD: _sync not working */
+    }
 }
 
 void cpu_halt_update(CPUState *cpu)
