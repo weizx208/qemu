@@ -598,8 +598,7 @@ static void arm_cpu_reset_hold(Object *obj)
         arm_rebuild_hflags(env);
     }
 
-    cpu->is_in_wfi = false;
-    qemu_set_irq(cpu->wfi, cpu->is_in_wfi);
+    qemu_set_irq(cpu->wfi, false);
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.memattr_ns) {

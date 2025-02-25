@@ -901,8 +901,6 @@ struct ArchCPU {
 
     CPUARMState env;
 
-    bool is_in_wfi;
-
     /* Coprocessor information */
     GHashTable *cp_regs;
     /* For marshalling (mostly coprocessor) register state between the

@@ -53,7 +53,6 @@ static void cpu_reset_enter(CPUState *cpu, run_on_cpu_data data)
     ARMCPU *arm_cpu = ARM_CPU(cpu);
 
     assert(qemu_mutex_iothread_locked());
-    arm_cpu->is_in_wfi = false;
     qemu_set_irq(arm_cpu->wfi, 0);
 #endif
 }
