@@ -56,8 +56,10 @@ typedef struct XilinxGPI {
         bool use;
         bool interrupt;
         uint32_t size;
+        uint32_t sample_mask;
     } cfg;
     uint32_t regs[R_MAX];
+    uint32_t sampled;
     RegisterInfo regs_info[R_MAX];
     RegisterInfo regs_info_en;
     const char *prefix;
@@ -67,6 +69,14 @@ static const Property xlx_iom_properties[] = {
     DEFINE_PROP_BOOL("use-gpi", XilinxGPI, cfg.use, 0),
     DEFINE_PROP_BOOL("gpi-interrupt", XilinxGPI, cfg.interrupt, 0),
     DEFINE_PROP_UINT32("gpi-size", XilinxGPI, cfg.size, 0),
+    /*
+     * This mask property enables sampling of the inputs for every set bits in
+     * the mask. This behaviour does not exist on real hardware. The sampled
+     * data is cleared by reading the GPI register. This is used to workaround
+     * a flaw in the ZynqMP design, where the WFI signal indirectly coming out
+     * of the CPUs can be missed by the PSM if it is lowered to quickly.
+     */
+    DEFINE_PROP_UINT32("gpi-sample-mask", XilinxGPI, cfg.sample_mask, 0),
 };
 
 static void update_irq(XilinxGPI *s)
@@ -86,6 +96,7 @@ static void irq_handler(void *opaque, int irq, int level)
     s->regs[R_IOM_GPI] &= ~(1 << irq);
     s->regs[R_IOM_GPI] |= (!!level) << irq;
     if (old != s->regs[R_IOM_GPI]) {
+        s->sampled |= ((!!level) << irq) & s->cfg.sample_mask & s->ien;
         update_irq(s);
     }
 }
@@ -108,18 +119,21 @@ static void ien_handler(void *opaque, int n, int level)
     }
 }
 
+static uint64_t gpi_postr(RegisterInfo *reg, uint64_t val64)
+{
+    XilinxGPI *s = XILINX_IO_MODULE_GPI(reg->opaque);
+
+    val64 |= s->sampled;
+    s->sampled = 0;
+
+    return val64 & s->ien;
+}
+
 static void gpi_en_postw(RegisterInfo *reg, uint64_t val64)
 {
     XilinxGPI *s = XILINX_IO_MODULE_GPI(reg->opaque);
 
     update_irq(s);
-}
-
-static uint64_t gpi_postr(RegisterInfo *reg, uint64_t val64)
-{
-    XilinxGPI *s = XILINX_IO_MODULE_GPI(reg->opaque);
-
-    return val64 & s->ien;
 }
 
 static const RegisterAccessInfo gpi_regs_info[] = {
