@@ -865,6 +865,8 @@ static bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     uint32_t target_el;
     uint32_t excp_idx;
 
+    qemu_irq_lower(ARM_CPU(cs)->wfi);
+
     /* The prioritization of interrupts is IMPLEMENTATION DEFINED. */
 
     if (interrupt_request & CPU_INTERRUPT_FIQ) {
