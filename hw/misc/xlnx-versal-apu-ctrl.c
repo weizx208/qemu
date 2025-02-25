@@ -183,19 +183,6 @@ static void pwrctl_postw(RegisterInfo *reg, uint64_t val64)
             flush_req_ok = false;
         }
 
-        /* HAX:
-         * We shouldn't be peeking into this internal ARMCPU state.
-         * This is useful for debugging.
-         */
-        for (i = 0; i < MAX_CPUS; i++) {
-            if (s->cpus[i] && !s->cpus[i]->is_in_wfi) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                       "%s: ACPU%d not in WFI while requesting L2FLUSHREQ\n",
-                       DEVICE(s)->id, i);
-                flush_req_ok = false;
-            }
-        }
-
         ARRAY_FIELD_DP32(s->regs, PWRSTAT, L2FLUSHDONE, flush_req_ok);
     }
 
