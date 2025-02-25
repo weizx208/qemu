@@ -331,13 +331,13 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
     return;
 #else
     CPUState *cs = env_cpu(env);
-    ARMCPU *cpu = env_archcpu(env);
-
     int target_el = check_wfx_trap(env, false);
 
-    if (cpu_has_work(cs) && 0) {
-        cs->exception_index = -1;
-        cpu_loop_exit(cs);
+    if (cpu_has_work(cs)) {
+        /*
+         * Don't bother to go into our "low power state" if
+         * we would just wake up immediately.
+         */
         return;
     }
 
@@ -352,22 +352,8 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
                         target_el);
     }
 
-    qemu_mutex_lock_iothread();
-    if (use_icount || 1) {
-        cs->exception_index = EXCP_YIELD;
-    } else {
-        cs->halted = 1;
-        cs->exception_index = EXCP_HLT;
-    }
-
-    /* Drive STANDBYWFI only if cpu reset-pin is inactive */
-    if (cs->reset_pin == false) {
-        cpu->is_in_wfi = true;
-        qemu_set_irq(cpu->wfi, 1);
-    }
-
-    qemu_mutex_unlock_iothread();
-
+    cs->exception_index = EXCP_HLT;
+    cs->halted = 1;
     cpu_loop_exit(cs);
 #endif
 }
