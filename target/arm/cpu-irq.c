@@ -10,6 +10,7 @@
 #include "cpu.h"
 #include "accel/tcg/cpu-ops.h"
 #include "internals.h"
+#include "hw/irq.h"
 
 #ifdef CONFIG_TCG
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
@@ -176,6 +177,8 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     uint64_t hcr_el2 = arm_hcr_el2_eff(env);
     uint32_t target_el;
     uint32_t excp_idx;
+
+    qemu_irq_lower(ARM_CPU(cs)->wfi);
 
     /* The prioritization of interrupts is IMPLEMENTATION DEFINED. */
 
