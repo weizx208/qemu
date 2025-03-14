@@ -238,6 +238,7 @@ struct GICv3State {
     uint32_t num_irq;
     uint32_t revision;
     uint32_t maint_irq;
+    uint32_t partnum;
     bool lpi_enable;
     bool nmi_support;
     bool security_extn;
