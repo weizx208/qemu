@@ -8055,9 +8055,9 @@ static const MemoryRegionOps psxc_lpx_slcr_ops = {
 };
 
 static void core_pwr_ctrl_reset(XlnxPsxcLpxSlcrCorePowerCtrl *pwr_ctrl,
-                                bool linux_boot)
+                                bool start_off)
 {
-    if (linux_boot) {
+    if (start_off) {
         pwr_ctrl->reg0 = 0; /* reset with the core powered off */
     } else {
         pwr_ctrl->reg0 = APU0_CORE0_PWR_CNTRL_REG0_RESET_VAL;
@@ -8112,7 +8112,8 @@ static void psxc_lpx_slcr_reset_enter(Object *obj, ResetType type)
     }
 
     for (i = 0; i < ARRAY_SIZE(s->core_pwr); i++) {
-        core_pwr_ctrl_reset(&s->core_pwr[i], s->linux_boot);
+        /* when direct Linux booting, start with core 0 on and the rest off */
+        core_pwr_ctrl_reset(&s->core_pwr[i], i ? s->linux_boot : false);
     }
 }
 
