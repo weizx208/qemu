@@ -1,16 +1,7 @@
 #include "qemu/osdep.h"
-#include "hw/fdt_generic_util.h"
-#include "hw/fdt_generic_devices.h"
 #include "qom/object.h"
-#include "sysemu/blockdev.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
-#include "qemu/log.h"
-#include "qapi/error.h"
-#include "chardev/char.h"
-#include "qemu/coroutine.h"
-
-#include "hw/qdev-core.h"
+#include "hw/fdt_generic.h"
+#include "sysemu/device_tree.h"
 
 static const TypeInfo fdt_qom_aliases[] = {
     {   .name = "arasan,sdhci-8.9a",        .parent = "xilinx.zynqmp-sdhci" },
