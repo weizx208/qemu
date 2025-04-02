@@ -159,6 +159,7 @@ typedef struct XHCIInterrupter {
     uint32_t erdp_high;
 
     bool msix_used, er_pcs;
+    bool start_pending;
 
     dma_addr_t er_start;
     uint32_t er_size;
@@ -224,6 +225,7 @@ typedef struct XHCIState {
     XHCIRing cmd_ring;
 
     bool nec_quirks;
+    bool dwc3_quirks;
 } XHCIState;
 
 extern const VMStateDescription vmstate_xhci;
