@@ -12,8 +12,7 @@
 #include <stdbool.h>
 #include "hw/remote-port-proto.h"
 #include "hw/remote-port-device.h"
-#include "chardev/char.h"
-#include "chardev/char-fe.h"
+#include "io/channel.h"
 #include "hw/ptimer.h"
 
 #define TYPE_REMOTE_PORT "remote-port"
@@ -37,8 +36,7 @@ struct RemotePort {
            int write;
        } pipe;
     } event;
-    Chardev *chrdev;
-    CharFrontend chr;
+    QIOChannel *chan;
     bool do_sync;
     bool doing_sync;
     bool finalizing;
@@ -46,7 +44,6 @@ struct RemotePort {
     QemuMutex write_mutex;
 
     char *chardesc;
-    char *chrdev_id;
     struct rp_peer_state peer;
 
     struct {

@@ -1288,7 +1288,6 @@ static void virt_create_remoteport(MachineState *machine,
 
     rp_obj = object_new("remote-port");
     object_property_add_child(OBJECT(machine), "cosim", rp_obj);
-    object_property_set_str(rp_obj, "chrdev-id", "cosim", &error_fatal);
     object_property_set_bool(rp_obj, "sync", true, &error_fatal);
 
     rpm_obj = object_new("remote-port-memory-master");

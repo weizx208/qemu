@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
+#include "chardev/char.h"
 
 #include "hw/remote-port.h"
 

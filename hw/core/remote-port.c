@@ -15,14 +15,17 @@
 #include "hw/ptimer.h"
 #include "qemu/sockets.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qemu/cutils.h"
 #include "exec/icount.h"
 #include "hw/core/cpu.h"
+#include "io/channel-socket.h"
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -127,15 +130,7 @@ static ssize_t rp_recv(RemotePort *s, void *buf, size_t count)
 {
     ssize_t r;
 
-    r = qemu_chr_fe_read_all(&s->chr, buf, count);
-    if (r <= 0) {
-        return r;
-    }
-    if (r != count) {
-        error_report("%s: Bad read, expected %zd but got %zd\n",
-                     s->prefix, count, r);
-        rp_fatal_error(s, "Bad read");
-    }
+    r = qio_channel_read_all(s->chan, buf, count, &error_fatal);
 
     return r;
 }
@@ -143,16 +138,18 @@ static ssize_t rp_recv(RemotePort *s, void *buf, size_t count)
 ssize_t rp_write(RemotePort *s, const void *buf, size_t count)
 {
     ssize_t r;
+#ifdef RP_DEBUG
+    const struct rp_pkt *pkt = (const struct rp_pkt *) buf;
+#endif
+
+    RP_TRACE("sending: %s, id: %u, dev: %u\n",
+             rp_cmd_to_string(be32_to_cpu(pkt->hdr.cmd)),
+             be32_to_cpu(pkt->hdr.id), be32_to_cpu(pkt->hdr.dev));
 
     qemu_mutex_lock(&s->write_mutex);
-    r = qemu_chr_fe_write_all(&s->chr, buf, count);
+    r = qio_channel_write_all(s->chan, buf, count, &error_fatal);
     qemu_mutex_unlock(&s->write_mutex);
-    assert(r == count);
-    if (r <= 0) {
-        error_report("%s: Disconnected r=%zd buf=%p count=%zd\n",
-                     s->prefix, r, buf, count);
-        rp_fatal_error(s, "Bad write");
-    }
+
     return r;
 }
 
@@ -353,68 +350,214 @@ static char *rp_sanitize_prefix(RemotePort *s)
     return sanitized_name;
 }
 
+static QIOChannel *rp_create_iochannel(SocketAddress *addr, bool server,
+                                       Error **errp)
+{
+    QIOChannelSocket *sock = qio_channel_socket_new();
+
+    if (server) {
+        QIOChannelSocket *client;
+
+        if (qio_channel_socket_listen_sync(sock, addr, 1, errp)) {
+            object_unref(OBJECT(sock));
+            return NULL;
+        }
+
+        client = qio_channel_socket_accept(sock, errp);
+        object_unref(OBJECT(sock));
+
+        return QIO_CHANNEL(client);
+    } else {
+        if (qio_channel_socket_connect_sync(sock, addr, errp)) {
+            object_unref(OBJECT(sock));
+            return NULL;
+        }
+
+        return QIO_CHANNEL(sock);
+    }
+}
+
 /*
- * Returns the chardev URI for remote port communication. To workaround AF_UNIX
- * socket path limitation, this function chdir to the machine-path directory,
- * and put a relative socket file name into the chardev URI. The caller should
- * call rp_autocreate_chardesc_pop to restore the working directory to its
- * initial value.
+ * The remote port code used to have a Chardev instead of an QIOChannel for
+ * communication with the peer. The remote-port device has this `chardesc'
+ * string qdev property that was passed to the Chardev. To maintain backward
+ * compatibility, this function parses it and set the SocketAddress accordingly
+ * for the QIOChannelSocket creation. Only TCP address/port and UNIX socket are
+ * supported.
  */
-static char *rp_autocreate_chardesc_push(RemotePort *s, bool server,
-                                         gchar **saved_cwd)
+static bool rp_parse_legacy_chardesc(RemotePort *s, SocketAddress *addr,
+                                     bool *server, Error **errp)
 {
-    char *prefix;
-    char *chardesc;
-    int r;
+    QemuOpts *opts;
+    const char *backend;
+    const char *path;
+    const char *host;
+    const char *port;
+    const char *fd;
 
-    prefix = rp_sanitize_prefix(s);
-
-    *saved_cwd = g_get_current_dir();
-    if (chdir(machine_path) == -1) {
-        error_report("cannot chdir to `%s': %s", machine_path,
-                     strerror(errno));
-        exit(EXIT_FAILURE);
+    opts = qemu_chr_parse_compat("remote-port", s->chardesc, false);
+    if (opts == NULL) {
+        error_setg(errp, "Error while parsing the chardesc property");
+        return false;
     }
 
-    r = asprintf(&chardesc, "unix:qemu-rport-%s%s",
-                 prefix, server ? ",wait,server" : "");
-    assert(r > 0);
-    free(prefix);
-    return chardesc;
+    backend = qemu_opt_get(opts, "backend");
+
+    if (backend == NULL) {
+        error_setg(errp, "remote-port chardesc property: missing backend");
+        return false;
+    }
+
+    if (strcmp(backend, "socket")) {
+        error_setg(errp, "remote-port chardesc property: "
+                   "only the socket backend is supported");
+        error_append_hint(errp, "only use tcp: or unix: "
+                          "in the chardesc property");
+        return false;
+    }
+
+    path = qemu_opt_get(opts, "path");
+    host = qemu_opt_get(opts, "host");
+    port = qemu_opt_get(opts, "port");
+    fd = qemu_opt_get(opts, "fd");
+
+    if ((!!path + !!fd + !!host) > 1) {
+        error_setg(errp, "remote-port chardesc property: "
+                   "path, host and fd are mutually exclusive");
+        return false;
+    }
+
+    if (host && !port) {
+        error_setg(errp, "remote-port chardesc property: missing port");
+        return false;
+    }
+
+    if (path) {
+        addr->type = SOCKET_ADDRESS_TYPE_UNIX;
+        addr->u.q_unix.path = g_strdup(path);
+#ifdef CONFIG_LINUX
+        addr->u.q_unix.has_tight = true;
+        addr->u.q_unix.tight = qemu_opt_get_bool(opts, "tight", true);
+        addr->u.q_unix.has_abstract = true;
+        addr->u.q_unix.abstract = qemu_opt_get_bool(opts, "abstract", false);
+#endif
+    } else if (host) {
+        addr->type = SOCKET_ADDRESS_TYPE_INET;
+        addr->u.inet.host = g_strdup(host);
+        addr->u.inet.port = g_strdup(port);
+        addr->u.inet.has_to = qemu_opt_get(opts, "to");
+        addr->u.inet.to = qemu_opt_get_number(opts, "to", 0);
+        addr->u.inet.has_ipv4 = qemu_opt_get(opts, "ipv4");
+        addr->u.inet.ipv4 = qemu_opt_get_bool(opts, "ipv4", 0);
+        addr->u.inet.has_ipv6 = qemu_opt_get(opts, "ipv6");
+        addr->u.inet.ipv6 = qemu_opt_get_bool(opts, "ipv6", 0);
+    } else {
+        addr->type = SOCKET_ADDRESS_TYPE_FD;
+        addr->u.fd.str = g_strdup(fd);
+    }
+
+    *server = qemu_opt_get_bool(opts, "server", false);
+
+    qemu_opts_del(opts);
+
+    return true;
 }
 
-static void rp_autocreate_chardesc_pop(RemotePort *s, gchar *saved_cwd)
+/*
+ * Legacy message from when a chardev was used. Some scripts rely on it so
+ * keep it for backward compatibility.
+ */
+static void rp_report_listening(const SocketAddress *addr, const char *prefix)
 {
-    g_assert(chdir(saved_cwd) == 0);
-    g_free(saved_cwd);
+    switch (addr->type) {
+    case SOCKET_ADDRESS_TYPE_UNIX:
+        if (prefix) {
+            info_report("QEMU waiting for connection on: %s/%s",
+                        prefix, addr->u.q_unix.path);
+        } else {
+            info_report("QEMU waiting for connection on: %s",
+                        addr->u.q_unix.path);
+        }
+        break;
+
+    case SOCKET_ADDRESS_TYPE_INET:
+        g_assert(prefix == NULL);
+
+        info_report("QEMU waiting for connection on: tcp:%s:%s",
+                    addr->u.inet.host, addr->u.inet.port);
+    default:
+        break;
+    }
+
 }
 
-static Chardev *rp_autocreate_chardev(RemotePort *s, char *name)
+static QIOChannel *rp_connect_legacy_chardesc(RemotePort *s, Error **errp)
 {
-    Chardev *chr = NULL;
-    char *chardesc;
-    char *s_path;
-    char *saved_cwd;
-    int r;
+    SocketAddress addr = {};
+    bool server;
 
-    r = asprintf(&s_path, "%s/qemu-rport-%s", machine_path,
-                 rp_sanitize_prefix(s));
-    assert(r > 0);
-    if (g_file_test(s_path, G_FILE_TEST_EXISTS)) {
-        chardesc = rp_autocreate_chardesc_push(s, false, &saved_cwd);
-        chr = qemu_chr_new_noreplay(name, chardesc, false, NULL);
-        free(chardesc);
-        rp_autocreate_chardesc_pop(s, saved_cwd);
+    if (!rp_parse_legacy_chardesc(s, &addr, &server, errp)) {
+        return NULL;
     }
-    free(s_path);
 
-    if (!chr) {
-        chardesc = rp_autocreate_chardesc_push(s, true, &saved_cwd);
-        chr = qemu_chr_new_noreplay(name, chardesc, false, NULL);
-        free(chardesc);
-        rp_autocreate_chardesc_pop(s, saved_cwd);
+    if (server) {
+        rp_report_listening(&addr, NULL);
     }
-    return chr;
+
+    return rp_create_iochannel(&addr, server, errp);
+}
+
+static QIOChannel *rp_autoconnect(RemotePort *s, Error **errp)
+{
+    SocketAddress addr = {};
+    g_autofree char *socket_path = NULL;
+    g_autofree char *saved_cwd = NULL;
+    QIOChannel *ret = NULL;
+    bool socket_exists;
+
+    if (!machine_path) {
+        error_setg(errp, "%s: Missing chardesc prop. Forgot -machine-path?",
+                   s->prefix);
+        return NULL;
+    }
+
+    saved_cwd = g_get_current_dir();
+
+    /*
+     * To workaround AF_UNIX socket path limitation, this function chdir to the
+     * machine-path directory, and put a relative socket file name into the
+     * socket path.
+     */
+    if (chdir(machine_path)) {
+        error_setg(errp, "Cannot chdir to machine path `%s'", machine_path);
+        return NULL;
+    }
+
+    socket_path = g_strdup_printf("qemu-rport-%s", rp_sanitize_prefix(s));
+    socket_exists = g_file_test(socket_path, G_FILE_TEST_EXISTS);
+
+    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
+    addr.u.q_unix.abstract = false;
+    addr.u.q_unix.tight = false;
+    addr.u.q_unix.path = socket_path;
+
+    if (socket_exists) {
+        ret = rp_create_iochannel(&addr, false, NULL);
+    }
+
+    if (ret == NULL) {
+        rp_report_listening(&addr, machine_path);
+        ret = rp_create_iochannel(&addr, true, errp);
+    }
+
+    if (chdir(saved_cwd)) {
+        error_setg(errp, "Cannot chdir back to `%s'", saved_cwd);
+        object_unref(OBJECT(ret));
+
+        return NULL;
+    }
+
+    return ret;
 }
 
 void rp_process(RemotePort *s)
@@ -730,7 +873,6 @@ static void rp_reset(DeviceState *dev)
 static void rp_realize(DeviceState *dev, Error **errp)
 {
     RemotePort *s = REMOTE_PORT(dev);
-    int r;
 
     if (s->prefix == NULL) {
         s->prefix = object_get_canonical_path(OBJECT(dev));
@@ -742,48 +884,15 @@ static void rp_realize(DeviceState *dev, Error **errp)
     qemu_mutex_init(&s->rsp_mutex);
     qemu_cond_init(&s->progress_cond);
 
-    if (!qemu_chr_fe_get_driver(&s->chr)) {
-        char *name;
-        Chardev *chr = NULL;
-        static int nr = 0;
-
-        r = asprintf(&name, "rport%d", nr);
-        nr++;
-        assert(r > 0);
-
-        if (s->chrdev_id) {
-            chr = qemu_chr_find(s->chrdev_id);
-        }
-
-        if (chr) {
-            /* Found the chardev via commandline */
-        } else if (s->chardesc) {
-            chr = qemu_chr_new(name, s->chardesc, NULL);
-        } else {
-            if (!machine_path) {
-                error_report("%s: Missing chardesc prop."
-                             " Forgot -machine-path?\n",
-                             s->prefix);
-                exit(EXIT_FAILURE);
-            }
-            chr = rp_autocreate_chardev(s, name);
-        }
-
-        free(name);
-        if (!chr) {
-            error_report("%s: Unable to create remort-port channel %s\n",
-                         s->prefix, s->chardesc);
-            exit(EXIT_FAILURE);
-        }
-
-        qdev_prop_set_chr(dev, "chardev", chr);
-        s->chrdev = chr;
+    if (s->chardesc) {
+        s->chan = rp_connect_legacy_chardesc(s, errp);
+    } else {
+        s->chan = rp_autoconnect(s, errp);
     }
 
-    /* Force RP sockets into blocking mode since our RP-thread will deal
-     * with the IO and bypassing QEMUs main-loop.
-     */
-    qemu_chr_fe_set_blocking(&s->chr, true);
+    if (s->chan == NULL) {
+        return;
+    }
 
 #ifdef _WIN32
     /* Create a socket connection between two sockets. We auto-bind
@@ -890,12 +999,12 @@ static void rp_unrealize(DeviceState *dev)
     qemu_set_fd_handler(s->event.pipe.read, NULL, NULL, s);
 
     info_report("%s: Wait for remote-port to disconnect\n", s->prefix);
-    qemu_chr_fe_disconnect(&s->chr);
+    qio_channel_close(s->chan, NULL);
     qemu_thread_join(&s->thread);
 
     close(s->event.pipe.read);
     close(s->event.pipe.write);
-    object_unparent(OBJECT(s->chrdev));
+    object_unref(OBJECT(s->chan));
 }
 
 static const VMStateDescription vmstate_rp = {
@@ -908,9 +1017,7 @@ static const VMStateDescription vmstate_rp = {
 };
 
 static const Property rp_properties[] = {
-    DEFINE_PROP_CHR("chardev", RemotePort, chr),
     DEFINE_PROP_STRING("chardesc", RemotePort, chardesc),
-    DEFINE_PROP_STRING("chrdev-id", RemotePort, chrdev_id),
     DEFINE_PROP_BOOL("sync", RemotePort, do_sync, false),
     DEFINE_PROP_UINT64("sync-quantum", RemotePort, peer.local_cfg.quantum,
                        1000000),
