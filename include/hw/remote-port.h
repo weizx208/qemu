@@ -15,7 +15,6 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "hw/ptimer.h"
-#include "qobject/qdict.h"
 
 #define TYPE_REMOTE_PORT "remote-port"
 OBJECT_DECLARE_SIMPLE_TYPE(RemotePort, REMOTE_PORT)

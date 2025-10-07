@@ -7,15 +7,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
 #include "hw/irq.h"
-#include "system/system.h"
-#include "system/dma.h"
-#include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/qdev-core.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
 

@@ -8,13 +8,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "system/system.h"
-#include "system/dma.h"
+#include "system/memory.h"
 #include "chardev/char.h"
-#include "system/cpus.h"
 #include "system/cpu-timers.h"
-#include "system/reset.h"
-#include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/ptimer.h"
 #include "qemu/sockets.h"
@@ -32,7 +28,6 @@
 #include <sys/mman.h>
 #endif
 
-#include "hw/fdt_generic_util.h"
 #include "hw/remote-port-proto.h"
 #include "hw/remote-port-device.h"
 #include "hw/remote-port.h"

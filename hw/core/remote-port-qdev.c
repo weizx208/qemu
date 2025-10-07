@@ -8,17 +8,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qobject/qdict.h"
 #include "hw/qdev-core.h"
-#include "hw/sysbus.h"
-#include "monitor/monitor.h"
-#include "monitor/qdev.h"
-#include "system/arch_init.h"
 #include "qapi/error.h"
-#include "qemu/config-file.h"
-#include "qemu/error-report.h"
-#include "qemu/help_option.h"
 #include "qemu/cutils.h"
-#include "qemu/option.h"
 
 #include "hw/remote-port.h"
 

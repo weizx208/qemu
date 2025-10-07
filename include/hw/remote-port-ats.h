@@ -26,6 +26,7 @@
 #define REMOTE_PORT_ATS_H
 
 #include "hw/remote-port.h"
+#include "hw/sysbus.h"
 
 #define TYPE_REMOTE_PORT_ATS "remote-port-ats"
 OBJECT_DECLARE_SIMPLE_TYPE(RemotePortATS, REMOTE_PORT_ATS)

@@ -11,6 +11,7 @@
 #define REMOTE_PORT_MEMORY_MASTER_H
 
 #include "hw/remote-port.h"
+#include "hw/sysbus.h"
 
 #define TYPE_REMOTE_PORT_MEMORY_MASTER "remote-port-memory-master"
 OBJECT_DECLARE_SIMPLE_TYPE(RemotePortMemoryMaster, REMOTE_PORT_MEMORY_MASTER)

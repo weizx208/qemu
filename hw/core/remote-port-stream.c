@@ -23,14 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
 #include "qemu/log.h"
-
-#include "qemu/bitops.h"
-#include "qapi/qmp/qerror.h"
 #include "hw/stream.h"
-#include "qapi/error.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/remote-port-device.h"
 #include "trace.h"

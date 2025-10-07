@@ -8,15 +8,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "system/system.h"
-#include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/sysbus.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
 #include "hw/remote-port.h"

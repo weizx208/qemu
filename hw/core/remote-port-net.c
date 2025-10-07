@@ -24,14 +24,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/help-texts.h"
-#include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "hw/sysbus.h"
-#include "system/dma.h"
 #include "hw/hw.h"
 #include "net/net.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
 #include "hw/remote-port.h"

@@ -8,6 +8,8 @@
 #ifndef REMOTE_PORT_GPIO_H
 #define REMOTE_PORT_GPIO_H
 
+#include "hw/sysbus.h"
+
 #define TYPE_REMOTE_PORT_GPIO "remote-port-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(RemotePortGPIO, REMOTE_PORT_GPIO)
 
