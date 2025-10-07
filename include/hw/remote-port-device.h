@@ -7,19 +7,14 @@
 
 #define TYPE_REMOTE_PORT_DEVICE "remote-port-device"
 
-#define REMOTE_PORT_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(RemotePortDeviceClass, (klass), TYPE_REMOTE_PORT_DEVICE)
-#define REMOTE_PORT_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RemotePortDeviceClass, (obj), TYPE_REMOTE_PORT_DEVICE)
+typedef struct RemotePort RemotePort;
+typedef struct RemotePortDeviceClass RemotePortDeviceClass;
+typedef struct RemotePortDevice RemotePortDevice;
+
+DECLARE_CLASS_CHECKERS(RemotePortDeviceClass, REMOTE_PORT_DEVICE,
+                       TYPE_REMOTE_PORT_DEVICE)
 #define REMOTE_PORT_DEVICE(obj) \
      INTERFACE_CHECK(RemotePortDevice, (obj), TYPE_REMOTE_PORT_DEVICE)
-
-typedef struct RemotePort RemotePort;
-
-typedef struct RemotePortDevice {
-    /*< private >*/
-    Object parent_obj;
-} RemotePortDevice;
 
 typedef struct RemotePortDeviceClass {
     /*< private >*/

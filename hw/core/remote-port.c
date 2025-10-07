@@ -50,9 +50,6 @@
 
 #define RP_TRACE_FUNC() RP_TRACE("\n")
 
-#define REMOTE_PORT_CLASS(klass)    \
-     OBJECT_CLASS_CHECK(RemotePortClass, (klass), TYPE_REMOTE_PORT)
-
 static bool time_warp_enable = true;
 
 bool rp_time_warp_enable(bool en)

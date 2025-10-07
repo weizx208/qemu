@@ -18,7 +18,7 @@
 #include "qobject/qdict.h"
 
 #define TYPE_REMOTE_PORT "remote-port"
-#define REMOTE_PORT(obj) OBJECT_CHECK(RemotePort, (obj), TYPE_REMOTE_PORT)
+OBJECT_DECLARE_SIMPLE_TYPE(RemotePort, REMOTE_PORT)
 
 typedef struct RemotePortRespSlot {
             RemotePortDynPkt rsp;

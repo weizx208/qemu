@@ -9,8 +9,7 @@
 #define REMOTE_PORT_GPIO_H
 
 #define TYPE_REMOTE_PORT_GPIO "remote-port-gpio"
-#define REMOTE_PORT_GPIO(obj) \
-        OBJECT_CHECK(RemotePortGPIO, (obj), TYPE_REMOTE_PORT_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(RemotePortGPIO, REMOTE_PORT_GPIO)
 
 #define MAX_GPIOS 164
 

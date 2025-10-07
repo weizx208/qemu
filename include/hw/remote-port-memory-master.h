@@ -13,11 +13,7 @@
 #include "hw/remote-port.h"
 
 #define TYPE_REMOTE_PORT_MEMORY_MASTER "remote-port-memory-master"
-#define REMOTE_PORT_MEMORY_MASTER(obj) \
-        OBJECT_CHECK(RemotePortMemoryMaster, (obj), \
-                     TYPE_REMOTE_PORT_MEMORY_MASTER)
-
-typedef struct RemotePortMemoryMaster RemotePortMemoryMaster;
+OBJECT_DECLARE_SIMPLE_TYPE(RemotePortMemoryMaster, REMOTE_PORT_MEMORY_MASTER)
 
 typedef struct RemotePortMap {
     void *parent;

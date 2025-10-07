@@ -28,10 +28,9 @@
 #include "hw/remote-port.h"
 
 #define TYPE_REMOTE_PORT_ATS "remote-port-ats"
-#define REMOTE_PORT_ATS(obj) \
-        OBJECT_CHECK(RemotePortATS, (obj), TYPE_REMOTE_PORT_ATS)
+OBJECT_DECLARE_SIMPLE_TYPE(RemotePortATS, REMOTE_PORT_ATS)
 
-typedef struct {
+struct RemotePortATS {
     /* private */
     SysBusDevice parent;
 
@@ -44,21 +43,16 @@ typedef struct {
     GArray *iommu_notifiers;
     uint32_t rp_dev;
     GArray *cache; /* Translation cache */
-} RemotePortATS;
+};
+
+typedef struct RemotePortATSCache RemotePortATSCache;
+typedef struct RemotePortATSCacheClass RemotePortATSCacheClass;
 
 #define TYPE_REMOTE_PORT_ATS_CACHE "remote-port-ats-cache"
-
-#define REMOTE_PORT_ATS_CACHE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(RemotePortATSCacheClass, (klass), \
-                        TYPE_REMOTE_PORT_ATS_CACHE)
-#define REMOTE_PORT_ATS_CACHE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RemotePortATSCacheClass, (obj), TYPE_REMOTE_PORT_ATS_CACHE)
+DECLARE_CLASS_CHECKERS(RemotePortATSCacheClass, REMOTE_PORT_ATS_CACHE,
+                       TYPE_REMOTE_PORT_ATS_CACHE)
 #define REMOTE_PORT_ATS_CACHE(obj) \
      INTERFACE_CHECK(RemotePortATSCache, (obj), TYPE_REMOTE_PORT_ATS_CACHE)
-
-typedef struct RemotePortATSCache {
-    Object Parent;
-} RemotePortATSCache;
 
 typedef struct RemotePortATSCacheClass {
     InterfaceClass parent;
