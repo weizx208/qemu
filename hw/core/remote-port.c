@@ -19,7 +19,6 @@
 #include "hw/ptimer.h"
 #include "qemu/sockets.h"
 #include "qemu/thread.h"
-#include "qemu/log.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
@@ -27,6 +26,7 @@
 #include "hw/qdev-properties-system.h"
 #include "qemu/cutils.h"
 #include "exec/icount.h"
+#include "hw/core/cpu.h"
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -37,21 +37,18 @@
 #include "hw/remote-port-device.h"
 #include "hw/remote-port.h"
 
-#define D(x)
-#define SYNCD(x)
-
-#ifndef REMOTE_PORT_ERR_DEBUG
-#define REMOTE_PORT_DEBUG_LEVEL 0
+#ifdef RP_DEBUG
+#include "qemu/log.h"
+#define RP_TRACE(fmt, ...) \
+    qemu_log("[%s:%s][%22s] " fmt, g_get_prgname(), \
+            current_cpu ? "     vcpu" : qemu_in_coroutine() ? \
+                "coroutine" : "main-loop" \
+            , __func__, ## __VA_ARGS__)
 #else
-#define REMOTE_PORT_DEBUG_LEVEL 1
+#define RP_TRACE(fmt, ...) do {} while (0)
 #endif
 
-#define DB_PRINT_L(level, ...) do { \
-    if (REMOTE_PORT_DEBUG_LEVEL > level) { \
-        fprintf(stderr,  ": %s: ", __func__); \
-        fprintf(stderr, ## __VA_ARGS__); \
-    } \
-} while (0);
+#define RP_TRACE_FUNC() RP_TRACE("\n")
 
 #define REMOTE_PORT_CLASS(klass)    \
      OBJECT_CLASS_CHECK(RemotePortClass, (klass), TYPE_REMOTE_PORT)
@@ -223,7 +220,7 @@ RemotePortDynPkt rp_wait_resp(RemotePort *s)
         if (rp_dpkt_is_valid(&s->rspqueue)) {
             break;
         }
-        D(qemu_log("%s: wait for progress\n", __func__));
+        RP_TRACE("%s: wait for progress\n", __func__);
         if (!rp_has_work(s)) {
             qemu_cond_wait(&s->progress_cond, &s->rsp_mutex);
         }
@@ -266,13 +263,13 @@ static void rp_cmd_sync(RemotePort *s, struct rp_pkt *pkt)
     /* We have temporarily disabled blocking syncs into QEMU.  */
     if (diff <= 0LL || true) {
         /* We are already a head of time. Respond and issue a sync.  */
-        SYNCD(printf("%s: sync resp %lu\n", s->prefix, pkt->sync.timestamp));
+        RP_TRACE("%s: sync resp %lu\n", s->prefix, pkt->sync.timestamp);
         rp_write(s, (void *) &s->sync.rsp, enclen);
         return;
     }
 
-    SYNCD(printf("%s: delayed sync resp - start diff=%ld (ts=%lu clk=%lu)\n",
-          s->prefix, pkt->sync.timestamp - clk, pkt->sync.timestamp, clk));
+    RP_TRACE("%s: delayed sync resp - start diff=%ld (ts=%lu clk=%lu)\n",
+             s->prefix, pkt->sync.timestamp - clk, pkt->sync.timestamp, clk);
 
     ptimer_transaction_begin(s->sync.ptimer_resp);
     ptimer_set_limit(s->sync.ptimer_resp, diff, 1);
@@ -316,7 +313,7 @@ static void syncresp_timer_hit(void *opaque)
     RemotePort *s = REMOTE_PORT(opaque);
 
     s->sync.resp_timer_enabled = false;
-    SYNCD(printf("%s: delayed sync response - send\n", s->prefix));
+    RP_TRACE("%s: delayed sync response - send\n", s->prefix);
     rp_write(s, (void *) &s->sync.rsp, sizeof s->sync.rsp.sync);
     memset(&s->sync.rsp, 0, sizeof s->sync.rsp);
 }
@@ -329,8 +326,7 @@ static void sync_timer_hit(void *opaque)
 
     clk = rp_normalized_vmclk(s);
     if (s->sync.resp_timer_enabled) {
-        SYNCD(printf("%s: sync while delaying a resp! clk=%lu\n",
-                     s->prefix, clk));
+        RP_TRACE("%s: sync while delaying a resp! clk=%lu\n", s->prefix, clk);
         s->sync.need_sync = true;
         rp_restart_sync_timer_bare(s);
         return;
@@ -343,7 +339,7 @@ static void sync_timer_hit(void *opaque)
     /* Send the sync.  */
     rp_say_sync(s, clk);
 
-    SYNCD(printf("%s: syncing wait for resp %lu\n", s->prefix, clk));
+    RP_TRACE("%s: syncing wait for resp %lu\n", s->prefix, clk);
     rsp = rp_wait_resp(s);
     rp_dpkt_invalidate(&rsp);
     qemu_mutex_unlock(&s->rsp_mutex);
@@ -446,9 +442,9 @@ void rp_process(RemotePort *s)
         rpos = s->rx_queue.rpos;
 
         pkt = s->rx_queue.pkt[rpos].pkt;
-        D(qemu_log("%s: io-thread rpos=%d wpos=%d cmd=%d dev=%d\n",
-                 s->prefix, s->rx_queue.rpos, s->rx_queue.wpos,
-                 pkt->hdr.cmd, pkt->hdr.dev));
+        RP_TRACE("%s: io-thread rpos=%d wpos=%d cmd=%d dev=%d\n", s->prefix,
+                 s->rx_queue.rpos, s->rx_queue.wpos, pkt->hdr.cmd,
+                 pkt->hdr.dev);
 
         /* To handle recursiveness, we need to advance the index
          * index before processing the packet.  */
@@ -533,7 +529,7 @@ static void rp_pt_handover_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
     do {
         full = s->rx_queue.inuse[s->rx_queue.wpos];
         if (full) {
-            qemu_log("%s: FULL rx queue %d\n", __func__, s->rx_queue.wpos);
+            RP_TRACE("%s: FULL rx queue %d\n", __func__, s->rx_queue.wpos);
 	    if (qemu_sem_timedwait(&s->rx_queue.sem, 2 * 1000) != 0) {
 #ifndef _WIN32
                 int sval;
@@ -543,10 +539,10 @@ static void rp_pt_handover_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
 #else
                 sem_getvalue(&s->rx_queue.sem.sem, &sval);
 #endif
-                qemu_log("semwait: %d rpos=%u wpos=%u\n", sval,
+                RP_TRACE("semwait: %d rpos=%u wpos=%u\n", sval,
                          s->rx_queue.rpos, s->rx_queue.wpos);
 #endif
-                qemu_log("Deadlock?\n");
+                RP_TRACE("Deadlock?\n");
 	    }
         }
     } while (full);
@@ -583,9 +579,8 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
 {
     struct rp_pkt *pkt = dpkt->pkt;
 
-    D(qemu_log("%s: cmd=%x id=%d dev=%d rsp=%d\n", __func__, pkt->hdr.cmd,
-             pkt->hdr.id, pkt->hdr.dev,
-             pkt->hdr.flags & RP_PKT_FLAGS_response));
+    RP_TRACE("%s: cmd=%x id=%d dev=%d rsp=%d\n", __func__, pkt->hdr.cmd,
+             pkt->hdr.id, pkt->hdr.dev, pkt->hdr.flags & RP_PKT_FLAGS_response);
 
     if (pkt->hdr.dev >= ARRAY_SIZE(s->devs)) {
         /* FIXME: Respond with an error.  */
@@ -598,7 +593,7 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
         int i;
 
         if (pkt->hdr.flags & RP_PKT_FLAGS_posted) {
-            printf("Drop response for posted packets\n");
+            RP_TRACE("Drop response for posted packets\n");
             return true;
         }
 
