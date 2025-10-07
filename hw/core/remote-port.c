@@ -855,19 +855,18 @@ static void *rp_protocol_thread(void *arg)
     return NULL;
 }
 
-static void rp_reset(DeviceState *dev)
+static void rp_machine_done(Notifier *notifier, void *data)
 {
-    RemotePort *s = REMOTE_PORT(dev);
+    RemotePort *s = container_of(notifier, RemotePort, machine_done);
 
-    if (s->reset_done) {
-        return;
-    }
+    RP_TRACE_FUNC();
+
+    main_loop_poll_remove_notifier(&s->machine_done);
 
     qemu_thread_create(&s->thread, "remote-port", rp_protocol_thread, s,
                        QEMU_THREAD_JOINABLE);
 
     rp_restart_sync_timer(s);
-    s->reset_done = true;
 }
 
 static void rp_realize(DeviceState *dev, Error **errp)
@@ -1046,6 +1045,18 @@ static void rp_init(Object *obj)
                sizeof s->dev_state[i].rsp_queue[t].rsp.pkt->busaccess + 1024);
         }
     }
+
+    s->machine_done.notify = rp_machine_done;
+    main_loop_poll_add_notifier(&s->machine_done);
+}
+
+static void rp_finalize(Object *obj)
+{
+    RemotePort *s = REMOTE_PORT(obj);
+
+    if (s->machine_done.node.le_next != NULL) {
+        main_loop_poll_remove_notifier(&s->machine_done);
+    }
 }
 
 struct rp_peer_state *rp_get_peer(RemotePort *s)
@@ -1057,7 +1068,6 @@ static void rp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, rp_reset);
     dc->realize = rp_realize;
     dc->unrealize = rp_unrealize;
     dc->vmsd = &vmstate_rp;
@@ -1069,6 +1079,7 @@ static const TypeInfo rp_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(RemotePort),
     .instance_init = rp_init,
+    .instance_finalize = rp_finalize,
     .class_init    = rp_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { },
