@@ -13,23 +13,15 @@
 #include "system/cpu-timers.h"
 #include "hw/hw.h"
 #include "hw/ptimer.h"
-#include "qemu/sockets.h"
-#include "qemu/thread.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
-#include "qemu/cutils.h"
 #include "exec/icount.h"
 #include "hw/core/cpu.h"
 #include "io/channel-socket.h"
-
-#ifndef _WIN32
-#include <sys/mman.h>
-#endif
 
 #include "hw/remote-port-proto.h"
 #include "hw/remote-port-device.h"
@@ -58,14 +50,9 @@ bool rp_time_warp_enable(bool en)
     return ret;
 }
 
-static void rp_event_read(void *opaque);
+static bool recv_one(RemotePort *s, RemotePortDynPkt *dpkt, bool can_yield);
 static void sync_timer_hit(void *opaque);
 static void syncresp_timer_hit(void *opaque);
-
-static void rp_pkt_dump(const char *prefix, const char *buf, size_t len)
-{
-    qemu_hexdump(stdout, prefix, buf, len);
-}
 
 uint32_t rp_new_id(RemotePort *s)
 {
@@ -74,12 +61,10 @@ uint32_t rp_new_id(RemotePort *s)
 
 void rp_rsp_mutex_lock(RemotePort *s)
 {
-    qemu_mutex_lock(&s->rsp_mutex);
 }
 
 void rp_rsp_mutex_unlock(RemotePort *s)
 {
-    qemu_mutex_unlock(&s->rsp_mutex);
 }
 
 int64_t rp_normalized_vmclk(RemotePort *s)
@@ -126,15 +111,6 @@ static void rp_fatal_error(RemotePort *s, const char *reason)
     rp_exit(s, reason, EXIT_FAILURE);
 }
 
-static ssize_t rp_recv(RemotePort *s, void *buf, size_t count)
-{
-    ssize_t r;
-
-    r = qio_channel_read_all(s->chan, buf, count, &error_fatal);
-
-    return r;
-}
-
 ssize_t rp_write(RemotePort *s, const void *buf, size_t count)
 {
     ssize_t r;
@@ -146,23 +122,16 @@ ssize_t rp_write(RemotePort *s, const void *buf, size_t count)
              rp_cmd_to_string(be32_to_cpu(pkt->hdr.cmd)),
              be32_to_cpu(pkt->hdr.id), be32_to_cpu(pkt->hdr.dev));
 
-    qemu_mutex_lock(&s->write_mutex);
     r = qio_channel_write_all(s->chan, buf, count, &error_fatal);
-    qemu_mutex_unlock(&s->write_mutex);
 
     return r;
-}
-
-static unsigned int rp_has_work(RemotePort *s)
-{
-    unsigned int work = s->rx_queue.wpos - s->rx_queue.rpos;
-    return work;
 }
 
 /* Response handling.  */
 RemotePortRespSlot *rp_dev_wait_resp(RemotePort *s, uint32_t dev, uint32_t id)
 {
     int i;
+    RemotePortDynPkt dpkt = {};
 
     assert(s->devs[dev]);
 
@@ -185,35 +154,33 @@ RemotePortRespSlot *rp_dev_wait_resp(RemotePort *s, uint32_t dev, uint32_t id)
     s->dev_state[dev].rsp_queue[i].valid = false;
     s->dev_state[dev].rsp_queue[i].used = true;
 
+    rp_dpkt_alloc(&dpkt, sizeof(dpkt.pkt->busaccess) + 1024);
+
     while (!s->dev_state[dev].rsp_queue[i].valid) {
-        rp_rsp_mutex_unlock(s);
-        rp_event_read(s);
-        rp_rsp_mutex_lock(s);
-        if (s->dev_state[dev].rsp_queue[i].valid) {
-            break;
-        }
-        if (!rp_has_work(s)) {
-            qemu_cond_wait(&s->progress_cond, &s->rsp_mutex);
+        RP_TRACE("dev %u wait for response id %u\n", dev, id);
+        if (!recv_one(s, &dpkt, false)) {
+            rp_exit(s, "Disconnected", 0);
         }
     }
+
+    rp_dpkt_free(&dpkt);
     return &s->dev_state[dev].rsp_queue[i];
 }
 
 RemotePortDynPkt rp_wait_resp(RemotePort *s)
 {
+    RemotePortDynPkt dpkt = {};
+
+    rp_dpkt_alloc(&dpkt, sizeof(dpkt.pkt->busaccess) + 1024);
+
     while (!rp_dpkt_is_valid(&s->rspqueue)) {
-        rp_rsp_mutex_unlock(s);
-        rp_event_read(s);
-        rp_rsp_mutex_lock(s);
-        /* Need to recheck the condition with the rsp lock taken.  */
-        if (rp_dpkt_is_valid(&s->rspqueue)) {
-            break;
-        }
         RP_TRACE("%s: wait for progress\n", __func__);
-        if (!rp_has_work(s)) {
-            qemu_cond_wait(&s->progress_cond, &s->rsp_mutex);
+        if (!recv_one(s, &dpkt, true)) {
+            rp_exit(s, "Disconnected", 0);
         }
     }
+
+    rp_dpkt_free(&dpkt);
     return s->rspqueue;
 }
 
@@ -324,14 +291,12 @@ static void sync_timer_hit(void *opaque)
     /* Sync.  */
     s->doing_sync = true;
     s->sync.need_sync = false;
-    qemu_mutex_lock(&s->rsp_mutex);
     /* Send the sync.  */
     rp_say_sync(s, clk);
 
     RP_TRACE("%s: syncing wait for resp %lu\n", s->prefix, clk);
     rsp = rp_wait_resp(s);
     rp_dpkt_invalidate(&rsp);
-    qemu_mutex_unlock(&s->rsp_mutex);
     s->doing_sync = false;
 
     rp_restart_sync_timer_bare(s);
@@ -560,127 +525,34 @@ static QIOChannel *rp_autoconnect(RemotePort *s, Error **errp)
     return ret;
 }
 
-void rp_process(RemotePort *s)
+static void rp_process(RemotePort *s, RemotePortDynPkt *dpkt)
 {
-    while (true) {
-        struct rp_pkt *pkt;
-        unsigned int rpos;
-        bool actioned = false;
-        RemotePortDevice *dev;
-        RemotePortDeviceClass *rpdc;
+    struct rp_pkt *pkt;
+    bool actioned = false;
+    RemotePortDevice *dev;
+    RemotePortDeviceClass *rpdc;
 
-        qemu_mutex_lock(&s->rsp_mutex);
-        if (!rp_has_work(s)) {
-            qemu_mutex_unlock(&s->rsp_mutex);
-            break;
+    g_assert(bql_locked());
+
+    pkt = dpkt->pkt;
+    dev = s->devs[pkt->hdr.dev];
+    if (dev) {
+        rpdc = REMOTE_PORT_DEVICE_GET_CLASS(dev);
+        if (rpdc->ops[pkt->hdr.cmd]) {
+            RP_TRACE("forward packet to dev %s\n",
+                     object_get_canonical_path_component(OBJECT(dev)));
+            rpdc->ops[pkt->hdr.cmd](dev, pkt);
+            actioned = true;
         }
-        rpos = s->rx_queue.rpos;
-
-        pkt = s->rx_queue.pkt[rpos].pkt;
-        RP_TRACE("%s: io-thread rpos=%d wpos=%d cmd=%d dev=%d\n", s->prefix,
-                 s->rx_queue.rpos, s->rx_queue.wpos, pkt->hdr.cmd,
-                 pkt->hdr.dev);
-
-        /* To handle recursiveness, we need to advance the index
-         * index before processing the packet.  */
-        s->rx_queue.rpos++;
-        s->rx_queue.rpos %= ARRAY_SIZE(s->rx_queue.pkt);
-        qemu_mutex_unlock(&s->rsp_mutex);
-
-        dev = s->devs[pkt->hdr.dev];
-        if (dev) {
-            rpdc = REMOTE_PORT_DEVICE_GET_CLASS(dev);
-            if (rpdc->ops[pkt->hdr.cmd]) {
-                rpdc->ops[pkt->hdr.cmd](dev, pkt);
-                actioned = true;
-            }
-        }
-
-        switch (pkt->hdr.cmd) {
-        case RP_CMD_sync:
-            rp_cmd_sync(s, pkt);
-            break;
-        default:
-            assert(actioned);
-        }
-
-        s->rx_queue.inuse[rpos] = false;
-        qemu_sem_post(&s->rx_queue.sem);
     }
-}
 
-static void rp_event_read(void *opaque)
-{
-    RemotePort *s = REMOTE_PORT(opaque);
-    unsigned char buf[32];
-    ssize_t r;
-
-    /* We don't care about the data. Just read it out to clear the event.  */
-    do {
-#ifdef _WIN32
-        r = qemu_recv_wrap(s->event.pipe.read, buf, sizeof buf, 0);
-#else
-        r = read(s->event.pipe.read, buf, sizeof buf);
-#endif
-        if (r == 0) {
-            return;
-        }
-    } while (r == sizeof buf || (r < 0 && errno == EINTR));
-
-    rp_process(s);
-}
-
-static void rp_event_notify(RemotePort *s)
-{
-    unsigned char d = 0;
-    ssize_t r;
-
-#ifdef _WIN32
-    /* Mingw is sensitive about doing write's to socket descriptors.  */
-    r = qemu_send_wrap(s->event.pipe.write, &d, sizeof d, 0);
-#else
-    r = qemu_write_full(s->event.pipe.write, &d, sizeof d);
-#endif
-    if (r == 0) {
-        hw_error("%s: pipe closed\n", s->prefix);
+    switch (pkt->hdr.cmd) {
+    case RP_CMD_sync:
+        rp_cmd_sync(s, pkt);
+        break;
+    default:
+        assert(actioned);
     }
-}
-
-/* Handover a pkt to CPU or IO-thread context.  */
-static void rp_pt_handover_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
-{
-    bool full;
-
-    /* Take the rsp lock around the wpos update, otherwise
-       rp_wait_resp will race with us.  */
-    qemu_mutex_lock(&s->rsp_mutex);
-    s->rx_queue.wpos++;
-    s->rx_queue.wpos %= ARRAY_SIZE(s->rx_queue.pkt);
-    smp_mb();
-    rp_event_notify(s);
-    qemu_cond_signal(&s->progress_cond);
-    qemu_mutex_unlock(&s->rsp_mutex);
-
-    do {
-        full = s->rx_queue.inuse[s->rx_queue.wpos];
-        if (full) {
-            RP_TRACE("%s: FULL rx queue %d\n", __func__, s->rx_queue.wpos);
-	    if (qemu_sem_timedwait(&s->rx_queue.sem, 2 * 1000) != 0) {
-#ifndef _WIN32
-                int sval;
-
-#ifndef CONFIG_SEM_TIMEDWAIT
-                sval = s->rx_queue.sem.count;
-#else
-                sem_getvalue(&s->rx_queue.sem.sem, &sval);
-#endif
-                RP_TRACE("semwait: %d rpos=%u wpos=%u\n", sval,
-                         s->rx_queue.rpos, s->rx_queue.wpos);
-#endif
-                RP_TRACE("Deadlock?\n");
-	    }
-        }
-    } while (full);
 }
 
 static bool rp_pt_cmd_sync(RemotePort *s, struct rp_pkt *pkt)
@@ -714,9 +586,6 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
 {
     struct rp_pkt *pkt = dpkt->pkt;
 
-    RP_TRACE("%s: cmd=%x id=%d dev=%d rsp=%d\n", __func__, pkt->hdr.cmd,
-             pkt->hdr.id, pkt->hdr.dev, pkt->hdr.flags & RP_PKT_FLAGS_response);
-
     if (pkt->hdr.dev >= ARRAY_SIZE(s->devs)) {
         /* FIXME: Respond with an error.  */
         return true;
@@ -727,12 +596,13 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
         uint32_t id = pkt->hdr.id;
         int i;
 
+        RP_TRACE("received response: %s, id: %u, dev: %u\n",
+                 rp_cmd_to_string(pkt->hdr.cmd), pkt->hdr.id, pkt->hdr.dev);
+
         if (pkt->hdr.flags & RP_PKT_FLAGS_posted) {
             RP_TRACE("Drop response for posted packets\n");
             return true;
         }
-
-        qemu_mutex_lock(&s->rsp_mutex);
 
         /* Try to find a per-device slot first.  */
         for (i = 0; i < ARRAY_SIZE(s->dev_state[dev].rsp_queue); i++) {
@@ -748,16 +618,15 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
 
             rp_dpkt_swap(&s->dev_state[dev].rsp_queue[i].rsp, dpkt);
             s->dev_state[dev].rsp_queue[i].valid = true;
-
-            qemu_cond_signal(&s->progress_cond);
         } else {
             rp_dpkt_swap(&s->rspqueue, dpkt);
-            qemu_cond_signal(&s->progress_cond);
         }
 
-        qemu_mutex_unlock(&s->rsp_mutex);
         return true;
     }
+
+    RP_TRACE("received: %s, id: %u, dev: %u\n",
+             rp_cmd_to_string(pkt->hdr.cmd), pkt->hdr.id, pkt->hdr.dev);
 
     switch (pkt->hdr.cmd) {
     case RP_CMD_hello:
@@ -773,98 +642,264 @@ static bool rp_pt_process_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
     case RP_CMD_interrupt:
     case RP_CMD_ats_req:
     case RP_CMD_ats_inv:
-        rp_pt_handover_pkt(s, dpkt);
+        rp_process(s, dpkt);
         break;
     default:
-        assert(0);
-        break;
+        g_assert_not_reached();
     }
     return false;
 }
 
-static int rp_read_pkt(RemotePort *s, RemotePortDynPkt *dpkt)
+/*
+ * rp_recv: receive data from the iochannel.
+ *
+ * Receive count bytes from the iochannel, or possibly nothing if blocking is
+ * false.
+ *
+ * @return the number of read bytes equal to count, or QIO_CHANNEL_ERR_BLOCK if
+ * blocking was false and no data were available on the iochannel.
+ */
+static ssize_t coroutine_mixed_fn rp_recv(RemotePort *s, void *buf,
+                                          size_t count, bool blocking,
+                                          Error **errp)
+{
+    ssize_t total = 0, ret;
+
+    if (!blocking) {
+        total = qio_channel_read(s->chan, buf, count, errp);
+
+        if (total < 0) {
+            return total;
+        }
+    }
+
+    ret = qio_channel_read_all(s->chan, buf + total, count - total, errp);
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    total = count;
+
+    RP_TRACE("%zd\n", total);
+    return total;
+}
+
+/*
+ * rp_read_pkt: read a complete packet, or nothing. This function is
+ * non-blocking if no data are available on the iochannel when called. If at
+ * least one byte of data is available, it becomes blocking and guarantee to
+ * read the complete packet unless an error happens. s->receiving is set to true
+ * while in this function.
+ *
+ * @return the number of read bytes, or QIO_CHANNEL_ERR_BLOCK if no packets were
+ * available and nothing has been read.
+ */
+static coroutine_mixed_fn int rp_read_pkt(RemotePort *s, RemotePortDynPkt *dpkt,
+                                          Error **errp)
 {
     struct rp_pkt *pkt = dpkt->pkt;
-    int used;
-    int r;
+    ssize_t hdr_len = 0;
+    ssize_t payload_len = 0;
 
-    r = rp_recv(s, pkt, sizeof pkt->hdr);
-    if (r <= 0) {
-        return r;
+    g_assert(!s->receiving);
+    s->receiving = true;
+
+    hdr_len = rp_recv(s, pkt, sizeof(pkt->hdr), false, errp);
+    if (hdr_len <= 0) {
+        goto out;
     }
-    used = rp_decode_hdr((void *) &pkt->hdr);
-    assert(used == sizeof pkt->hdr);
+
+    rp_decode_hdr(pkt);
 
     if (pkt->hdr.len) {
-        rp_dpkt_alloc(dpkt, sizeof pkt->hdr + pkt->hdr.len);
+        rp_dpkt_alloc(dpkt, sizeof(pkt->hdr) + pkt->hdr.len);
         /* pkt may move due to realloc.  */
         pkt = dpkt->pkt;
-        r = rp_recv(s, &pkt->hdr + 1, pkt->hdr.len);
-        if (r <= 0) {
-            return r;
+        payload_len = rp_recv(s, &pkt->hdr + 1, pkt->hdr.len, true, errp);
+
+        if (payload_len <= 0) {
+            hdr_len = 0;
+            goto out;
         }
         rp_decode_payload(pkt);
     }
 
-    return used + r;
+out:
+    s->receiving = false;
+    return hdr_len + payload_len;
 }
 
-static void *rp_protocol_thread(void *arg)
+/*
+ * Wait for data to arrive on the iochannel. Given the caller context and the
+ * remote port state, this function will wait on various sources:
+ *    - when called from the remote-port receiving coroutine, it will yield
+ *      using qio_channel_yield() if can_yield is true, waiting for data on the
+ *      channel. can_yield is true when the coroutine is simply waiting for new
+ *      packets to arrive and false when it is actually waiting for an inline
+ *      response from a request it made.
+ *    - when called from a vCPU thread, it will:
+ *       * try to take the reception lead if no packet are currently being
+ *         received by another thread,
+ *       * wait on s->packet_notify otherwise.
+ *    - when called from the main thread, simply call qio_channel_wait to wait
+ *      for the inline response of the request if yielding is not permitted.
+ *      Otherwise run the main loop.
+ *
+ * This "vCPU taking the lead" logic is an optimization for the common case
+ * where a vCPU sends a packet and synchronously waits for the response. It
+ * avoids costly thread synchronisation between the main thread and the vCPU
+ * thread.
+ */
+static coroutine_mixed_fn void wait_for_packet(RemotePort *s, bool can_yield)
+{
+    if (qemu_in_coroutine()) {
+        if (can_yield) {
+            qio_channel_yield(s->chan, G_IO_IN);
+        } else {
+            qio_channel_wait(s->chan, G_IO_IN);
+        }
+    } else if (current_cpu) {
+        if (s->receiving) {
+            /*
+             * Cannot take the reception lead here in packet reception, because
+             * someone is already in the middle of a packet. Wait on the costly
+             * packet_notify condition.
+             */
+            qemu_cond_wait_bql(&s->packet_notify);
+        } else {
+            /*
+             * Take the packet reception lead. Keep the BQL to avoid concurrent
+             * waits on the channel.
+             */
+            qio_channel_wait(s->chan, G_IO_IN);
+        }
+    } else {
+        /*
+         * On the main loop thread, outside the co-routine. Call the main loop
+         * or wait on the QIOChannel.
+         */
+        if (can_yield) {
+            main_loop_wait(false);
+        } else {
+            qio_channel_wait(s->chan, G_IO_IN);
+        }
+    }
+}
+
+/*
+ * Notify a new packet has been received. This is the counterpart of
+ * wait_for_packet().
+ */
+static coroutine_mixed_fn void notify_packet(RemotePort *s)
+{
+    /*
+     * Unconditionally notify the packet_notify condition:
+     *   - If we are in the coroutine or outside on the main thread, we want to
+     *     notify the vCPU threads of the packet.
+     *   - If we are on a vCPU thread, other vCPU threads thread might be
+     *     waiting for a packet.
+     */
+    qemu_cond_broadcast(&s->packet_notify);
+
+    if (!qemu_in_coroutine()) {
+        if (current_cpu) {
+            /*
+             * On a vCPU thread, unlock the BQL before calling
+             * qio_channel_wake_read. This ensures the coroutine won't be
+             * entered on a vCPU thread. This is necessary because the coroutine
+             * might have yielded in the middle of a memory region access
+             * waiting for an response from the peer. In that case the RCU
+             * thread will assert because the RCU lock/unlock pair in the memory
+             * subsystem won't happen on the same threads.
+             */
+            bql_unlock();
+        }
+
+        qio_channel_wake_read(s->chan);
+
+        if (current_cpu) {
+            bql_lock();
+        }
+    }
+}
+
+/*
+ * recv_one: receive and process one packet.
+ *
+ * @return: true after the packet has been received and processed, false if a
+ * iochannel read call failed (e.g. because the connection was dropped).
+ */
+static coroutine_mixed_fn bool recv_one(RemotePort *s, RemotePortDynPkt *dpkt,
+                                        bool can_yield)
+{
+    ssize_t r;
+
+    RP_TRACE_FUNC();
+
+    if (s->receiving) {
+        /*
+         * A thread is already in the middle of a packet reception. Wait for it
+         * to finish.
+         */
+        wait_for_packet(s, can_yield);
+        return true;
+    }
+
+    r = rp_read_pkt(s, dpkt, NULL);
+
+    if (r == QIO_CHANNEL_ERR_BLOCK) {
+        /* No packet were available. Wait */
+        wait_for_packet(s, can_yield);
+        return true;
+    }
+
+    if (r <= 0) {
+        /* Error while reading the iochannel */
+        return false;
+    }
+
+    rp_pt_process_pkt(s, dpkt);
+    notify_packet(s);
+
+    return true;
+}
+
+static coroutine_fn void rp_recv_coroutine(void *arg)
 {
     RemotePort *s = REMOTE_PORT(arg);
-    unsigned int i;
-    int r;
+    RemotePortDynPkt dpkt = {};
+    bool ok;
+
+    RP_TRACE_FUNC();
 
     /* Make sure we have a decent bufsize to start with.  */
     rp_dpkt_alloc(&s->rsp, sizeof s->rsp.pkt->busaccess + 1024);
     rp_dpkt_alloc(&s->rspqueue, sizeof s->rspqueue.pkt->busaccess + 1024);
-    for (i = 0; i < ARRAY_SIZE(s->rx_queue.pkt); i++) {
-        rp_dpkt_alloc(&s->rx_queue.pkt[i],
-                      sizeof s->rx_queue.pkt[i].pkt->busaccess + 1024);
-        s->rx_queue.inuse[i] = false;
-    }
+    rp_dpkt_alloc(&dpkt, sizeof(dpkt.pkt->busaccess) + 1024);
 
     rp_say_hello(s);
 
-    while (1) {
-        RemotePortDynPkt *dpkt;
-        unsigned int wpos = s->rx_queue.wpos;
-        bool handled;
-
-        dpkt = &s->rx_queue.pkt[wpos];
-        s->rx_queue.inuse[wpos] = true;
-
-        r = rp_read_pkt(s, dpkt);
-        if (r <= 0) {
-            /* Disconnected.  */
-            break;
-        }
-        if (0) {
-            rp_pkt_dump("rport-pkt", (void *) dpkt->pkt,
-                        sizeof dpkt->pkt->hdr + dpkt->pkt->hdr.len);
-        }
-        handled = rp_pt_process_pkt(s, dpkt);
-        if (handled) {
-            s->rx_queue.inuse[wpos] = false;
-        }
-    }
+    do {
+        ok = recv_one(s, &dpkt, true);
+    } while (ok);
 
     if (!s->finalizing) {
         rp_exit(s, "Disconnected", 0);
     }
-    return NULL;
 }
 
 static void rp_machine_done(Notifier *notifier, void *data)
 {
+    Coroutine *co;
     RemotePort *s = container_of(notifier, RemotePort, machine_done);
 
     RP_TRACE_FUNC();
 
     main_loop_poll_remove_notifier(&s->machine_done);
 
-    qemu_thread_create(&s->thread, "remote-port", rp_protocol_thread, s,
-                       QEMU_THREAD_JOINABLE);
+    co = qemu_coroutine_create(rp_recv_coroutine, s);
+    qemu_coroutine_enter(co);
 
     rp_restart_sync_timer(s);
 }
@@ -879,9 +914,7 @@ static void rp_realize(DeviceState *dev, Error **errp)
 
     s->peer.clk_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    qemu_mutex_init(&s->write_mutex);
-    qemu_mutex_init(&s->rsp_mutex);
-    qemu_cond_init(&s->progress_cond);
+    qemu_cond_init(&s->packet_notify);
 
     if (s->chardesc) {
         s->chan = rp_connect_legacy_chardesc(s, errp);
@@ -893,79 +926,11 @@ static void rp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-#ifdef _WIN32
-    /* Create a socket connection between two sockets. We auto-bind
-     * and read out the port selected by the kernel.
+    /*
+     * The QIOChannel is set non-blocking to allow the coroutine to yield when
+     * waiting for a packet.
      */
-    {
-        char *name;
-        SocketAddress *sock;
-        int port;
-        int listen_sk;
-
-        sock = socket_parse("127.0.0.1:0", &error_abort);
-        listen_sk = socket_listen(sock, 1, &error_abort);
-
-        if (s->event.pipe.read < 0) {
-            perror("socket read");
-            exit(EXIT_FAILURE);
-        }
-
-        {
-            struct sockaddr_in saddr;
-            socklen_t slen = sizeof saddr;
-            int r;
-
-            r = getsockname(listen_sk, (struct sockaddr *) &saddr, &slen);
-            if (r < 0) {
-                perror("getsockname");
-                exit(EXIT_FAILURE);
-            }
-            port = htons(saddr.sin_port);
-        }
-
-        name = g_strdup_printf("127.0.0.1:%d", port);
-        s->event.pipe.write = inet_connect(name, &error_abort);
-        g_free(name);
-        if (s->event.pipe.write < 0) {
-            perror("socket write");
-            exit(EXIT_FAILURE);
-        }
-
-        for (;;) {
-            struct sockaddr_in saddr;
-            socklen_t slen = sizeof saddr;
-            int fd;
-
-            slen = sizeof(saddr);
-            fd = qemu_accept(listen_sk, (struct sockaddr *)&saddr, &slen);
-            if (fd < 0 && errno != EINTR) {
-                close(listen_sk);
-                return;
-            } else if (fd >= 0) {
-                close(listen_sk);
-                s->event.pipe.read = fd;
-                break;
-            }
-        }
-
-        if (!qemu_set_blocking(s->event.pipe.read, false, errp)) {
-            return;
-        }
-        qemu_set_fd_handler(s->event.pipe.read, rp_event_read, NULL, s);
-    }
-#else
-    if (!g_unix_open_pipe(s->event.pipes, FD_CLOEXEC, NULL)) {
-        error_report("%s: Unable to create remort-port internal pipes\n",
-                    s->prefix);
-        exit(EXIT_FAILURE);
-    }
-    if (!qemu_set_blocking(s->event.pipe.read, false, errp)) {
-        return;
-    }
-    qemu_set_fd_handler(s->event.pipe.read, rp_event_read, NULL, s);
-#endif
-
+    qio_channel_set_blocking(s->chan, false, NULL);
 
     /* Pick up the quantum from the local property setup.
        After config negotiation with the peer, sync.quantum value might
@@ -984,8 +949,6 @@ static void rp_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_begin(s->sync.ptimer_resp);
     ptimer_set_freq(s->sync.ptimer_resp, 1000 * 1000 * 1000);
     ptimer_transaction_commit(s->sync.ptimer_resp);
-
-    qemu_sem_init(&s->rx_queue.sem, ARRAY_SIZE(s->rx_queue.pkt) - 1);
 }
 
 static void rp_unrealize(DeviceState *dev)
@@ -994,15 +957,7 @@ static void rp_unrealize(DeviceState *dev)
 
     s->finalizing = true;
 
-    /* Unregister handler.  */
-    qemu_set_fd_handler(s->event.pipe.read, NULL, NULL, s);
-
     info_report("%s: Wait for remote-port to disconnect\n", s->prefix);
-    qio_channel_close(s->chan, NULL);
-    qemu_thread_join(&s->thread);
-
-    close(s->event.pipe.read);
-    close(s->event.pipe.write);
     object_unref(OBJECT(s->chan));
 }
 
