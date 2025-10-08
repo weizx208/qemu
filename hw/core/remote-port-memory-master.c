@@ -91,7 +91,6 @@ MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
     trace_remote_port_memory_master_tx_busaccess(rp_cmd_to_string(in.cmd),
         in.id, in.flags, in.dev, in.addr, in.size, in.attr);
 
-    rp_rsp_mutex_lock(rp);
     rp_write(rp, (void *) &pay, len);
 
     rsp_slot = rp_dev_wait_resp(rp, in.dev, in.id);
@@ -130,7 +129,6 @@ MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
         rsp->pkt->busaccess.len, rsp->pkt->busaccess.attributes);
 
     rp_resp_slot_done(rp, rsp_slot);
-    rp_rsp_mutex_unlock(rp);
 
     /* Reads are sync-points, roll the sync timer.  */
     rp_restart_sync_timer(rp);

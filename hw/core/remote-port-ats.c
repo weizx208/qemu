@@ -107,7 +107,6 @@ static void rp_ats_invalidate(RemotePortATS *s, IOMMUTLBEntry *iotlb)
                              0);
     assert(enclen == pktlen);
 
-    rp_rsp_mutex_lock(s->rp);
     rp_write(s->rp, (void *) &pkt, enclen);
 
     rsp_slot = rp_dev_wait_resp(s->rp, s->rp_dev, id);
@@ -117,7 +116,6 @@ static void rp_ats_invalidate(RemotePortATS *s, IOMMUTLBEntry *iotlb)
     assert(rsp->pkt->hdr.id == id);
 
     rp_resp_slot_done(s->rp, rsp_slot);
-    rp_rsp_mutex_unlock(s->rp);
 }
 
 static void rp_ats_cache_insert(RemotePortATS *s,

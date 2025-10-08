@@ -158,7 +158,6 @@ static size_t rp_stream_stream_push(StreamSink *obj, uint8_t *buf,
     trace_remote_port_stream_tx_busaccess(rp_cmd_to_string(in.cmd),
         in.id, in.flags, in.dev, in.addr, in.size, in.attr);
 
-    rp_rsp_mutex_lock(s->rp);
     rp_write(s->rp, (void *) &pkt, enclen);
     rp_write(s->rp, buf, len);
     rsp = rp_wait_resp(s->rp);
@@ -170,7 +169,6 @@ static size_t rp_stream_stream_push(StreamSink *obj, uint8_t *buf,
         rsp.pkt->busaccess.len, rsp.pkt->busaccess.attributes);
 
     rp_dpkt_invalidate(&rsp);
-    rp_rsp_mutex_unlock(s->rp);
     rp_restart_sync_timer(s->rp);
     return len;
 }

@@ -44,10 +44,6 @@ static void rp_gpio_handler(void *opaque, int irq, int level)
 
     trace_remote_port_gpio_tx_interrupt(id, flags, s->rp_dev, 0, irq, level);
 
-    if (s->peer->caps.wire_posted_updates && !s->posted_updates) {
-        rp_rsp_mutex_lock(s->rp);
-    }
-
     rp_write(s->rp, (void *)&pkt, len);
 
     /* If peer supports posted updates it will respect our flag and
@@ -64,7 +60,6 @@ static void rp_gpio_handler(void *opaque, int irq, int level)
             intr->hdr.dev, intr->vector, intr->line, intr->val);
 
         rp_resp_slot_done(s->rp, rsp_slot);
-        rp_rsp_mutex_unlock(s->rp);
     }
 }
 

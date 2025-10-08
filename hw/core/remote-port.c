@@ -59,14 +59,6 @@ uint32_t rp_new_id(RemotePort *s)
     return qatomic_fetch_inc(&s->current_id);
 }
 
-void rp_rsp_mutex_lock(RemotePort *s)
-{
-}
-
-void rp_rsp_mutex_unlock(RemotePort *s)
-{
-}
-
 int64_t rp_normalized_vmclk(RemotePort *s)
 {
     int64_t clk;
