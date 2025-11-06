@@ -20,7 +20,6 @@
 #include "qemu/log.h"
 #include "cpu_bits.h"
 #include "time_helper.h"
-#include "hw/intc/riscv_aclint.h"
 
 static void riscv_vstimer_cb(void *opaque)
 {
@@ -45,9 +44,8 @@ void riscv_timer_write_timecmp(CPURISCVState *env, QEMUTimer *timer,
                                uint32_t timer_irq)
 {
     uint64_t diff, ns_diff, next;
-    RISCVAclintMTimerState *mtimer = env->rdtime_fn_arg;
-    uint32_t timebase_freq = mtimer->timebase_freq;
-    uint64_t rtc_r = env->rdtime_fn(env->rdtime_fn_arg) + delta;
+    uint32_t timebase_freq = riscv_cpu_time_src_get_tick_freq(env->time_src);
+    uint64_t rtc_r = riscv_cpu_time_src_get_ticks(env->time_src) + delta;
 
     if (timecmp <= rtc_r) {
         /*
@@ -138,6 +136,11 @@ void riscv_timer_init(RISCVCPU *cpu)
 
     env->vstimer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &riscv_vstimer_cb, cpu);
     env->vstimecmp = 0;
+}
+
+void riscv_cpu_set_time_src(CPURISCVState *env, RISCVCPUTimeSrcIf *src)
+{
+    env->time_src = src;
 }
 
 static const TypeInfo riscv_cpu_time_src_if_info = {
