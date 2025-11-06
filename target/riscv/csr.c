@@ -574,7 +574,7 @@ static RISCVException sstc(CPURISCVState *env, int csrno)
 {
     bool hmode_check = false;
 
-    if (!riscv_cpu_cfg(env)->ext_sstc || !env->rdtime_fn) {
+    if (!riscv_cpu_cfg(env)->ext_sstc || !env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -1639,11 +1639,11 @@ static RISCVException read_time(CPURISCVState *env, int csrno,
 {
     uint64_t delta = env->virt_enabled ? env->htimedelta : 0;
 
-    if (!env->rdtime_fn) {
+    if (!env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    *val = env->rdtime_fn(env->rdtime_fn_arg) + delta;
+    *val = riscv_cpu_time_src_get_ticks(env->time_src) + delta;
     return RISCV_EXCP_NONE;
 }
 
@@ -1652,11 +1652,11 @@ static RISCVException read_timeh(CPURISCVState *env, int csrno,
 {
     uint64_t delta = env->virt_enabled ? env->htimedelta : 0;
 
-    if (!env->rdtime_fn) {
+    if (!env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    *val = (env->rdtime_fn(env->rdtime_fn_arg) + delta) >> 32;
+    *val = (riscv_cpu_time_src_get_ticks(env->time_src) + delta) >> 32;
     return RISCV_EXCP_NONE;
 }
 
@@ -4984,7 +4984,7 @@ static RISCVException write_hgatp(CPURISCVState *env, int csrno,
 static RISCVException read_htimedelta(CPURISCVState *env, int csrno,
                                       target_ulong *val)
 {
-    if (!env->rdtime_fn) {
+    if (!env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -4995,7 +4995,7 @@ static RISCVException read_htimedelta(CPURISCVState *env, int csrno,
 static RISCVException write_htimedelta(CPURISCVState *env, int csrno,
                                        target_ulong val, uintptr_t ra)
 {
-    if (!env->rdtime_fn) {
+    if (!env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -5005,7 +5005,7 @@ static RISCVException write_htimedelta(CPURISCVState *env, int csrno,
         env->htimedelta = val;
     }
 
-    if (riscv_cpu_cfg(env)->ext_sstc && env->rdtime_fn) {
+    if (riscv_cpu_cfg(env)->ext_sstc) {
         riscv_timer_write_timecmp(env, env->vstimer, env->vstimecmp,
                                   env->htimedelta, MIP_VSTIP);
     }
@@ -5016,7 +5016,7 @@ static RISCVException write_htimedelta(CPURISCVState *env, int csrno,
 static RISCVException read_htimedeltah(CPURISCVState *env, int csrno,
                                        target_ulong *val)
 {
-    if (!env->rdtime_fn) {
+    if (!env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -5027,13 +5027,13 @@ static RISCVException read_htimedeltah(CPURISCVState *env, int csrno,
 static RISCVException write_htimedeltah(CPURISCVState *env, int csrno,
                                         target_ulong val, uintptr_t ra)
 {
-    if (!env->rdtime_fn) {
+    if (!env->time_src) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
     env->htimedelta = deposit64(env->htimedelta, 32, 32, (uint64_t)val);
 
-    if (riscv_cpu_cfg(env)->ext_sstc && env->rdtime_fn) {
+    if (riscv_cpu_cfg(env)->ext_sstc) {
         riscv_timer_write_timecmp(env, env->vstimer, env->vstimecmp,
                                   env->htimedelta, MIP_VSTIP);
     }
@@ -5861,7 +5861,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /*
      * In privileged mode, the monitor will have to emulate TIME CSRs only if
-     * rdtime callback is not provided by machine/platform emulation.
+     * CPU time source interface is not provided by machine/platform emulation.
      */
     [CSR_TIME]  = { "time",  ctr,   read_time  },
     [CSR_TIMEH] = { "timeh", ctr32, read_timeh },
