@@ -27,4 +27,20 @@ void riscv_timer_write_timecmp(CPURISCVState *env, QEMUTimer *timer,
                                uint32_t timer_irq);
 void riscv_timer_init(RISCVCPU *cpu);
 
+static inline uint64_t riscv_cpu_time_src_get_ticks(RISCVCPUTimeSrcIf *src)
+{
+    RISCVCPUTimeSrcIfClass *rctsc = RISCV_CPU_TIME_SRC_IF_GET_CLASS(src);
+
+    g_assert(rctsc->get_ticks != NULL);
+    return rctsc->get_ticks(src);
+}
+
+static inline uint32_t riscv_cpu_time_src_get_tick_freq(RISCVCPUTimeSrcIf *src)
+{
+    RISCVCPUTimeSrcIfClass *rctsc = RISCV_CPU_TIME_SRC_IF_GET_CLASS(src);
+
+    g_assert(rctsc->get_tick_freq != NULL);
+    return rctsc->get_tick_freq(src);
+}
+
 #endif
