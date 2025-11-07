@@ -241,6 +241,8 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
                                               mtimer->hartid_base + i,
                                               mtimer->timecmp[i]);
         }
+
+        notifier_list_notify(&mtimer->time_change_notifiers, NULL);
         return;
     }
 
@@ -282,6 +284,7 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
     RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
     int i;
 
+    notifier_list_init(&s->time_change_notifiers);
     memory_region_init_io(&s->mmio, OBJECT(dev), &riscv_aclint_mtimer_ops,
                           s, TYPE_RISCV_ACLINT_MTIMER, s->aperture_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
@@ -331,6 +334,13 @@ static uint32_t riscv_aclint_mtimer_time_src_get_tick_freq(RISCVCPUTimeSrcIf *if
     return mtimer->timebase_freq;
 }
 
+static void mtimer_time_src_register_change_notifier(RISCVCPUTimeSrcIf *iface,
+                                                     Notifier *notifier)
+{
+    RISCVAclintMTimerState *mtimer = RISCV_ACLINT_MTIMER(iface);
+
+    notifier_list_add(&mtimer->time_change_notifiers, notifier);
+}
 
 static const VMStateDescription vmstate_riscv_mtimer = {
     .name = "riscv_mtimer",
@@ -356,6 +366,7 @@ static void riscv_aclint_mtimer_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_riscv_mtimer;
     rctsc->get_ticks = riscv_aclint_mtimer_time_src_get_ticks;
     rctsc->get_tick_freq = riscv_aclint_mtimer_time_src_get_tick_freq;
+    rctsc->register_time_change_notifier = mtimer_time_src_register_change_notifier;
 }
 
 static const TypeInfo riscv_aclint_mtimer_info = {
