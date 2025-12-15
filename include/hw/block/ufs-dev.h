@@ -73,6 +73,7 @@ typedef struct UFSDev {
     uint8_t devInitDone;
     uint8_t *report_lun_ids;
     uint8_t report_lun_len;
+    bool has_device;
 
     QTAILQ_HEAD(, UFSTaskQ) taskQ;
     struct {

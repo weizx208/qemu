@@ -1147,6 +1147,7 @@ static void ufsdev_reset_enter(Object *obj, ResetType type)
         }
     }
     UFS_REG_W(s->ufsDesc.geo, GOME_TOTAL_RAW_DEVICE_CAPACITY, raw_size);
+    s->has_device = (s->report_lun_len > 0);
 }
 
 static void ufsdev_instance_init(Object *obj)
