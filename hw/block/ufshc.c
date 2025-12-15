@@ -267,6 +267,16 @@ typedef struct UFSHCSysbus {
     qemu_irq *irq;
 } UFSHCSysbus;
 
+static bool ufshc_target_present(UFSHCState *s)
+{
+    if (!s->ufs_target) {
+        return false;
+    }
+
+    bool present = UFS_DEV(s->ufs_target)->has_device;
+    return present;
+}
+
 static inline bool ufshc_is_enable(UFSHCState *s)
 {
     return !!ARRAY_FIELD_EX32(s->regs, HCE, HCE);
@@ -283,7 +293,7 @@ static void ufshc_irq_update(UFSHCState *s)
 
 static void ufshc_init(UFSHCState *s)
 {
-    bool t_present = !!(s->ufs_target);
+    bool t_present = ufshc_target_present(s);
 
     /*
      * Reset the controller
@@ -328,7 +338,7 @@ static void uiccmd_postw(RegisterInfo *reg, uint64_t val)
 {
     UFSHCState *s = UFSHC(reg->opaque);
     CfgResultCode status = DME_FAILURE;
-    bool t_present = !!(s->ufs_target);
+    bool t_present = ufshc_target_present(s);
 
 
     if (val == 0) {
