@@ -118,6 +118,11 @@ REG32(REG_PCSR_STATUS, 0x8)
     FIELD(REG_PCSR_STATUS, PCSRLOCK, 0, 1)
 REG32(REG_PCSR_LOCK, 0xc)
     FIELD(REG_PCSR_LOCK, STATE, 0, 1)
+REG32(REG_NPI_CSR_INST, 0x200)
+    FIELD(REG_NPI_CSR_INST, NPI_CSR_CMD, 30, 2)
+    FIELD(REG_NPI_CSR_INST, NPI_CSR_ADDR, 0, 30)
+REG32(REG_NPI_CSR_WDATA, 0x204)
+    FIELD(REG_NPI_CSR_WDATA, NPI_CSR_WDATA, 0, 32)
 REG32(REG_NPI_CSR_WR_STATUS, 0x208)
     FIELD(REG_NPI_CSR_WR_STATUS, BVALID, 0, 1)
 REG32(REG_NPI_CSR_RD_STATUS, 0x20c)
@@ -208,6 +213,8 @@ static const RegisterAccessInfo hnicx_npi_regs_info[] = {
     },{ .name = "REG_NPI_CSR_RD_STATUS",  .addr = A_REG_NPI_CSR_RD_STATUS,
         .reset = 0x1,
         .rsvd = 0xfffffff8,
+    },{ .name = "REG_NPI_CSR_INST",  .addr = A_REG_NPI_CSR_INST,
+    },{ .name = "REG_NPI_CSR_WDATA",  .addr = A_REG_NPI_CSR_WDATA,
     }
 };
 
