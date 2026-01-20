@@ -53,6 +53,7 @@
 #include "cpregs.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
+#include "hw/arm/pchannel.h"
 
 #include "trace.h"
 #include "hw/irq.h"
@@ -1187,6 +1188,17 @@ uint64_t arm_build_mp_affinity(int idx, uint8_t clustersz)
 uint64_t arm_cpu_mp_affinity(ARMCPU *cpu)
 {
     return cpu->mp_affinity;
+}
+
+static uint32_t pchannel_get_current_state_unimp(ARMPChannelIf *obj)
+{
+    return 0;
+}
+
+static bool pchannel_request_state_change_unimp(ARMPChannelIf *obj,
+                                                uint32_t state)
+{
+    return false;
 }
 
 static void arm_cpu_initfn(Object *obj)
@@ -2546,6 +2558,7 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
     CPUClass *cc = CPU_CLASS(acc);
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
+    ARMPChannelIfClass *apcic = ARM_PCHANNEL_IF_CLASS(oc);
 
     device_class_set_parent_realize(dc, arm_cpu_realizefn,
                                     &acc->parent_realize);
@@ -2575,6 +2588,9 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &arm_tcg_ops;
 #endif /* CONFIG_TCG */
+
+    apcic->get_current_state = pchannel_get_current_state_unimp;
+    apcic->request_state_change = pchannel_request_state_change_unimp;
 }
 
 static void arm_cpu_instance_init(Object *obj)
@@ -2620,6 +2636,10 @@ static const TypeInfo arm_cpu_type_info = {
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
     .class_init = arm_cpu_class_init,
+    .interfaces = (InterfaceInfo []) {
+        { TYPE_ARM_PCHANNEL_IF },
+        { },
+    },
 };
 
 static void arm_cpu_register_types(void)
