@@ -10,6 +10,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx_zynqmp_pmu_global.c',
   'xilinx_zynqmp_crf.c',
   'xilinx_zynqmp_crl.c',
+  'xilinx_zynqmp_ams.c',
   'xilinx_zynqmp_sysmon.c',
 ))
 
