@@ -23,6 +23,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'test_component.c',
   'xilinx-smmu_reg.c',
   'arm-smmu.c',
+  'arm-cci400.c',
   'xilinx-ddrc.c',
   'xilinx-ddr_phy.c',
   'xilinx-serdes.c',
