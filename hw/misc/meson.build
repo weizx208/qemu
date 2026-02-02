@@ -14,6 +14,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx_zynqmp_crl.c',
   'xilinx_zynqmp_ams.c',
   'xilinx_zynqmp_sysmon.c',
+  'xilinx-smmu_reg.c',
 ))
 
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
