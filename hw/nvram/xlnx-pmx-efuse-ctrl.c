@@ -158,8 +158,9 @@ REG32(EFUSE_AES_USR_KEY1_CRC, 0x50)
 REG32(ANLG_OSC_SW_1LP, 0x60)
     FIELD(ANLG_OSC_SW_1LP, SELECT, 0, 1)
 REG32(UDS_DICE_CRC, 0x70)
+REG32(TEST_FUSE_CTRL, 0x100)
 
-#define PMX_EFUSE_CTRL_R_MAX (R_UDS_DICE_CRC + 1)
+#define PMX_EFUSE_CTRL_R_MAX (R_TEST_FUSE_CTRL + 1)
 
 #define EFUSE_ANCHOR_3_COL          (27)
 #define EFUSE_ANCHOR_1_COL          (1)
@@ -861,6 +862,13 @@ static void efuse_uds_dice_crc_postw(RegisterInfo *reg, uint64_t val64)
                       R_STATUS_UDS_DICE_CRC_PASS_MASK);
 }
 
+static void efuse_test_fuse_ctrl_postw(RegisterInfo *reg, uint64_t val64)
+{
+    XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(reg->opaque);
+
+    s->ac_factory = !!s->regs[R_TEST_FUSE_CTRL];
+}
+
 static uint64_t efuse_wr_lock_prew(RegisterInfo *reg, uint64_t val)
 {
     return val != R_WR_LOCK_UNLOCK_PASSCODE;
@@ -923,7 +931,9 @@ static const RegisterAccessInfo pmx_efuse_ctrl_regs_info[] = {
     },{ .name = "ANLG_OSC_SW_1LP",  .addr = A_ANLG_OSC_SW_1LP,
     },{ .name = "UDS_DICE_CRC",  .addr = A_UDS_DICE_CRC,
         .post_write = efuse_uds_dice_crc_postw,
-    },
+    },{ .name = "TEST_FUSE_CTRL",  .addr = A_TEST_FUSE_CTRL,
+       .post_write = efuse_test_fuse_ctrl_postw,
+    }
 };
 
 static void efuse_ctrl_register_reset(RegisterInfo *reg)
