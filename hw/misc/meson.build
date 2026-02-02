@@ -8,6 +8,10 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx_zynqmp_sysmon.c',
 ))
 
+specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
+  'xilinx_zynqmp_rpu_ctrl.c',
+))
+
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-cfi-if.c',
   'xlnx-versal-cframe-reg-v1.c',
