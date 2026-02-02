@@ -28,6 +28,7 @@
  * Logical entity tiles
  */
 #define EFUSE_U32_TILES EFUSE_LIST( \
+    EFUSE_TILE((0x000 / 4),   0, 5, TBITS0_SVD), \
     EFUSE_TILE((0x010 / 4),  24, 4, ANLG_TRIM_3), \
     EFUSE_TILE((0x018 / 4),  94, 5, IP_DISABLE_0), \
     EFUSE_TILE((0x020 / 4),   4, 1, DNA_0), \

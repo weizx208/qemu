@@ -13,7 +13,7 @@
 #include "hw/nvram/xlnx-efuse.h"
 
 #ifndef XLNX_PMX_EFUSE_CTRL_R_MAX
-#define XLNX_PMX_EFUSE_CTRL_R_MAX  (1 + (0x70 / 4))
+#define XLNX_PMX_EFUSE_CTRL_R_MAX  (1 + (0x100 / 4))
 #endif
 
 #define TYPE_XLNX_PMX_EFUSE_CTRL  "xlnx.pmx_efuse_ctrl"
