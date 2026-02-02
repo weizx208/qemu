@@ -21,6 +21,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'mem_ctrl.c',
   'test_component.c',
   'xilinx-smmu_reg.c',
+  'arm-smmu.c',
   'xilinx-ddrc.c',
   'xilinx-ddr_phy.c',
   'xilinx-serdes.c',
