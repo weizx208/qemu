@@ -19,6 +19,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
 ))
 
 specific_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files(
+  'xilinx-lpd-slcr.c',
   'xilinx_zynqmp_apu_ctrl.c',
   'xilinx_zynqmp_rpu_ctrl.c',
 ))
