@@ -1,4 +1,5 @@
-system_ss.add(when: 'CONFIG_CLOCK', if_true: files('zynq-pll.c'))
+system_ss.add(when: 'CONFIG_CLOCK', if_true: files(
+  'fixed-clock.c', 'zynq-pll.c'))
 
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'sss.c',
