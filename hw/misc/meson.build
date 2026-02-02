@@ -5,6 +5,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xlnx-lpd-slcr-secure.c',
   'xlnx-lpd-gpv.c',
   'xlnx-zynqmp-boot.c',
+  'xilinx_zynqmp_sysmon.c',
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
