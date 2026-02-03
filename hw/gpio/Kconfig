@@ -4,6 +4,9 @@ config PL061
 config GPIO_KEY
     bool
 
+config XILINX_IOMODULE_GPI
+	bool
+
 config GPIO_MPC8XXX
     bool
 
