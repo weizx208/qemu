@@ -3,6 +3,8 @@ system_ss.add(files(
   'cdrom.c',
   'hd-geometry.c'
 ))
+
+system_ss.add(when: 'CONFIG_PL35X', if_true: files('pl35x.c'))
 system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))
 system_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.c'))
 system_ss.add(when: 'CONFIG_FDC_SYSBUS', if_true: files('fdc-sysbus.c'))
