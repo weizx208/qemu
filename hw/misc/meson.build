@@ -1,3 +1,5 @@
+system_ss.add(when: 'CONFIG_CLOCK', if_true: files('zynq-pll.c'))
+
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-cfi-if.c',
   'xlnx-versal-trng.c'))
