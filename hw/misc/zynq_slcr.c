@@ -18,6 +18,12 @@
 #include "qemu/timer.h"
 #include "system/runstate.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
+#include "system/device_tree.h"
+#include "system/system.h"
+#include "hw/core/cpu.h"
+#include "qapi/error.h"
+#include "qemu/option.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -26,6 +32,8 @@
 #include "qom/object.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
+#include "hw/boards.h"
+#include "qemu/config-file.h"
 
 #ifndef ZYNQ_SLCR_ERR_DEBUG
 #define ZYNQ_SLCR_ERR_DEBUG 0
@@ -185,6 +193,10 @@ REG32(DDRIOB, 0xb40)
 #define ZYNQ_SLCR_MMIO_SIZE     0x1000
 #define ZYNQ_SLCR_NUM_REGS      (ZYNQ_SLCR_MMIO_SIZE / 4)
 
+#define ZYNQ_SLCR_NUM_CPUS 2
+
+#define A9_CPU_RST_CTRL_RST_SHIFT 0
+
 #define TYPE_ZYNQ_SLCR "xilinx-zynq_slcr"
 OBJECT_DECLARE_SIMPLE_TYPE(ZynqSLCRState, ZYNQ_SLCR)
 
@@ -192,6 +204,7 @@ struct ZynqSLCRState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+    qemu_irq cpu_resets[ZYNQ_SLCR_NUM_CPUS];
 
     uint32_t regs[ZYNQ_SLCR_NUM_REGS];
 
@@ -200,6 +213,69 @@ struct ZynqSLCRState {
     Clock *uart1_ref_clk;
     uint8_t boot_mode;
 };
+
+/* Set up PS7 QSPI MIO registers based on the dtb */
+static void zynq_slcr_set_qspi(ZynqSLCRState *s, void *fdt)
+{
+    int i;
+    Error *errp = NULL;
+    char node_path[DT_PATH_LENGTH];
+
+    memset(node_path, 0, sizeof(node_path));
+    /* find the Zynq QSPI node path with compatible string, return if node
+     * not found */
+    if (qemu_devtree_node_by_compatible(fdt, node_path,
+                                        "xlnx,zynq-qspi-1.0")) {
+        DB_PRINT("DT, PS7 QSPI node not found\n");
+        return ;
+    }
+
+    /* Check if there is a child node and assume the child node is a QSPI
+     * flash node. Then set up the MIO registers for the first QSPI flash.
+     * Use the is-dual property to determine whether MIO registers
+     * configuration is required to setup for the second QSPI flash*/
+    if (qemu_devtree_get_num_children(fdt, node_path, 1)) {
+        DB_PRINT("DT, PS7 QSPI: child node found\n");
+        /* Set MIO 1 - 6 (qspi0)  with QSPI + LVCOMS18 (0x202) */
+        for (i = 1; i <= 6; i++) {
+            s->regs[R_MIO+i] = 0x00000202;
+        }
+
+        /* Check for dual mode */
+        if (qemu_fdt_getprop_cell(fdt, node_path, "is-dual", 0,
+                                  false, &errp) ==  1) {
+            DB_PRINT("DT, PS QSPI is in dual\n");
+            /* Set MIO 0 (qspi1_cs) with QSPI + LVCOMS18 (0x202) */
+            s->regs[R_MIO+0] = 0x00000202;
+
+            /* Set MIO 9 - 13 (qspi1) with QSPI + LVCOMS18 (0x202) */
+            for (i = 9; i <= 13; i++) {
+                s->regs[R_MIO+i] = 0x00000202;
+            }
+        }
+    }
+}
+
+static void zynq_slcr_fdt_config(ZynqSLCRState *s)
+{
+    const char *dtb_filename;
+    int fdt_size;
+    void *fdt = NULL;
+
+    /* identify dtb file name from qemu opts */
+    dtb_filename = MACHINE(qdev_get_machine())->dtb;
+
+    if (dtb_filename) {
+        fdt = load_device_tree(dtb_filename, &fdt_size);
+    }
+
+    if (!fdt) {
+        return;
+    }
+
+    zynq_slcr_set_qspi(s, fdt);
+    return;
+}
 
 /*
  * return the output frequency of ARM/DDR/IO pll
@@ -328,6 +404,7 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
     int i;
+    QemuOpts *opts = qemu_find_opts_singleton("boot-opts");
 
     DB_PRINT("RESET\n");
 
@@ -342,7 +419,7 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     s->regs[R_IO_PLL_CFG]     = 0x00014000;
 
     /* 0x120 - 0x16C */
-    s->regs[R_ARM_CLK_CTRL]   = 0x1F000400;
+    s->regs[R_ARM_CLK_CTRL]   = 0x1F000200;
     s->regs[R_DDR_CLK_CTRL]   = 0x18400003;
     s->regs[R_DCI_CLK_CTRL]   = 0x01E03201;
     s->regs[R_APER_CLK_CTRL]  = 0x01FFCCCD;
@@ -418,6 +495,8 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     s->regs[R_DDRIOB + 4] = s->regs[R_DDRIOB + 5] = s->regs[R_DDRIOB + 6]
                           = 0x00000e00;
     s->regs[R_DDRIOB + 12] = 0x00000021;
+
+    zynq_slcr_fdt_config(s);
 }
 
 static void zynq_slcr_reset_hold(Object *obj, ResetType type)
@@ -521,6 +600,7 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;
     offset /= 4;
+    int i;
 
     DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx64 "\n", offset * 4, val);
 
@@ -569,6 +649,14 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
+    case R_A9_CPU_RST_CTRL:
+        for (i = 0; i < ZYNQ_SLCR_NUM_CPUS; ++i) {
+            bool rst = extract32(val, A9_CPU_RST_CTRL_RST_SHIFT + i, 1);
+
+            qemu_set_irq(s->cpu_resets[i], rst);
+            DB_PRINT("%sresetting cpu %d\n", rst ? "" : "un-", i);
+        }
+        break;
     case R_IO_PLL_CTRL:
     case R_ARM_PLL_CTRL:
     case R_DDR_PLL_CTRL:
@@ -609,6 +697,7 @@ static void zynq_slcr_init(Object *obj)
                           ZYNQ_SLCR_MMIO_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 
+    qdev_init_gpio_out(DEVICE(obj), s->cpu_resets, ZYNQ_SLCR_NUM_CPUS);
     qdev_init_clocks(DEVICE(obj), zynq_slcr_clocks);
 }
 
