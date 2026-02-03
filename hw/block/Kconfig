@@ -30,6 +30,9 @@ config VHOST_USER_BLK
     default y if VIRTIO_PCI
     depends on VIRTIO && VHOST_USER && LINUX
 
+config M24CXX
+	bool
+
 config PL35X
 	bool
 
