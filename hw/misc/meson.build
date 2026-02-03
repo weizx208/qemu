@@ -7,6 +7,8 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
   'xlnx-cfi-if.c',
+  'xlnx-versal-cframe-reg-v1.c',
+  'xlnx-versal-cframe-reg.c',
   'xlnx-versal-trng.c'))
 
 system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.c'))
@@ -114,6 +116,7 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal-pmc-iou-slcr.c',
   'xlnx-versal-cfu.c',
   'xlnx-cfi-if.c',
+  'xlnx-versal-cframe-reg-v1.c',
   'xlnx-versal-cframe-reg.c',
 ))
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_TRNG', if_true: files(
