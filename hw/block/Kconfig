@@ -33,6 +33,10 @@ config VHOST_USER_BLK
 config M24CXX
 	bool
 
+config ARASAN_NFC
+	bool
+  select NAND
+
 config PL35X
 	bool
 
