@@ -1,4 +1,5 @@
 system_ss.add(when: 'CONFIG_XILINX_IOMODULE_GPI', if_true: files('xilinx_iomod_gpi.c'))
+system_ss.add(when: 'CONFIG_XILINX_IOMODULE_GPO', if_true: files('xilinx_iomod_gpo.c'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files(
   'xilinx-axi-gpio.c'))
 

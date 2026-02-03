@@ -7,6 +7,9 @@ config GPIO_KEY
 config XILINX_IOMODULE_GPI
 	bool
 
+config XILINX_IOMODULE_GPO
+	bool
+
 config GPIO_MPC8XXX
     bool
 
