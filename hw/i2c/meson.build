@@ -1,6 +1,7 @@
 i2c_ss = ss.source_set()
 i2c_ss.add(when: 'CONFIG_I2C', if_true: files('core.c'))
 i2c_ss.add(when: 'CONFIG_CADENCE', if_true: files(
+  'cadence_i2c.c',
   'pca9548.c'))
 
 i2c_ss.add(when: 'CONFIG_SMBUS', if_true: files('smbus_slave.c', 'smbus_master.c'))
