@@ -1559,16 +1559,13 @@ static void pl330_realize(DeviceState *dev, Error **errp)
                           "dma", PL330_IOMEM_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
-    if (!s->mem_mr) {
-        error_setg(errp, "'memory' link is not set");
-        return;
-    } else if (s->mem_mr == get_system_memory()) {
-        /* Avoid creating new AS for system memory. */
-        s->mem_as = &address_space_memory;
-    } else {
+    /* Xilinx: default to use address_space_memory if unset */
+    if (s->mem_mr) {
         s->mem_as = g_new0(AddressSpace, 1);
         address_space_init(s->mem_as, s->mem_mr,
                            memory_region_name(s->mem_mr));
+    } else {
+        s->mem_as = &address_space_memory;
     }
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pl330_exec_cycle_timer, s);
@@ -1644,6 +1641,16 @@ static void pl330_realize(DeviceState *dev, Error **errp)
     pl330_fifo_init(&s->fifo, s->data_width / 4 * s->data_buffer_dep);
 }
 
+static void pl330_init(Object *obj)
+{
+    PL330State *s = PL330(obj);
+
+    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
+                             (Object **)&s->mem_mr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+}
+
 static const Property pl330_properties[] = {
     /* CR0 */
     DEFINE_PROP_UINT32("num_chnls", PL330State, num_chnls, 8),
@@ -1683,6 +1690,7 @@ static const TypeInfo pl330_type_info = {
     .name           = TYPE_PL330,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(PL330State),
+    .instance_init  = pl330_init,
     .class_init      = pl330_class_init,
 };
 
