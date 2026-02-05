@@ -3450,6 +3450,11 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
     usb_xhci_init(xhci);
     xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
 
+    if (!xhci->attrs) {
+        xhci->attrs = g_new(MemTxAttrs, 1);
+        *xhci->attrs = MEMTXATTRS_UNSPECIFIED;
+    }
+
     memory_region_init(&xhci->mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
     memory_region_init_io(&xhci->mem_cap, OBJECT(dev), &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
