@@ -169,9 +169,6 @@ config AUX
     bool
     select I2C
 
-config CLOCK
-	bool
-
 config XLNX_VERSAL_PMC
 	bool
 
