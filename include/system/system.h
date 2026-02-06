@@ -45,6 +45,7 @@ extern const char *keyboard_layout;
 extern uint8_t *boot_splash_filedata;
 extern bool enable_cpu_pm;
 extern QEMUClockType rtc_clock;
+extern uint64_t global_sync_quantum;
 
 typedef enum {
     MLOCK_OFF = 0,
