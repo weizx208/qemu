@@ -20,6 +20,8 @@
 #include "qemu/module.h"
 #include "hw/intc/arm_gicv3.h"
 #include "gicv3_internal.h"
+#include "hw/irq.h"
+#include "hw/fdt_generic_util.h"
 
 static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio, bool nmi)
 {
@@ -452,13 +454,28 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     gicv3_init_cpuif(s);
 }
 
+static const FDTGenericGPIOSet arm_gicv3_client_gpios[] = {
+    {
+        .names = &fdt_generic_gpio_name_set_interrupts,
+        .gpios = (FDTGenericGPIOConnection []) {
+            { .name = "irq",    .range = 8 },
+            { .name = "fiq",    .range = 8, .fdt_index = 8 },
+            { .name = "maint",  .range = 4, .fdt_index = 16 },
+            { },
+        },
+    },
+    { },
+};
+
 static void arm_gicv3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
     ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
+    FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
     agcc->post_load = arm_gicv3_post_load;
+    fggc->client_gpios = arm_gicv3_client_gpios;
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
 }
 
