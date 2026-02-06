@@ -68,6 +68,8 @@ static void gicv3_gicd_no_migration_shift_bug_post_load(GICv3State *cs)
     cs->gicd_no_migration_shift_bug = true;
 }
 
+#include "hw/fdt_generic_util.h"
+
 static int gicv3_pre_save(void *opaque)
 {
     GICv3State *s = (GICv3State *)opaque;
@@ -327,15 +329,19 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->cpu[i].parent_irq);
+        qdev_init_gpio_out_named(DEVICE(s), &s->cpu[i].parent_irq, "irq", 1);
     }
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->cpu[i].parent_fiq);
+        qdev_init_gpio_out_named(DEVICE(s), &s->cpu[i].parent_fiq, "fiq", 1);
     }
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->cpu[i].parent_virq);
+        qdev_init_gpio_out_named(DEVICE(s), &s->cpu[i].parent_virq, "irq", 1);
     }
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->cpu[i].parent_vfiq);
+        qdev_init_gpio_out_named(DEVICE(s), &s->cpu[i].parent_vfiq, "fiq", 1);
     }
 #if 0
     for (i = 0; i < s->num_cpu; i++) {
@@ -343,6 +349,19 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
     }
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->cpu[i].parent_vnmi);
+    }
+#endif
+
+    for (i = 0; i < s->num_cpu; i++) {
+        qdev_init_gpio_out_named(DEVICE(s),
+                                 &s->cpu[i].maintenance_irq, "maint", 1);
+    }
+
+#if 0
+    for (i = 0; i < s->num_cpu; i++) {
+        /* Alias onto GICv3s IRQ space.  */
+        qdev_init_gpio_out_named(DEVICE(s),
+                                 &s->maintenance_irq[i], "sysbus-irq", 1);
     }
 #endif
 
@@ -365,6 +384,51 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
                               s->redist_region_count[i] * gicv3_redist_size(s));
         sysbus_init_mmio(sbd, &region->iomem);
         g_free(name);
+    }
+}
+
+static int arm_gicv3_common_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
+                                      uint32_t *cells, int ncells, int max,
+                                      Error **errp)
+{
+    GICv3State *gs = ARM_GICV3_COMMON(obj);
+    int cpu = 0;
+    uint32_t idx;
+
+    if (ncells != 3) {
+        error_setg(errp, "ARM GIC requires 3 interrupt cells, %d cells given",
+                   ncells);
+        return 0;
+    }
+    idx = cells[1];
+
+    switch (cells[0]) {
+    case 0:
+        if (idx >= gs->num_irq) {
+            error_setg(errp, "ARM GIC SPI has maximum index of %" PRId32 ", "
+                       "index %" PRId32 " given", gs->num_irq - 1, idx);
+            return 0;
+        }
+        (*irqs) = qdev_get_gpio_in(DEVICE(obj), cells[1]);
+        return 1;
+    case 1: /* PPI */
+        if (idx >= 16) {
+            error_setg(errp, "ARM GIC PPI has maximum index of 15, "
+                       "index %" PRId32 " given", idx);
+            return 0;
+        }
+        for (cpu = 0; cpu < max && cpu < gs->num_cpu; cpu++) {
+            if (cells[2] & 1 << (cpu + 8)) {
+                *irqs = qdev_get_gpio_in(DEVICE(obj),
+                                         gs->num_irq - 16 + idx + cpu * 32);
+            }
+            irqs++;
+        }
+        return cpu;
+    default:
+        error_setg(errp, "Invalid cell 0 value in interrupt binding: %d",
+                   cells[0]);
+        return 0;
     }
 }
 
@@ -632,12 +696,14 @@ static void arm_gicv3_common_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
+    FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
 
     rc->phases.hold = arm_gicv3_common_reset_hold;
     dc->realize = arm_gicv3_common_realize;
     device_class_set_props(dc, arm_gicv3_common_properties);
     dc->vmsd = &vmstate_gicv3;
     albifc->arm_linux_init = arm_gic_common_linux_init;
+    fgic->get_irq = arm_gicv3_common_fdt_get_irq;
 }
 
 static const TypeInfo arm_gicv3_common_type = {
@@ -650,6 +716,8 @@ static const TypeInfo arm_gicv3_common_type = {
     .abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_ARM_LINUX_BOOT_IF },
+        { TYPE_FDT_GENERIC_INTC },
+        { TYPE_FDT_GENERIC_GPIO },
         { },
     },
 };
