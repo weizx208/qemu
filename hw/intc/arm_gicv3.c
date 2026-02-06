@@ -443,6 +443,17 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
 
+    if (s->nb_redist_regions != 1) {
+        /* Xilinx: Backwards compat, we default to 1 region 2 entries.  */
+        s->nb_redist_regions = 1;
+        s->redist_region_count = g_malloc(sizeof(s->redist_region_count));
+        s->redist_region_count[0] = 2;
+        if (0) {
+            error_setg(errp, "VGICv3 redist region number(%d) not equal to 1",
+                       s->nb_redist_regions);
+            return;
+        }
+    }
     agc->parent_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
