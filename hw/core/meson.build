@@ -31,6 +31,23 @@ system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutl
 common_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files(
   'dma-ctrl.c'))
 
+specific_ss.add(when: 'CONFIG_REMOTE_PORT', if_true: files(
+  'remote-port-proto.c',
+  'remote-port.c',
+  'remote-port-memory-master.c',
+  'remote-port-memory-slave.c',
+  'remote-port-gpio.c',
+  'remote-port-stream.c',
+))
+
+specific_ss.add(when: 'CONFIG_REMOTE_PORT_PCI', if_true: files(
+  'remote-port-pci-device.c',
+))
+
+specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
+  'remote-port-qdev.c'
+))
+
 system_ss.add(files(
   'cpu-system.c',
   'fw-path-provider.c',
