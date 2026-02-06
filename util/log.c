@@ -513,6 +513,7 @@ const QEMULogItem qemu_log_items[] = {
       "do not chain compiled TBs so that \"exec\" and \"cpu\" show\n"
       "complete traces" },
 
+    { LOG_FDT, "fdt", "log Device Tree info." },
     { LOG_PM,  "pm", "log Power Management info." },
 
     /* device entries */

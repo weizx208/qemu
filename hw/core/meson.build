@@ -31,6 +31,10 @@ system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutl
 common_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files(
   'dma-ctrl.c'))
 
+system_ss.add(files(
+  'fdt_generic_util.c',
+  ))
+
 specific_ss.add(when: 'CONFIG_REMOTE_PORT', if_true: files(
   'remote-port-proto.c',
   'remote-port.c',
