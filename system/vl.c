@@ -3025,6 +3025,12 @@ void qemu_init(int argc, char **argv)
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
             case QEMU_OPTION_boot:
+                /* Xilinx */
+                opts = qemu_opts_parse_noisily(qemu_find_opts("boot-opts"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
                 machine_parse_property_opt(qemu_find_opts("boot-opts"), "boot", optarg);
                 break;
             case QEMU_OPTION_fda:
