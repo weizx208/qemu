@@ -1360,7 +1360,7 @@ static void qemu_disable_default_devices(void)
         auto_create_sdcard = false;
     }
     if (!has_defaults) {
-        default_audio = 0;
+        /* default_audio = 0; Xilinx */
         default_monitor = 0;
         default_net = 0;
         default_vga = 0;
