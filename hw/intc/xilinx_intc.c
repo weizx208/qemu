@@ -28,7 +28,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
+#include "hw/core/cpu.h"
+#include "hw/fdt_generic_util.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -189,7 +192,7 @@ static void xilinx_intc_init(Object *obj)
     XpsIntc *p = XILINX_INTC(obj);
 
     qdev_init_gpio_in(DEVICE(obj), irq_handler, 32);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &p->parent_irq);
+    qdev_init_gpio_out_named(DEVICE(obj), &p->parent_irq, "Outputs", 1);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &p->mmio);
 }
 
@@ -209,17 +212,59 @@ static void xilinx_intc_realize(DeviceState *dev, Error **errp)
                           R_MAX * 4);
 }
 
+static int xilinx_intc_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
+                                   uint32_t *cells, int ncells, int max,
+                                   Error **errp)
+{
+    XpsIntc *p = XILINX_INTC(obj);
+    uint32_t idx;
+    uint32_t exp_type;
+
+    if (ncells != 2) {
+        error_setg(errp, "Xilinx Intc requires 2 interrupt cells: %d given",
+                   ncells);
+        return 0;
+    }
+    idx = cells[0];
+
+    if (idx >= 32) {
+        error_setg(errp, "Xilinx Intc only supports 32 interrupts: index %"
+                   PRId32 " requested", idx);
+        return 0;
+    }
+
+    exp_type = p->c_kind_of_intr & (1 << idx) ? 0 : 2;
+    if (cells[1] != exp_type) {
+        error_setg(errp, "Xilinx Intc expects interrupt mode %" PRIx32
+                   " for interrupt %" PRIx32 ", mode %" PRIx32 " given",
+                   exp_type, idx, cells[1]);
+        return 0;
+    }
+
+    (*irqs) = qdev_get_gpio_in(DEVICE(obj), idx);
+    return 1;
+};
+
 static const Property xilinx_intc_properties[] = {
     DEFINE_PROP_ENDIAN_NODEFAULT("endianness", XpsIntc, model_endianness),
     DEFINE_PROP_UINT32("kind-of-intr", XpsIntc, c_kind_of_intr, 0),
 };
 
+static void xilinx_intc_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
+{
+    qdev_connect_gpio_out_named(DEVICE(obj), "Outputs", 0,
+                                qdev_get_gpio_in(DEVICE(first_cpu), 0));
+}
+
 static void xilinx_intc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
 
     dc->realize = xilinx_intc_realize;
     device_class_set_props(dc, xilinx_intc_properties);
+    fgic->get_irq = xilinx_intc_fdt_get_irq;
+    fgic->auto_parent = xilinx_intc_fdt_auto_parent;
 }
 
 static const TypeInfo xilinx_intc_info = {
@@ -228,6 +273,10 @@ static const TypeInfo xilinx_intc_info = {
     .instance_size = sizeof(XpsIntc),
     .instance_init = xilinx_intc_init,
     .class_init    = xilinx_intc_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_FDT_GENERIC_INTC },
+        { }
+    },
 };
 
 static void xilinx_intc_register_types(void)
