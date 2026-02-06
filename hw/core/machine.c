@@ -448,6 +448,21 @@ static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
     ms->dump_guest_core = value;
 }
 
+
+static bool machine_get_linux(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->is_linux;
+}
+
+static void machine_set_linux(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->is_linux = value;
+}
+
 static bool machine_get_mem_merge(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1285,6 +1300,10 @@ static void machine_initfn(Object *obj)
     ms->ram_size = mc->default_ram_size;
     ms->maxram_size = mc->default_ram_size;
 
+    object_property_add_bool(obj, "linux",
+                             machine_get_linux, machine_set_linux);
+    object_property_set_description(obj, "linux",
+                                    "Force a Linux style boot");
     if (mc->nvdimm_supported) {
         ms->nvdimms_state = g_new0(NVDIMMState, 1);
         object_property_add_bool(obj, "nvdimm",

@@ -923,6 +923,9 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         elf_machine = EM_ARM;
     }
 
+    info->dtb_filename = MACHINE(qdev_get_machine())->dtb;
+    is_linux = MACHINE(qdev_get_machine())->is_linux;
+
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = arm_load_elf(info, &elf_entry, &image_low_addr,
                                &image_high_addr, elf_machine, as);

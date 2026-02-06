@@ -403,6 +403,7 @@ struct MachineState {
     void *fdt;
     char *dtb;
     char *dumpdtb;
+    bool is_linux;
     int phandle_start;
     char *dt_compatible;
     bool dump_guest_core;
