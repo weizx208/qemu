@@ -148,7 +148,7 @@ petalogix_s3adsp1800_init(MachineState *machine)
     microblaze_load_kernel(cpu, endianness == ENDIAN_MODE_LITTLE, ddr_base,
                            ram_size, machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
-                           NULL);
+                           NULL, NULL, 0);
 }
 
 static int machine_get_endianness(Object *obj, Error **errp G_GNUC_UNUSED)

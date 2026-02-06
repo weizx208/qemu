@@ -210,7 +210,7 @@ petalogix_ml605_init(MachineState *machine)
     microblaze_load_kernel(cpu, true, MEMORY_BASEADDR, ram_size,
                            machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
-                           NULL);
+                           NULL, NULL, 0);
 
 }
 

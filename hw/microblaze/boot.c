@@ -71,18 +71,21 @@ static int microblaze_load_dtb(hwaddr addr,
                                uint32_t initrd_start,
                                uint32_t initrd_end,
                                const char *kernel_cmdline,
-                               const char *dtb_filename)
+                               const char *dtb_filename,
+                               void *fdt,
+                               int fdt_size)
 {
-    int fdt_size;
-    void *fdt = NULL;
     int r;
     uint8_t rng_seed[32];
 
-    if (dtb_filename) {
-        fdt = load_device_tree(dtb_filename, &fdt_size);
-    }
     if (!fdt) {
-        return 0;
+        /* No fdt information was passed in, load it from the DTB */
+        if (dtb_filename) {
+            fdt = load_device_tree(dtb_filename, &fdt_size);
+        }
+        if (!fdt) {
+            return 0;
+        }
     }
 
     qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
@@ -118,7 +121,8 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
                             hwaddr ddr_base, uint32_t ramsize,
                             const char *initrd_filename,
                             const char *dtb_filename,
-                            void (*machine_cpu_reset)(MicroBlazeCPU *))
+                            void (*machine_cpu_reset)(MicroBlazeCPU *),
+                            void *fdt, int fdt_size)
 {
     const char *kernel_filename;
     const char *kernel_cmdline;
@@ -211,8 +215,9 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
                             boot_info.initrd_start,
                             boot_info.initrd_end,
                             kernel_cmdline,
-                            /* Preference a -dtb argument */
-                            dtb_arg ? dtb_arg : filename);
+                            dtb_filename,
+                            fdt,
+                            fdt_size);
     }
     g_free(filename);
 }

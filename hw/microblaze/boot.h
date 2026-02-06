@@ -6,6 +6,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
                             hwaddr ddr_base, uint32_t ramsize,
                             const char *initrd_filename,
                             const char *dtb_filename,
-                            void (*machine_cpu_reset)(MicroBlazeCPU *));
+                            void (*machine_cpu_reset)(MicroBlazeCPU *),
+                            void *fdt, int fdt_size);
 
 #endif /* MICROBLAZE_BOOT_H */
