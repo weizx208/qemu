@@ -43,6 +43,8 @@ struct arm_boot_info {
     const char *kernel_cmdline;
     const char *initrd_filename;
     const char *dtb_filename;
+    void *fdt;
+    int fdt_size;
     hwaddr loader_start;
     hwaddr dtb_start;
     hwaddr dtb_limit;

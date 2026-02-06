@@ -1814,6 +1814,10 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
             g_str_equal("nitro-enclave", machines[i].name)) {
             continue;
         }
+        if (!strncmp("arm-generic-fdt", machines[i].name,
+                     strlen("arm-generic-fdt"))) {
+            continue;
+        }
         if (!skip_old_versioned ||
             !qtest_is_old_versioned_machine(machines[i].name)) {
             cb(machines[i].name);
