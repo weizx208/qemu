@@ -402,6 +402,7 @@ struct MachineState {
 
     void *fdt;
     char *dtb;
+    char *hw_dtb;
     char *dumpdtb;
     bool is_linux;
     int phandle_start;
