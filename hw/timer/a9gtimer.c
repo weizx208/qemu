@@ -60,12 +60,12 @@ static inline int a9_gtimer_get_current_cpu(A9GTimerState *s)
     return current_cpu->cpu_index;
 }
 
-static inline uint64_t a9_gtimer_get_conv(A9GTimerState *s)
+static inline uint64_t a9_gtimer_get_conv_ps(A9GTimerState *s)
 {
     uint64_t prescale = extract32(s->control, R_CONTROL_PRESCALER_SHIFT,
                                   R_CONTROL_PRESCALER_LEN);
 
-    return (prescale + 1) * 10;
+    return (prescale + 1) * 1000000000000ull / s->freq_hz;
 }
 
 static A9GTimerUpdate a9_gtimer_get_update(A9GTimerState *s)
@@ -74,7 +74,7 @@ static A9GTimerUpdate a9_gtimer_get_update(A9GTimerState *s)
 
     ret.now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ret.new = s->ref_counter +
-              (ret.now - s->cpu_ref_time) / a9_gtimer_get_conv(s);
+              1000ull * (ret.now - s->cpu_ref_time) / a9_gtimer_get_conv_ps(s);
     return ret;
 }
 
@@ -117,7 +117,8 @@ static void a9_gtimer_update(A9GTimerState *s, bool sync)
     if (next_cdiff) {
         DB_PRINT("scheduling qemu_timer to fire again in %"
                  PRIx64 " cycles\n", next_cdiff);
-        timer_mod(s->timer, update.now + next_cdiff * a9_gtimer_get_conv(s));
+        timer_mod(s->timer, update.now + next_cdiff * a9_gtimer_get_conv_ps(s)
+                                                    / 1000ull);
     }
 
     if (s->control & R_CONTROL_TIMER_ENABLE) {
@@ -276,6 +277,14 @@ static const MemoryRegionOps a9_gtimer_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void a9_gtimer_clock_handler(void *opaque, int n, int level)
+{
+    A9GTimerState *s = A9_GTIMER(opaque);
+
+    assert(n == 0);
+    s->freq_hz = level;
+}
+
 static void a9_gtimer_reset(DeviceState *dev)
 {
     A9GTimerState *s = A9_GTIMER(dev);
@@ -321,6 +330,8 @@ static void a9_gtimer_realize(DeviceState *dev, Error **errp)
                               "a9gtimer per cpu", 0x20);
         sysbus_init_mmio(sbd, &gtb->iomem);
     }
+
+    qdev_init_gpio_in_named(dev, a9_gtimer_clock_handler, "clock", 1);
 }
 
 static bool vmstate_a9_gtimer_control_needed(void *opaque)
@@ -373,18 +384,32 @@ static const VMStateDescription vmstate_a9_gtimer = {
     }
 };
 
+static const FDTGenericGPIOSet a9_gtimer_client_gpios [] = {
+    {
+        .names = &fdt_generic_gpio_name_set_clock,
+        .gpios = (FDTGenericGPIOConnection []) {
+            { . name = "clock",     .fdt_index = 0 },
+            { },
+        },
+    },
+    { },
+};
+
 static const Property a9_gtimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9GTimerState, num_cpu, 0),
+    DEFINE_PROP_UINT32("clock-frequency", A9GTimerState, freq_hz, 100000000),
 };
 
 static void a9_gtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
     dc->realize = a9_gtimer_realize;
     dc->vmsd = &vmstate_a9_gtimer;
     device_class_set_legacy_reset(dc, a9_gtimer_reset);
     device_class_set_props(dc, a9_gtimer_properties);
+    fggc->client_gpios = a9_gtimer_client_gpios;
 }
 
 static const TypeInfo a9_gtimer_info = {
@@ -392,6 +417,10 @@ static const TypeInfo a9_gtimer_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9GTimerState),
     .class_init    = a9_gtimer_class_init,
+    .interfaces    = (InterfaceInfo[]) {
+        { TYPE_FDT_GENERIC_GPIO },
+        { },
+    },
 };
 
 static void a9_gtimer_register_types(void)
