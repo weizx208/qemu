@@ -54,6 +54,9 @@ config S390_FLIC_KVM
 config OMPIC
     bool
 
+config XILINX_IOMODULE_INTC
+	bool
+
 config PPC_UIC
     bool
 
