@@ -306,6 +306,9 @@ static QemuOptsList qemu_boot_opts = {
         }, {
             .name = "strict",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "mode",
+            .type = QEMU_OPT_NUMBER,
         },
         { /*End of list */ }
     },

@@ -1603,6 +1603,9 @@
 # @strict: Whether to attempt booting from devices not included in the
 #     boot order
 #
+# @mode: Set the value of the BOOT_MODE / BOOT_MODE_POR registers for
+#        the AMD devices.
+#
 # Since: 7.1
 ##
 { 'struct': 'BootConfiguration', 'data': {
@@ -1612,7 +1615,9 @@
      '*splash': 'str',
      '*splash-time': 'int',
      '*reboot-timeout': 'int',
-     '*strict': 'bool' } }
+     '*strict': 'bool',
+     '*mode': 'uint32' } }
+
 
 ##
 # @SMPConfiguration:
