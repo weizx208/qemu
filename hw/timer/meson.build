@@ -31,6 +31,7 @@ system_ss.add(when: 'CONFIG_STELLARIS_GPTM', if_true: files('stellaris-gptm.c'))
 system_ss.add(when: 'CONFIG_STM32F2XX_TIMER', if_true: files('stm32f2xx_timer.c'))
 system_ss.add(when: 'CONFIG_XILINX', if_true: files('xilinx_timer.c'))
 system_ss.add(when: 'CONFIG_XILINX_IOMODULE_PIT', if_true: files('xilinx_iomod_pit.c'))
+system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files('arm_generic_timer.c'))
 specific_ss.add(when: 'CONFIG_IBEX', if_true: files('ibex_timer.c'))
 system_ss.add(when: 'CONFIG_SIFIVE_PWM', if_true: files('sifive_pwm.c'))
 
