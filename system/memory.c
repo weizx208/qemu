@@ -1305,6 +1305,8 @@ static void memory_region_initfn(Object *obj)
     mr->enabled = true;
     mr->romd_mode = true;
     mr->destructor = memory_region_destructor_none;
+    /* Xilinx: for DMAs to work */
+    mr->disable_reentrancy_guard = true;
     QTAILQ_INIT(&mr->subregions);
     QTAILQ_INIT(&mr->coalesced);
 
