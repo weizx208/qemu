@@ -57,6 +57,8 @@ static GHashTable *flat_views;
 
 typedef struct AddrRange AddrRange;
 
+static void memory_region_readd_subregion(MemoryRegion *mr);
+
 /*
  * Note that signed integers are needed for negative offsetting in aliases
  * (large MemoryRegion::alias_offset).
@@ -1340,6 +1342,25 @@ static void memory_region_get_priority(Object *obj, Visitor *v,
     visit_type_int32(v, name, &value, errp);
 }
 
+static void memory_region_set_priority(Object *obj, Visitor *v, const char *name,
+                                       void *opaque, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    Error *local_err = NULL;
+    int32_t value;
+
+    visit_type_uint32(v, name, (uint32_t *)&value, &error_abort);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (mr->priority != value) {
+        mr->priority = value;
+        memory_region_readd_subregion(mr);
+    }
+}
+
 static void memory_region_do_set_ram(MemoryRegion *mr)
 {
     char *c, *filename, *sanitized_name;
@@ -1444,7 +1465,7 @@ static void memory_region_initfn(Object *obj)
                                    &mr->addr, OBJ_PROP_FLAG_READ);
     object_property_add(OBJECT(mr), "priority", "uint32",
                         memory_region_get_priority,
-                        NULL, /* memory_region_set_priority */
+                        memory_region_set_priority,
                         NULL, NULL);
     object_property_add(OBJECT(mr), "ram", "uint8",
                         NULL, /* FIXME: Add getter */
