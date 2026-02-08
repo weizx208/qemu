@@ -1946,7 +1946,7 @@ static uint64_t int_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
         MemTxResult r;
 
         /* Read aligned pieces up to 8 bytes. */
-        this_mop = ctz32(size | (int)addr | 8);
+        this_mop = ctz32(size | 8);
         this_size = 1 << this_mop;
         this_mop |= MO_BE;
 
@@ -2413,6 +2413,7 @@ static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
             if ((l.memop & MO_BSWAP) == MO_LE) {
                 ret = bswap128(ret);
             }
+
         } else {
             /* Perform the load host endian. */
             ret = load_atom_16(cpu, ra, l.page[0].haddr, l.memop);
@@ -2486,7 +2487,7 @@ static uint64_t int_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
         MemTxResult r;
 
         /* Store aligned pieces up to 8 bytes. */
-        this_mop = ctz32(size | (int)addr | 8);
+        this_mop = ctz32(size | 8);
         this_size = 1 << this_mop;
         this_mop |= MO_LE;
 
