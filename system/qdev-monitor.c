@@ -38,6 +38,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/option_int.h"
 #include "system/block-backend.h"
+#include "system/reset.h"
 #include "migration/misc.h"
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
@@ -707,6 +708,10 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
     if (phase_check(PHASE_MACHINE_READY) &&
         !qdev_hotplug_allowed(dev, bus, errp)) {
         goto err_del_dev;
+    }
+
+    if (dc->legacy_reset) {
+        qemu_register_reset((void (*)(void *))dc->legacy_reset, dev);
     }
 
     /*
