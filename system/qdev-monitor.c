@@ -44,6 +44,9 @@
 #include "hw/clock.h"
 #include "hw/boards.h"
 
+#include "hw/remote-port.h"
+#include "qemu/cutils.h"
+
 /*
  * Aliases were a bad idea from the start.  Let's keep them
  * from spreading further.
@@ -720,6 +723,12 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
     qdict_del(properties, "driver");
     qdict_del(properties, "bus");
     qdict_del(properties, "id");
+
+    if (!rp_device_add(opts, dev, errp)) {
+        goto err_del_dev;
+    }
+    /* Xilinx: only one adaptor is currently supported */
+    qdict_del(properties, "rp-adaptor0");
 
     object_set_properties_from_keyval(&dev->parent_obj, properties, from_json,
                                       errp);
