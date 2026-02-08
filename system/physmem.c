@@ -3303,24 +3303,42 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
          * potential bugs
          */
 
-        /*
-         * Assure Coverity (and ourselves) that we are not going to OVERRUN
-         * the buffer by following ldn_he_p().
-         */
+        if (*l <= 8) {
+            /*
+             * Assure Coverity (and ourselves) that we are not going to OVERRUN
+             * the buffer by following ldn_he_p().
+             */
 #ifdef QEMU_STATIC_ANALYSIS
-        assert((*l == 1 && len >= 1) ||
-               (*l == 2 && len >= 2) ||
-               (*l == 4 && len >= 4) ||
-               (*l == 8 && len >= 8));
+            assert((*l == 1 && len >= 1) ||
+                   (*l == 2 && len >= 2) ||
+                   (*l == 4 && len >= 4) ||
+                   (*l == 8 && len >= 8));
 #endif
-        val = ldn_he_p(buf, *l);
-        result = memory_region_dispatch_write(mr, mr_addr, val,
-                                              size_memop(*l), attrs);
-        if (release_lock) {
-            bql_unlock();
-        }
+            val = ldn_he_p(buf, *l);
+            result = memory_region_dispatch_write(mr, mr_addr, val,
+                                                  size_memop(*l), attrs);
+            if (release_lock) {
+                bql_unlock();
+            }
 
-        return result;
+            return result;
+        } else {
+            if (mr->ops->access) {
+                MemoryTransaction tr = {
+                    .data.p8 = (uint8_t *) buf,
+                    .rw = true,
+                    .addr = mr_addr,
+                    .size = *l,
+                    .attr = attrs,
+                    .opaque = mr->opaque,
+                };
+                mr->ops->access(&tr);
+            } else {
+                abort();
+            }
+
+            return MEMTX_OK;
+        }
     } else {
         /* RAM case */
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
@@ -3395,25 +3413,43 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         bool release_lock = prepare_mmio_access(mr);
 
         *l = memory_access_size(mr, *l, mr_addr);
-        result = memory_region_dispatch_read(mr, mr_addr, &val, size_memop(*l),
-                                             attrs);
+        if (*l <= 8) {
+            result = memory_region_dispatch_read(mr, mr_addr, &val, size_memop(*l),
+                                                 attrs);
 
-        /*
-         * Assure Coverity (and ourselves) that we are not going to OVERRUN
-         * the buffer by following stn_he_p().
-         */
+            /*
+             * Assure Coverity (and ourselves) that we are not going to OVERRUN
+             * the buffer by following stn_he_p().
+             */
 #ifdef QEMU_STATIC_ANALYSIS
-        assert((*l == 1 && len >= 1) ||
-               (*l == 2 && len >= 2) ||
-               (*l == 4 && len >= 4) ||
-               (*l == 8 && len >= 8));
+            assert((*l == 1 && len >= 1) ||
+                   (*l == 2 && len >= 2) ||
+                   (*l == 4 && len >= 4) ||
+                   (*l == 8 && len >= 8));
 #endif
-        stn_he_p(buf, *l, val);
+            stn_he_p(buf, *l, val);
 
-        if (release_lock) {
-            bql_unlock();
+            if (release_lock) {
+                bql_unlock();
+            }
+            return result;
+        } else {
+            if (mr->ops->access) {
+                MemoryTransaction tr = {
+                    .data.p8 = buf,
+                    .rw = false,
+                    .addr = mr_addr,
+                    .size = *l,
+                    .attr = attrs,
+                    .opaque = mr->opaque,
+                };
+                mr->ops->access(&tr);
+            } else {
+                abort();
+            }
+
+            return MEMTX_OK;
         }
-        return result;
     } else {
         /* RAM case */
         uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
