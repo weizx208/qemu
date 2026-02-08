@@ -3273,6 +3273,16 @@ static void do_address_space_destroy(AddressSpace *as)
     memory_region_unref(as->root);
 }
 
+/* REMOVE THIS */
+AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
+{
+    AddressSpace *as;
+
+    as = g_malloc0(sizeof *as);
+    address_space_init(as, root, name);
+    return as;
+}
+
 static void do_address_space_destroy_free(AddressSpace *as)
 {
     do_address_space_destroy(as);

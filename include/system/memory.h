@@ -2726,6 +2726,10 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
  */
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
+/* Remove this */
+AddressSpace *address_space_init_shareable(MemoryRegion *root,
+                                           const char *name);
+
 /**
  * address_space_destroy: destroy an address space
  *
