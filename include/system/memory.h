@@ -428,6 +428,8 @@ struct IOMMUMemoryRegionClass {
      */
     IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
                                IOMMUAccessFlags flag, int iommu_idx);
+    IOMMUTLBEntry (*translate_attr)(IOMMUMemoryRegion *iommu, hwaddr addr,
+                                    bool is_write, MemTxAttrs *attr);
     /**
      * @get_min_page_size:
      *
