@@ -1305,6 +1305,10 @@ static void memory_region_initfn(Object *obj)
     mr->enabled = true;
     mr->romd_mode = true;
     mr->destructor = memory_region_destructor_none;
+    /* Xilinx: We need this as the default to allow the amba memory regions
+     * to be created correctly.
+     */
+    mr->size = int128_2_64();
     /* Xilinx: for DMAs to work */
     mr->disable_reentrancy_guard = true;
     QTAILQ_INIT(&mr->subregions);
