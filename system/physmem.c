@@ -2990,6 +2990,7 @@ static const MemoryRegionOps subpage_ops = {
     .valid.min_access_size = 1,
     .valid.max_access_size = 8,
     .valid.accepts = subpage_accepts,
+    .valid.unaligned = true,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
