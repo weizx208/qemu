@@ -1332,6 +1332,31 @@ static Object *memory_region_resolve_container(Object *obj, void *opaque,
     return OBJECT(mr->container);
 }
 
+static void memory_region_set_alias(const Object *obj, const char *name,
+                                    Object *val, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    MemoryRegion *subregion, *next;
+
+    /* Be conservative and only allow one shotting for the mo */
+    /* FIXME: Use a softer error than assert */
+    assert (!mr->alias);
+
+    /* FIXME: check we don't already have subregions and
+     * anything else that might be mutex with aliasing
+     */
+
+    memory_region_transaction_begin();
+    QTAILQ_FOREACH_SAFE(subregion, &mr->subregions, subregions_link, next) {
+        object_property_set_link(OBJECT(subregion), "container", OBJECT(val), errp);
+    }
+    memory_region_ref(mr);
+    mr->alias = MEMORY_REGION(val);
+    memory_region_unref(mr);
+    memory_region_transaction_commit();
+    /* FIXME: add cleanup destructors etc etc */
+}
+
 static void memory_region_get_priority(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -1461,6 +1486,10 @@ static void memory_region_initfn(Object *obj)
                              NULL, NULL);
     op->resolve = memory_region_resolve_container;
 
+    object_property_add_link(OBJECT(mr), "alias", TYPE_MEMORY_REGION,
+                             (Object **)&mr->alias,
+                             memory_region_set_alias,
+                             0);
     object_property_add_uint64_ptr(OBJECT(mr), "addr",
                                    &mr->addr, OBJ_PROP_FLAG_READ);
     object_property_add(OBJECT(mr), "priority", "uint32",
