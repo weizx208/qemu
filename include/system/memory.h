@@ -36,6 +36,10 @@
 DECLARE_INSTANCE_CHECKER(MemoryRegion, MEMORY_REGION,
                          TYPE_MEMORY_REGION)
 
+#define TYPE_MEMORY_TRANSACTION_ATTR "qemu:memory-transaction-attr"
+#define MEMORY_TRANSACTION_ATTR(obj) \
+        OBJECT_CHECK(MemTxAttrs, (obj), TYPE_MEMORY_TRANSACTION_ATTR)
+
 #define TYPE_IOMMU_MEMORY_REGION "iommu-memory-region"
 typedef struct IOMMUMemoryRegionClass IOMMUMemoryRegionClass;
 DECLARE_OBJ_CHECKERS(IOMMUMemoryRegion, IOMMUMemoryRegionClass,

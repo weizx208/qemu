@@ -14,6 +14,8 @@
 #ifndef MEMATTRS_H
 #define MEMATTRS_H
 
+#include "qom/object.h"
+
 /* Every memory transaction has associated with it a set of
  * attributes. Some of these are generic (such as the ID of
  * the bus master); some are specific to a particular kind of
@@ -23,6 +25,7 @@
  * different semantics.
  */
 typedef struct MemTxAttrs {
+    Object parent_obj;
     /*
      * ARM/AMBA: TrustZone Secure access
      * x86: System Management Mode access
@@ -70,7 +73,9 @@ typedef struct MemTxAttrs {
     uint16_t _reserved2;
 } MemTxAttrs;
 
-QEMU_BUILD_BUG_ON(sizeof(MemTxAttrs) > 8);
+/* The following can't be true ATM in our fork since MemTxAttrs is an object and
+ * thus is far beyond 8 bytes.  */
+/* QEMU_BUILD_BUG_ON(sizeof(MemTxAttrs) > 8); */
 
 /* Bus masters which don't specify any attributes will get this,
  * which has all attribute bits clear except the topmost one
