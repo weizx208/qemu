@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/help-texts.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
@@ -37,6 +38,7 @@
 #include "trace.h"
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-properties.h"
 
 #ifndef XLNX_ZYNQMP_RTC_ERR_DEBUG
 #define XLNX_ZYNQMP_RTC_ERR_DEBUG 0
