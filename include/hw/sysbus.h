@@ -21,6 +21,9 @@ OBJECT_DECLARE_TYPE(SysBusDevice, SysBusDeviceClass,
 
 #define TYPE_DYNAMIC_SYS_BUS_DEVICE "dynamic-sysbus-device"
 
+#define SYS_BUS_DEVICE_PARENT_CLASS                                            \
+     object_class_get_parent(object_class_by_name(TYPE_SYS_BUS_DEVICE))
+
 /**
  * SysBusDeviceClass:
  *
