@@ -2680,13 +2680,8 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
                                                hwaddr offset,
                                                MemoryRegion *subregion)
 {
-    MemoryRegion *alias;
-
     assert(!subregion->container);
     subregion->container = mr;
-    for (alias = subregion->alias; alias; alias = alias->alias) {
-        alias->mapped_via_alias++;
-    }
     subregion->addr = offset;
     memory_region_update_container_subregions(subregion);
 }
@@ -2711,15 +2706,9 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
 void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion)
 {
-    MemoryRegion *alias;
-
     memory_region_transaction_begin();
     assert(subregion->container == mr);
     subregion->container = NULL;
-    for (alias = subregion->alias; alias; alias = alias->alias) {
-        alias->mapped_via_alias--;
-        assert(alias->mapped_via_alias >= 0);
-    }
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
 
     if (mr->owner != subregion->owner) {
