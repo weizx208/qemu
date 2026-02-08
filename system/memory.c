@@ -3258,7 +3258,14 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     as->bounce_buffer_size = 0;
     qemu_mutex_init(&as->map_client_list_lock);
     QLIST_INIT(&as->map_client_list);
-    as->name = g_strdup(name ? name : "anonymous");
+
+    /* XILINX
+     *
+     * Use the root MemoryRegion's name as name if nothing was specified.
+     * Since we use device-trees to create the machine, we always
+     * have sensible names for the root MR.
+     */
+    as->name = g_strdup(name ? name : object_get_canonical_path(OBJECT(root)));
     address_space_update_topology(as);
     address_space_update_ioeventfds(as);
 }
