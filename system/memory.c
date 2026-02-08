@@ -1340,6 +1340,72 @@ static void memory_region_get_priority(Object *obj, Visitor *v,
     visit_type_int32(v, name, &value, errp);
 }
 
+static void memory_region_do_set_ram(MemoryRegion *mr)
+{
+    char *c, *filename, *sanitized_name;
+
+    if (mr->addr) {
+        qemu_ram_free(mr->ram_block);
+    }
+    if (int128_eq(mr->size, int128_make64(0))) {
+        return;
+    }
+    switch (mr->ram) {
+    case(0):
+        mr->ram_block = NULL;
+        break;
+    case(1):
+        mr->ram_block = qemu_ram_alloc(int128_get64(mr->size), RAM_SHARED, mr, &error_abort);
+        break;
+    case(2):
+        sanitized_name = g_strdup(object_get_canonical_path(OBJECT(mr)));
+
+        for (c = sanitized_name; *c != '\0'; c++) {
+            if (*c == '/')
+                *c = '_';
+        }
+        filename = g_strdup_printf("%s" G_DIR_SEPARATOR_S "qemu-memory-%s",
+                                   machine_path ? machine_path : ".",
+                                   sanitized_name);
+        g_free(sanitized_name);
+        mr->ram_block = qemu_ram_alloc_from_file(int128_get64(mr->size), mr,
+                                                 RAM_SHARED, filename, 0, &error_abort);
+        g_free(filename);
+        break;
+    default:
+        abort();
+    }
+}
+
+static void memory_region_set_ram(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    Error *local_err = NULL;
+    uint8_t value;
+
+    visit_type_uint8(v, name, &value, &error_abort);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* FIXME: Sanitize error handling */
+    /* FIXME: Probably need all that transactions stuff */
+    if (mr->ram == value) {
+        return;
+    }
+
+    mr->ram = value;
+    mr->terminates = !!value; /*FIXME: Wrong */
+
+    if (int128_eq(int128_2_64(), mr->size)) {
+        return;
+    }
+
+    memory_region_do_set_ram(mr);
+}
+
 static void memory_region_get_size(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -1379,6 +1445,10 @@ static void memory_region_initfn(Object *obj)
     object_property_add(OBJECT(mr), "priority", "uint32",
                         memory_region_get_priority,
                         NULL, /* memory_region_set_priority */
+                        NULL, NULL);
+    object_property_add(OBJECT(mr), "ram", "uint8",
+                        NULL, /* FIXME: Add getter */
+                        memory_region_set_ram,
                         NULL, NULL);
     object_property_add(OBJECT(mr), "size", "uint64",
                         memory_region_get_size,
@@ -1664,7 +1734,7 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
 {
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
-    mr->ram = true;
+    mr->ram = 1;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc(size, ram_flags, mr, &err);
@@ -1716,7 +1786,7 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr,
 {
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
-    mr->ram = true;
+    mr->ram = 2;
     mr->readonly = !!(ram_flags & RAM_READONLY);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
@@ -1766,7 +1836,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 void *ptr)
 {
     memory_region_init(mr, owner, name, size);
-    mr->ram = true;
+    mr->ram = 3;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
 
@@ -2813,6 +2883,9 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size)
     }
     memory_region_transaction_begin();
     mr->size = s;
+    if (mr->ram) {
+        memory_region_do_set_ram(mr);
+    }
     memory_region_update_pending = true;
     memory_region_transaction_commit();
 }

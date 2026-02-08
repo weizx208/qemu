@@ -852,7 +852,7 @@ struct MemoryRegion {
 
     /* The following fields should fit in a cache line */
     bool romd_mode;
-    bool ram;
+    uint8_t ram;
     bool subpage;
     bool readonly; /* For RAM regions */
     bool nonvolatile;
