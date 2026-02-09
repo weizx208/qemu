@@ -91,6 +91,13 @@ struct XilinxSPIPS {
 struct XilinxQSPIPS {
     XilinxSPIPS parent_obj;
 
+    uint32_t lqspi_size;
+    uint32_t lqspi_src;
+    uint32_t lqspi_dst;
+
+    MemoryRegion *hack_dma;
+    AddressSpace *hack_as;
+
     uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
     Error *migration_blocker;

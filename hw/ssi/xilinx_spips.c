@@ -204,6 +204,7 @@
 
 /* 16MB per linear region */
 #define LQSPI_ADDRESS_BITS 24
+#define LQSPI_HACK_CHUNK_SIZE (1 * 1024 * 1024)
 
 #define SNOOP_CHECKING 0xFF
 #define SNOOP_ADDR 0xF0
@@ -617,8 +618,7 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         if (fifo8_is_empty(&s->tx_fifo)) {
             xilinx_spips_update_ixr(s);
             return;
-        } else if (s->snoop_state == SNOOP_STRIPING ||
-                   s->snoop_state == SNOOP_NONE) {
+        } else if (s->snoop_state == SNOOP_STRIPING) {
             for (i = 0; i < num_effective_busses(s); ++i) {
                 if (!fifo8_is_empty(&s->tx_fifo)) {
                     tx_rx[i] = fifo8_pop(&s->tx_fifo);
@@ -1059,11 +1059,39 @@ static void xilinx_qspips_write(void *opaque, hwaddr addr,
     XilinxQSPIPS *q = XILINX_QSPIPS(opaque);
     XilinxSPIPS *s = XILINX_SPIPS(opaque);
 
+    uint32_t lqspi_cfg_old = s->regs[R_LQSPI_CFG];
+
     xilinx_spips_write(opaque, addr, value, size);
     addr >>= 2;
 
-    if (addr == R_LQSPI_CFG) {
-        xilinx_qspips_invalidate_mmio_ptr(q);
+    if (addr == R_LQSPI_CFG &&
+               ((lqspi_cfg_old ^ value) & ~LQSPI_CFG_U_PAGE)) {
+        q->lqspi_cached_addr = ~0ULL;
+        if (q->lqspi_size) {
+            uint32_t src = q->lqspi_src;
+            uint32_t dst = q->lqspi_dst;
+            uint32_t btt = q->lqspi_size;
+
+            assert(!(btt % LQSPI_HACK_CHUNK_SIZE));
+            fprintf(stderr, "QEMU: Syncing LQSPI - this may be slow "
+                    "(1 \".\" / MByte):");
+
+            while (btt) {
+                uint8_t lqspi_hack_buf[LQSPI_HACK_CHUNK_SIZE];
+                dma_memory_read(q->hack_as, src, lqspi_hack_buf,
+                                LQSPI_HACK_CHUNK_SIZE, MEMTXATTRS_UNSPECIFIED);
+                dma_memory_write(q->hack_as, dst, lqspi_hack_buf,
+                                 LQSPI_HACK_CHUNK_SIZE, MEMTXATTRS_UNSPECIFIED);
+                fprintf(stderr, ".");
+                btt -= LQSPI_HACK_CHUNK_SIZE;
+                src += LQSPI_HACK_CHUNK_SIZE;
+                dst += LQSPI_HACK_CHUNK_SIZE;
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+    if (s->regs[R_CMND] & R_CMND_RXFIFO_DRAIN) {
+        fifo8_reset(&s->rx_fifo);
     }
     if (s->regs[R_CMND] & R_CMND_RXFIFO_DRAIN) {
         fifo8_reset(&s->rx_fifo);
@@ -1298,9 +1326,7 @@ static void xilinx_spips_realize(DeviceState *dev, Error **errp)
     s->cs_lines_state = g_new0(bool, s->num_cs * s->num_busses);
 
     sysbus_init_irq(sbd, &s->irq);
-    for (i = 0; i < s->num_cs * s->num_busses; ++i) {
-        sysbus_init_irq(sbd, &s->cs_lines[i]);
-    }
+    qdev_init_gpio_out(dev, s->cs_lines, s->num_cs * s->num_busses);
 
     memory_region_init_io(&s->iomem, OBJECT(s), xsc->reg_ops, s,
                           "spi", xsc->reg_size);
@@ -1325,6 +1351,8 @@ static void xilinx_qspips_realize(DeviceState *dev, Error **errp)
     s->num_txrx_bytes = 4;
 
     xilinx_spips_realize(dev, errp);
+    q->hack_as = q->hack_dma ? address_space_init_shareable(q->hack_dma,
+                NULL) : &address_space_memory;
     memory_region_init_io(&s->mmlqspi, OBJECT(s), &lqspi_ops, s, "lqspi",
                           (1 << LQSPI_ADDRESS_BITS) * 2);
     sysbus_init_mmio(sbd, &s->mmlqspi);
@@ -1424,11 +1452,33 @@ static const Property xilinx_zynqmp_qspips_properties[] = {
     DEFINE_PROP_UINT32("dma-burst-size", XlnxZynqMPQSPIPS, dma_burst_size, 64),
 };
 
+static const Property xilinx_qspips_properties[] = {
+    DEFINE_PROP_UINT32("lqspi-size", XilinxQSPIPS, lqspi_size, 0),
+    DEFINE_PROP_UINT32("lqspi-src", XilinxQSPIPS, lqspi_src, 0),
+    DEFINE_PROP_UINT32("lqspi-dst", XilinxQSPIPS, lqspi_dst, 0),
+    /* We had to turn this off for 2.10 as it is not compatible with migration.
+     * It can be enabled but will prevent the device to be migrated.
+     * This will go aways when a fix will be released.
+     */
+    DEFINE_PROP_BOOL("x-mmio-exec", XilinxQSPIPS, mmio_execution_enabled,
+                     false),
+};
+
 static const Property xilinx_spips_properties[] = {
     DEFINE_PROP_UINT8("num-busses", XilinxSPIPS, num_busses, 1),
     DEFINE_PROP_UINT8("num-ss-bits", XilinxSPIPS, num_cs, 4),
     DEFINE_PROP_UINT8("num-txrx-bytes", XilinxSPIPS, num_txrx_bytes, 1),
 };
+
+static void xilinx_qspips_init(Object *obj)
+{
+    XilinxQSPIPS *q = XILINX_QSPIPS(obj);
+
+    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
+                             (Object **)&q->hack_dma,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+}
 
 static void xilinx_qspips_class_init(ObjectClass *klass, const void *data)
 {
@@ -1436,6 +1486,7 @@ static void xilinx_qspips_class_init(ObjectClass *klass, const void *data)
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xilinx_qspips_realize;
+    device_class_set_props(dc, xilinx_qspips_properties);
     xsc->reg_ops = &qspips_ops;
     xsc->reg_size = XLNX_SPIPS_R_MAX * 4;
     xsc->rx_fifo_size = RXFF_A_Q;
@@ -1486,6 +1537,7 @@ static const TypeInfo xilinx_qspips_info = {
     .parent = TYPE_XILINX_SPIPS,
     .instance_size  = sizeof(XilinxQSPIPS),
     .class_init = xilinx_qspips_class_init,
+    .instance_init = xilinx_qspips_init,
 };
 
 static const TypeInfo xlnx_zynqmp_qspips_info = {
