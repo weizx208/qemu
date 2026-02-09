@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
+#include "hw/fdt_generic_util.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -94,6 +95,39 @@ static uint32_t ssi_transfer_raw_default(SSIPeripheral *dev, uint32_t val)
     return 0;
 }
 
+static bool ssi_slave_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
+                                Error **errp)
+{
+    SSIPeripheral *s = SSI_PERIPHERAL(obj);
+    SSIPeripheralClass *ssc = SSI_PERIPHERAL_GET_CLASS(s);
+    DeviceState *parent = DEVICE(reg.parents[0]);
+    BusState *parent_bus;
+    char bus_name[16];
+
+    if (!parent->realized) {
+        return true;
+    }
+
+    if (ssc->transfer_raw == ssi_transfer_raw_default &&
+        ssc->cs_polarity != SSI_CS_NONE) {
+        qdev_connect_gpio_out(parent, reg.a[0],
+                              qdev_get_gpio_in_named(DEVICE(s),
+                                                     SSI_GPIO_CS, 0));
+    }
+
+    snprintf(bus_name, 16, "spi%" PRIx64, reg.b[0]);
+    parent_bus = qdev_get_child_bus(parent, bus_name);
+    if (!parent_bus) {
+        /* Not every spi bus ends with a numeral
+         * so try just the name as well
+         */
+        snprintf(bus_name, 16, "spi");
+        parent_bus = qdev_get_child_bus(parent, bus_name);
+    }
+    qdev_set_parent_bus(DEVICE(s), parent_bus, &error_abort);
+    return false;
+}
+
 static void ssi_peripheral_realize(DeviceState *dev, Error **errp)
 {
     SSIPeripheral *s = SSI_PERIPHERAL(dev);
@@ -116,6 +150,7 @@ static void ssi_peripheral_class_init(ObjectClass *klass, const void *data)
 {
     SSIPeripheralClass *ssc = SSI_PERIPHERAL_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
     dc->realize = ssi_peripheral_realize;
     dc->bus_type = TYPE_SSI_BUS;
@@ -123,6 +158,7 @@ static void ssi_peripheral_class_init(ObjectClass *klass, const void *data)
         ssc->transfer_raw = ssi_transfer_raw_default;
     }
     device_class_set_props(dc, ssi_peripheral_properties);
+    fmc->parse_reg = ssi_slave_parse_reg;
 }
 
 static const TypeInfo ssi_peripheral_info = {
@@ -130,6 +166,10 @@ static const TypeInfo ssi_peripheral_info = {
     .parent = TYPE_DEVICE,
     .class_init = ssi_peripheral_class_init,
     .class_size = sizeof(SSIPeripheralClass),
+    .interfaces = (InterfaceInfo []) {
+        { TYPE_FDT_GENERIC_MMAP },
+        {},
+    },
     .abstract = true,
 };
 
