@@ -260,16 +260,9 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 
 static void smmuv3_init_regs(SMMUv3State *s)
 {
-    /* Based on sys property, the stages supported in smmu will be advertised.*/
-    if (s->stage && !strcmp("2", s->stage)) {
-        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S2P, 1);
-    } else if (s->stage && !strcmp("nested", s->stage)) {
-        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S1P, 1);
-        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S2P, 1);
-    } else {
-        s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S1P, 1);
-    }
-
+    /* Xilinx */
+    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S2P, 1);
+    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S1P, 1);
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TTF, 2); /* AArch64 PTW only */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, COHACC, 1); /* IO coherent */
     s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ASID16, 1); /* 16-bit ASID */
