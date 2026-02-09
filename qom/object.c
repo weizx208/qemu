@@ -786,7 +786,7 @@ Object *object_new(const char *typename)
 {
     TypeImpl *ti = type_get_or_load_by_name(typename, &error_fatal);
 
-    return object_new_with_type(ti);
+    return ti ? object_new_with_type(ti) : NULL;
 }
 
 
