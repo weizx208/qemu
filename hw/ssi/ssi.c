@@ -223,4 +223,38 @@ static void ssi_peripheral_register_types(void)
     type_register_static(&ssi_peripheral_info);
 }
 
+typedef struct SSIAutoConnectArg {
+    qemu_irq **cs_linep;
+    SSIBus *bus;
+} SSIAutoConnectArg;
+
+static int ssi_auto_connect_peripheral(Object *child, void *opaque)
+{
+    SSIAutoConnectArg *arg = opaque;
+    SSIPeripheral *dev = (SSIPeripheral *)object_dynamic_cast(child,
+                                                          TYPE_SSI_PERIPHERAL);
+    qemu_irq cs_line;
+
+    if (!dev) {
+        return 0;
+    }
+
+    cs_line = qdev_get_gpio_in_named(DEVICE(dev), SSI_GPIO_CS, 0);
+    qdev_set_parent_bus(DEVICE(dev), BUS(arg->bus), &error_abort);
+    **arg->cs_linep = cs_line;
+    (*arg->cs_linep)++;
+    return 0;
+}
+
+void ssi_auto_connect_slaves(DeviceState *parent, qemu_irq *cs_line,
+                             SSIBus *bus)
+{
+    SSIAutoConnectArg arg = {
+        .cs_linep = &cs_line,
+        .bus = bus
+    };
+
+    object_child_foreach(OBJECT(parent), ssi_auto_connect_peripheral, &arg);
+}
+
 type_init(ssi_peripheral_register_types)

@@ -127,5 +127,7 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
 
 DeviceState *ssi_get_cs(SSIBus *bus, uint8_t cs_index);
+void ssi_auto_connect_slaves(DeviceState *parent, qemu_irq *cs_lines,
+                             SSIBus *bus);
 
 #endif
