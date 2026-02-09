@@ -428,7 +428,6 @@ config XLNX_ZYNQMP_ARM
     default y if PIXMAN
     depends on TCG && AARCH64
     select AHCI_SYSBUS
-    select ARM_GIC
     select CADENCE
     select CPU_CLUSTER
     select DDC
@@ -442,14 +441,14 @@ config XLNX_ZYNQMP_ARM
     select XLNX_CSU_DMA
     select XLNX_DISPLAYPORT
     select XLNX_ZYNQMP
+    select USB_DWC3
+    select USB_XHCI_SYSBUS
     select XLNX_ZDMA
     select USB_DWC3
 
 config XLNX_VERSAL
     bool
-    default y
-    depends on TCG && AARCH64
-    select ARM_GIC
+    default y if TCG && AARCH64
     select CPU_CLUSTER
     select DEVICE_TREE
     select PL011 # UART
@@ -464,6 +463,12 @@ config XLNX_VERSAL
     select XLNX_USB_SUBSYS
     select XLNX_VERSAL_TRNG
     select XLNX_CSU_DMA
+
+config XLNX_VERSAL_ARM
+    bool
+    select ARM_GIC
+    select USB_DWC3
+    select USB_XHCI_SYSBUS
 
 config NPCM7XX
     bool

@@ -12,5 +12,6 @@ include ../arm-softmmu/default.mak
 CONFIG_VMAPPLE=n
 
 # Xilinx
+CONFIG_XLNX_VERSAL_ARM=y
 CONFIG_XLNX_ZYNQMP_CSU=y
 CONFIG_XLNX_VERSAL_PMC=y
