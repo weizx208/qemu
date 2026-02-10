@@ -1002,9 +1002,13 @@ static void rom_insert(Rom *rom)
 {
     Rom *item;
 
-    if (roms_loaded) {
+    /*
+     * Xilinx: We want to allow this, remove the check
+     *
+     if (roms_loaded) {
         hw_error ("ROM images must be loaded at startup\n");
-    }
+     }
+     */
 
     /* The user didn't specify an address space, this is the default */
     if (!rom->as) {
