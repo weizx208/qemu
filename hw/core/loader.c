@@ -1333,10 +1333,6 @@ int rom_check_and_register_reset(void)
         rom->isrom = int128_nz(section.size) && memory_region_is_rom(section.mr);
         memory_region_unref(section.mr);
     }
-    if (found_overlap) {
-        return -1;
-    }
-
     qemu_register_reset_loader(rom_reset, NULL);
     roms_loaded = 1;
     return 0;
