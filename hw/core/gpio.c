@@ -55,14 +55,18 @@ void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
     if (!name) {
         name = "unnamed-gpio-in";
     }
-    for (i = gpio_list->num_in; i < gpio_list->num_in + n; i++) {
-        gchar *propname = g_strdup_printf("%s[%u]", name, i);
 
+    /* Xilinx: For the FDT Generic GPIO magic we need this to be a wild card
+     * and not the usual numbered GPIOs.
+     */
+    gchar *propname = g_strdup_printf("%s[*]", name);
+
+    for (i = gpio_list->num_in; i < gpio_list->num_in + n; i++) {
         object_property_add_child(OBJECT(dev), propname,
                                   OBJECT(gpio_list->in[i]));
-        g_free(propname);
     }
 
+    g_free(propname);
     gpio_list->num_in += n;
 }
 
@@ -83,16 +87,19 @@ void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
         name = "unnamed-gpio-out";
     }
     memset(pins, 0, sizeof(*pins) * n);
-    for (i = 0; i < n; ++i) {
-        gchar *propname = g_strdup_printf("%s[%u]", name,
-                                          gpio_list->num_out + i);
 
+    /* Xilinx: For the FDT Generic GPIO magic we need this to be a wild card
+     * and not the usual numbered GPIOs.
+     */
+    gchar *propname = g_strdup_printf("%s[*]", name);
+
+    for (i = 0; i < n; ++i) {
         object_property_add_link(OBJECT(dev), propname, TYPE_IRQ,
                                  (Object **)&pins[i],
                                  object_property_allow_set_link,
                                  OBJ_PROP_LINK_STRONG);
-        g_free(propname);
     }
+    g_free(propname);
     gpio_list->num_out += n;
 }
 
@@ -103,10 +110,9 @@ void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n)
 
 qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n)
 {
-    NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
-
-    assert(n >= 0 && n < gpio_list->num_in);
-    return gpio_list->in[n];
+    char *propname = g_strdup_printf("%s[%d]",
+                                     name ? name : "unnamed-gpio-in", n);
+    return (qemu_irq)object_property_get_link(OBJECT(dev), propname, NULL);
 }
 
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n)
@@ -117,15 +123,39 @@ qemu_irq qdev_get_gpio_in(DeviceState *dev, int n)
 void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
                                  qemu_irq input_pin)
 {
+    Error *errp = NULL;
+    qemu_irq irq;
+    if (!input_pin) {
+        return;
+    }
     char *propname = g_strdup_printf("%s[%d]",
                                      name ? name : "unnamed-gpio-out", n);
-    if (input_pin && !OBJECT(input_pin)->parent) {
-        /* We need a name for object_property_set_link to work */
+
+    irq = (qemu_irq)object_property_get_link(OBJECT(dev), propname, NULL);
+    if (irq) {
+        char *splitter_name;
+        irq = qemu_irq_split(irq, input_pin);
+        /* ugly, be a sure-fire way to get a unique name */
+        splitter_name = g_strdup_printf("%s-split-%p", propname, irq);
+        object_property_add_child(OBJECT(dev), splitter_name,OBJECT(irq));
+    } else {
+        irq = input_pin;
+    }
+    if (irq  && !OBJECT(irq)->parent) {
+        /* We need a name for object_property_set_link to work.  If the
+         * object has a parent, object_property_add_child will come back
+         * with an error without doing anything.  If it has none, it will
+         * never fail.  So we can just call it with a NULL Error pointer.
+         */
         object_property_add_child(machine_get_container("unattached"),
                                   "non-qdev-gpio[*]", OBJECT(input_pin));
     }
-    object_property_set_link(OBJECT(dev), propname,
-                             OBJECT(input_pin), &error_abort);
+    object_property_set_link(OBJECT(dev), propname, OBJECT(irq), &errp);
+    if (errp) {
+        qemu_log_mask(LOG_FDT, "FAILED to connect %s.%s <-> %s\n",
+                       object_get_canonical_path(OBJECT(dev)), propname,
+                       object_get_canonical_path(OBJECT(input_pin)));
+    }
     g_free(propname);
 }
 
