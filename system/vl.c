@@ -116,6 +116,8 @@
 #include "system/arch_init.h"
 #include "system/confidential-guest-support.h"
 
+#include "qemu/etrace.h"
+
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/opts-visitor.h"
@@ -3134,6 +3136,12 @@ void qemu_init(int argc, char **argv)
                 }
                 break;
 #endif
+            case QEMU_OPTION_etrace:
+                qemu_arg_etrace = optarg;
+                break;
+            case QEMU_OPTION_etrace_flags:
+                qemu_arg_etrace_flags = optarg;
+                break;
             case QEMU_OPTION_mempath:
                 mem_path = optarg;
                 break;
@@ -3801,6 +3809,17 @@ void qemu_init(int argc, char **argv)
     qemu_create_default_devices();
     qemu_create_early_backends();
 
+    if (qemu_arg_etrace) {
+        qemu_etrace_enabled = etrace_init(&qemu_etracer, qemu_arg_etrace,
+                                          qemu_arg_etrace_flags,
+                                          0, 32);
+        if (!qemu_etrace_enabled) {
+            perror(qemu_arg_etrace);
+            exit(1);
+        }
+        atexit(qemu_etrace_cleanup);
+    }
+
     qemu_apply_legacy_machine_options(machine_opts_dict);
     qemu_apply_machine_options(machine_opts_dict);
     qobject_unref(machine_opts_dict);
@@ -3874,5 +3893,10 @@ void qemu_init(int argc, char **argv)
     if (migrate_mode() != MIG_MODE_CPR_EXEC) {
         os_setup_post();
     }
+
+    if (qemu_etrace_mask(ETRACE_F_GPIO)) {
+        qemu_etrace_gpio_init();
+    }
+
     resume_mux_open();
 }

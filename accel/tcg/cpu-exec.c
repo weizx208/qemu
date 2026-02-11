@@ -39,6 +39,7 @@
 #include "exec/icount.h"
 #include "exec/replay-core.h"
 #include "system/tcg.h"
+#include "qemu/etrace.h"
 #include "exec/helper-proto-common.h"
 #include "tcg-accel-ops.h"
 #include "tb-jmp-cache.h"
@@ -431,6 +432,11 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
     TranslationBlock *last_tb;
     const void *tb_ptr = itb->tc.ptr;
 
+    if (qemu_etrace_mask(ETRACE_F_EXEC)) {
+        etrace_dump_exec_start(&qemu_etracer, cpu->cpu_index,
+                               log_pc(cpu, itb));
+    }
+
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
         log_cpu_exec(log_pc(cpu, itb), cpu, itb);
     }
@@ -656,6 +662,13 @@ static inline bool cpu_handle_halt(CPUState *cpu)
     if (cpu->halted) {
         const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
         bool leave_halt = tcg_ops->cpu_exec_halt(cpu);
+
+        if (qemu_etrace_mask(ETRACE_F_EXEC)) {
+            const char *dev_name = object_get_canonical_path(OBJECT(cpu));
+            etrace_event_u64(&qemu_etracer, cpu->cpu_index,
+                             ETRACE_EVU64_F_PREV_VAL,
+                             dev_name, "sleep", 0, 1);
+        }
 
         if (!leave_halt) {
             return true;
@@ -998,6 +1011,30 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
 
             cpu_loop_exec_tb(cpu, tb, s.pc, &last_tb, &tb_exit);
 
+            if (qemu_etrace_mask(ETRACE_F_EXEC)) {
+                CPUArchState *env = cpu_env(cpu);
+                vaddr pc;
+                uint64_t cs_base;
+                uint32_t flags;
+
+                if (tb_cflags(tb) & CF_PCREL) {
+                    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+                } else {
+                    if (tb_exit) {
+                        /* TB early exit, ask for CPU state.  */
+                        cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+                    } else {
+                        /* TB didn't exit, assume we ran all of it.  */
+                        pc = tb->pc + tb->size;
+                    }
+                }
+
+                etrace_dump_exec_end(&qemu_etracer,
+                                     cpu->cpu_index, pc);
+            }
+
+            qemu_etracer.exec_start_valid = false;
+
             /* Try to align the host and virtual clocks
                if the guest is in advance */
             align_clocks(sc, cpu);
@@ -1010,6 +1047,14 @@ static int cpu_exec_setjmp(CPUState *cpu, SyncClocks *sc)
 {
     /* Prepare setjmp context for exception handling. */
     if (unlikely(sigsetjmp(cpu->jmp_env, 0) != 0)) {
+
+        if (qemu_etrace_mask(ETRACE_F_EXEC)
+            && qemu_etracer.exec_start_valid) {
+            TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+
+            etrace_dump_exec_end(&qemu_etracer, cpu->cpu_index, s.pc);
+        }
+
         cpu_exec_longjmp_cleanup(cpu);
     }
 

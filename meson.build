@@ -3849,6 +3849,8 @@ system_ss.add(files('cpu-target.c'))
 
 subdir('system')
 
+specific_ss.add(files('etrace.c', 'etrace-gpio.c'))
+
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
 #   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99696
