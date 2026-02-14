@@ -39,6 +39,9 @@ bool qemu_log_separate(void);
 #define LOG_TB_OP_PLUGIN   (1u << 22)
 #define LOG_INVALID_MEM    (1u << 23)
 
+/* device entries */
+#define DEV_LOG_NAND       (1 << 25)
+#define DEV_LOG_NANDC      (1 << 26)
 #define LOG_PM             (1 << 30)
 
 /* Lock/unlock output. */

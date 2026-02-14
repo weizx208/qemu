@@ -515,6 +515,10 @@ const QEMULogItem qemu_log_items[] = {
 
     { LOG_PM,  "pm", "log Power Management info." },
 
+    /* device entries */
+    { DEV_LOG_NAND, "nand", "enable NAND log." },
+    { DEV_LOG_NANDC, "nandc", "enable NAND Controller log." },
+
 #ifdef CONFIG_PLUGIN
     { CPU_LOG_PLUGIN, "plugin", "output from TCG plugins"},
 #endif
