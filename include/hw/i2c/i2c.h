@@ -61,6 +61,7 @@ struct I2CSlave {
 
     /* Remaining fields for internal use by the I2C code.  */
     uint8_t address;
+    uint8_t address_range;
 };
 
 #define TYPE_I2C_BUS "i2c-bus"
