@@ -25,3 +25,6 @@ config XLNX_ZYNQMP_PMU
     default y
     depends on MICROBLAZE
     select XLNX_ZYNQMP
+
+config XLNX_ZYNQMP_CSU
+	bool
