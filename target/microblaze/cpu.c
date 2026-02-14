@@ -370,9 +370,12 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 static void mb_cpu_initfn(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
+
     /* Inbound IRQ and FIR lines */
     qdev_init_gpio_in(DEVICE(obj), microblaze_cpu_set_irq, 2);
     qdev_init_gpio_in_named(DEVICE(obj), microblaze_set_wakeup, "wakeup", 2);
+    qdev_init_gpio_out_named(DEVICE(obj), &cpu->mb_sleep, "mb_sleep", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dp, "ns_axi_dp", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);

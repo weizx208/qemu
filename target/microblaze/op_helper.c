@@ -19,11 +19,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qemu/log.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "hw/irq.h"
 #include "fpu/softfloat.h"
 
 void helper_put(uint32_t id, uint32_t ctrl, uint32_t data)
@@ -66,6 +68,27 @@ void helper_raise_exception(CPUMBState *env, uint32_t index)
     CPUState *cs = env_cpu(env);
 
     cs->exception_index = index;
+    cpu_loop_exit(cs);
+}
+
+void helper_sleep(CPUMBState *env)
+{
+    MicroBlazeCPU *cpu = env_archcpu(env);
+    CPUState *cs = CPU(cpu);
+
+#if !defined(CONFIG_USER_ONLY)
+    if (cpu_has_work(cs)) {
+        cs->exception_index = EXCP_YIELD;
+        cpu_loop_exit(cs);
+        return;
+    }
+
+    bql_lock();
+    qemu_set_irq(cpu->mb_sleep, true);
+    bql_unlock();
+#endif
+    cs->halted = 1;
+    cs->exception_index = EXCP_HLT;
     cpu_loop_exit(cs);
 }
 

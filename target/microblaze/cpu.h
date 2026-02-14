@@ -349,6 +349,8 @@ struct ArchCPU {
 
     CPUMBState env;
 
+    qemu_irq mb_sleep;
+
     bool ns_axi_dp;
     bool ns_axi_ip;
     bool ns_axi_dc;

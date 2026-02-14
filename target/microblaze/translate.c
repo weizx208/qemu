@@ -1241,13 +1241,10 @@ static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
 
         t_sync_flags(dc);
 
-        tcg_gen_st_i32(tcg_constant_i32(1), tcg_env,
-                       -offsetof(MicroBlazeCPU, env)
-                       +offsetof(CPUState, halted));
-
         tcg_gen_movi_i32(cpu_pc, dc->base.pc_next + 4);
-
-        gen_raise_exception(dc, EXCP_HLT);
+        dc->base.is_jmp = DISAS_EXIT;
+        gen_helper_sleep(tcg_env);
+        return true;
     }
 
     /*
