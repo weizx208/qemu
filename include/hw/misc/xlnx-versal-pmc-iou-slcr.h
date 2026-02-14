@@ -57,7 +57,7 @@
 #include "hw/sysbus.h"
 #include "hw/register.h"
 
-#define TYPE_XILINX_VERSAL_PMC_IOU_SLCR "xlnx.versal-pmc-iou-slcr"
+#define TYPE_XILINX_VERSAL_PMC_IOU_SLCR "xlnx-versal-pmc-iou-slcr"
 
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalPmcIouSlcr, XILINX_VERSAL_PMC_IOU_SLCR)
 
