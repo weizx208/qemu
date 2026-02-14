@@ -11,7 +11,7 @@
 #include "hw/sysbus.h"
 #include "hw/register.h"
 
-#define TYPE_XLNX_ZYNQMP_CRF "xlnx.zynqmp_crf"
+#define TYPE_XLNX_ZYNQMP_CRF "xlnx-zynqmp_crf"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPCRF, XLNX_ZYNQMP_CRF)
 
 REG32(ERR_CTRL, 0x0)
