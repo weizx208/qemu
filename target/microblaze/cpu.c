@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "hw/irq.h"
 #include "exec/gdbstub.h"
 #include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
@@ -133,7 +134,12 @@ static void mb_restore_state_to_opc(CPUState *cs,
 #ifndef CONFIG_USER_ONLY
 static bool mb_cpu_has_work(CPUState *cs)
 {
-    return cpu_test_interrupt(cs, CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    CPUMBState *env = cpu_env(cs);
+    bool r;
+
+    r = (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI))
+           || env->wakeup;
+    return r;
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -196,6 +202,21 @@ static void microblaze_cpu_set_irq(void *opaque, int irq, int level)
         cpu_interrupt(cs, type);
     } else {
         cpu_reset_interrupt(cs, type);
+    }
+}
+
+static void microblaze_set_wakeup(void *opaque, int irq, int level)
+{
+    MicroBlazeCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    CPUMBState *env = &cpu->env;
+
+    env->wakeup &= ~(1 << irq);
+    if (level) {
+        qemu_set_irq(cpu->mb_sleep, false);
+        env->wakeup |= 1 << irq;
+        cs->halted = 0;
+        qemu_cpu_kick(cs);
     }
 }
 #endif
@@ -347,6 +368,7 @@ static void mb_cpu_initfn(Object *obj)
 #ifndef CONFIG_USER_ONLY
     /* Inbound IRQ and FIR lines */
     qdev_init_gpio_in(DEVICE(obj), microblaze_cpu_set_irq, 2);
+    qdev_init_gpio_in_named(DEVICE(obj), microblaze_set_wakeup, "wakeup", 2);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dp, "ns_axi_dp", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);

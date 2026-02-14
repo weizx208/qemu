@@ -282,6 +282,7 @@ struct CPUArchState {
 #define MSR_TB_MASK     (MSR_UM | MSR_VM | MSR_EE)
 
     uint32_t iflags;
+    uint32_t wakeup;
 
 #if !defined(CONFIG_USER_ONLY)
     /* Unified MMU.  */
