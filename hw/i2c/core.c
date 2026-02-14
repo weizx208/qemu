@@ -365,6 +365,7 @@ const VMStateDescription vmstate_i2c_slave = {
     .post_load = i2c_slave_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8(address, I2CSlave),
+        VMSTATE_BOOL(broadcast, I2CBus),
         VMSTATE_END_OF_LIST()
     }
 };
