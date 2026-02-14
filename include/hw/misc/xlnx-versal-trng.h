@@ -30,7 +30,7 @@
 #include "hw/sysbus.h"
 #include "hw/register.h"
 
-#define TYPE_XLNX_VERSAL_TRNG "xlnx.versal-trng"
+#define TYPE_XLNX_VERSAL_TRNG "xlnx.versal-trng-x"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalTRng, XLNX_VERSAL_TRNG);
 
 #define RMAX_XLNX_VERSAL_TRNG ((0xf0 / 4) + 1)
