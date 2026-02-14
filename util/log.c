@@ -526,6 +526,10 @@ const QEMULogItem qemu_log_items[] = {
     { 0, NULL, NULL },
 };
 
+static const char *qemu_log_ignored[] = {
+    "sd", "sdhci", NULL, /* previously used by Xilinx */
+};
+
 /* takes a comma separated list of log masks. Return 0 if error. */
 int qemu_str_to_log_mask(const char *str)
 {
@@ -533,6 +537,7 @@ int qemu_str_to_log_mask(const char *str)
     int mask = 0;
     char **parts = g_strsplit(str, ",", 0);
     char **tmp;
+    const char **itmp = NULL;
 
     for (tmp = parts; tmp && *tmp; tmp++) {
         if (g_str_equal(*tmp, "all")) {
@@ -550,8 +555,19 @@ int qemu_str_to_log_mask(const char *str)
                     goto found;
                 }
             }
+            for (itmp = qemu_log_ignored; itmp && *itmp; itmp++) {
+                if (g_str_equal(*tmp, *itmp)) {
+                    goto found;
+                }
+            }
             goto error;
         found:
+            if (itmp) {
+#ifdef CONFIG_TRACE_LOG
+                fprintf(stderr, "trace: ignoring obsolete '%s' items\n", *itmp);
+#endif
+                continue;
+            }
             mask |= item->mask;
         }
     }
