@@ -34,6 +34,10 @@
 #include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "hw/fdt_generic_util.h"
+#endif
+
 static const struct {
     const char *name;
     uint8_t version_id;
@@ -419,6 +423,20 @@ static const Property mb_properties[] = {
      */
 };
 
+#ifndef CONFIG_USER_ONLY
+static const FDTGenericGPIOSet mb_ctrl_gpios[] = {
+    {
+      .names = &fdt_generic_gpio_name_set_gpio,
+      .gpios = (FDTGenericGPIOConnection[]) {
+        { .name = "wakeup", .fdt_index = 0, .range = 2 },
+        { .name = "mb_sleep", .fdt_index = 2 },
+        { },
+      },
+    },
+    { },
+};
+#endif
+
 static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)
 {
     return object_class_by_name(TYPE_MICROBLAZE_CPU);
@@ -459,6 +477,9 @@ static const TCGCPUOps mb_tcg_ops = {
 
 static void mb_cpu_class_init(ObjectClass *oc, const void *data)
 {
+#ifndef CONFIG_USER_ONLY
+    FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(oc);
+#endif
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_CLASS(oc);
@@ -483,6 +504,9 @@ static void mb_cpu_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, mb_properties);
     cc->gdb_core_xml_file = "microblaze-core.xml";
 
+#ifndef CONFIG_USER_ONLY
+    fggc->controller_gpios = mb_ctrl_gpios;
+#endif
     cc->disas_set_info = mb_disas_set_info;
     cc->tcg_ops = &mb_tcg_ops;
 }
@@ -495,6 +519,12 @@ static const TypeInfo mb_cpu_type_info = {
     .instance_init = mb_cpu_initfn,
     .class_size = sizeof(MicroBlazeCPUClass),
     .class_init = mb_cpu_class_init,
+#ifndef CONFIG_USER_ONLY
+    .interfaces    = (InterfaceInfo[]) {
+        { TYPE_FDT_GENERIC_GPIO },
+        { }
+    },
+#endif
 };
 
 static void mb_cpu_register_types(void)
