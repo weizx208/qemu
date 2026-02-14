@@ -153,6 +153,7 @@ static const Property cpu_system_props[] = {
      */
     DEFINE_PROP_LINK("memory", CPUState, memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
+    DEFINE_PROP_STRING("gdb-id", CPUState, gdb_id),
 };
 
 static bool cpu_get_start_powered_off(Object *obj, Error **errp)

@@ -1639,10 +1639,15 @@ static void handle_query_thread_extra(GArray *params, void *user_ctx)
         /* Print the CPU model and name in multiprocess mode */
         ObjectClass *oc = object_get_class(OBJECT(cpu));
         const char *cpu_model = object_class_get_name(oc);
+        if (cpu->gdb_id) {
+            g_string_printf(rs, "%s [%s]", cpu->gdb_id,
+                            cpu->halted ? "halted " : "running");
+        } else {
         const char *cpu_name =
             object_get_canonical_path_component(OBJECT(cpu));
         g_string_printf(rs, "%s %s [%s]", cpu_model, cpu_name,
                         cpu->halted ? "halted " : "running");
+        }
     } else {
         g_string_printf(rs, "CPU#%d [%s]", cpu->cpu_index,
                         cpu->halted ? "halted " : "running");

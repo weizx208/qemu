@@ -586,6 +586,8 @@ struct CPUState {
     bool halt_pin; /* state of halt pin */
     bool arch_halt_pin;
 
+    char *gdb_id;
+
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
 
