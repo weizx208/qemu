@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
+#include "hw/fdt_generic_util.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -387,6 +388,31 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
     return dev;
 }
 
+static bool i2c_slave_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
+                                Error **errp)
+{
+    DeviceState *parent;
+    I2CSlave *slave;
+
+    slave = I2C_SLAVE(obj);
+
+    slave->address = reg.a[0];
+    parent = (DeviceState *)object_dynamic_cast(reg.parents[0], TYPE_DEVICE);
+
+    if (!parent) {
+            return false;
+    }
+
+    if (!parent->realized) {
+        return true;
+    }
+
+    qdev_set_parent_bus(DEVICE(obj), qdev_get_child_bus(parent, "i2c"),
+                        &error_abort);
+    return false;
+}
+
+
 static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
                             bool broadcast, I2CNodeList *current_devs)
 {
@@ -404,11 +430,15 @@ static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
 static void i2c_slave_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_I2C_BUS;
     device_class_set_props(k, i2c_props);
     sc->match_and_add = i2c_slave_match;
+
+    fmc->parse_reg = i2c_slave_parse_reg;
 }
 
 static const TypeInfo i2c_slave_type_info = {
@@ -418,6 +448,9 @@ static const TypeInfo i2c_slave_type_info = {
     .abstract = true,
     .class_size = sizeof(I2CSlaveClass),
     .class_init = i2c_slave_class_init,
+    .interfaces = (InterfaceInfo []) {
+        { TYPE_FDT_GENERIC_MMAP },
+    },
 };
 
 static void i2c_slave_register_types(void)
