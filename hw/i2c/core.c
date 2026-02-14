@@ -173,6 +173,11 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
                 return rv;
             }
         }
+        if (sc->decode_address) {
+            if (sc->decode_address(node->elt, address)) {
+                return 1;
+            }
+        }
     }
     return 0;
 }

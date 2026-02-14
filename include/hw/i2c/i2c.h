@@ -45,6 +45,11 @@ struct I2CSlaveClass {
      */
     int (*event)(I2CSlave *s, enum i2c_event event);
 
+    /* Notify the slave what address was decoded. Only needed for slaves that
+     * decode multiple addresses. Called after event() for I2C_START_RECV/SEND
+     */
+    int (*decode_address)(I2CSlave *s, uint8_t address);
+
     /*
      * Check if this device matches the address provided.  Returns bool of
      * true if it matches (or broadcast), and updates the device list, false
