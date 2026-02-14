@@ -240,6 +240,10 @@ void i2c_end_transfer(I2CBus *bus)
     I2CSlaveClass *sc;
     I2CNode *node, *next;
 
+    if (QLIST_EMPTY(&bus->current_devs)) {
+        return;
+    }
+
     QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
         I2CSlave *s = node->elt;
         sc = I2C_SLAVE_GET_CLASS(s);
