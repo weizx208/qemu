@@ -88,7 +88,7 @@ static int microblaze_load_dtb(hwaddr addr,
     qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
     qemu_fdt_setprop(fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 
-    if (kernel_cmdline) {
+    if (kernel_cmdline && strlen(kernel_cmdline)) {
         r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                                     kernel_cmdline);
         if (r < 0) {
