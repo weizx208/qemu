@@ -16,6 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "target/arm/cpu-qom.h"
+#include "qemu/error-report.h"
 
 #define A9_GIC_NUM_PRIORITY_BITS    5
 
@@ -65,9 +66,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     cpuobj = OBJECT(cpu0);
     if (strcmp(object_get_typename(cpuobj), ARM_CPU_TYPE_NAME("cortex-a9"))) {
         /* We might allow Cortex-A5 once we model it */
-        error_setg(errp,
-                   "Cortex-A9MPCore peripheral can only use Cortex-A9 CPU");
-        return;
+        warn_report("Cortex-A9MPCore peripheral can only use Cortex-A9 CPU");
     }
 
     scudev = DEVICE(&s->scu);
