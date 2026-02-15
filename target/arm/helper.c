@@ -6957,7 +6957,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
-        if (arm_feature(env, ARM_FEATURE_V6)) {
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            define_arm_cp_regs(cpu, vmsa_pmsa_cp_reginfo);
+        } else if (arm_feature(env, ARM_FEATURE_V6)) {
             /* PMSAv6 not implemented */
             assert(arm_feature(env, ARM_FEATURE_V7));
             define_arm_cp_regs(cpu, vmsa_pmsa_cp_reginfo);
