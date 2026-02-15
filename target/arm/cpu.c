@@ -53,6 +53,7 @@
 #include "target/arm/gtimer.h"
 
 #include "trace.h"
+#include "hw/irq.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -573,6 +574,8 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 
         arm_rebuild_hflags(env);
     }
+    cpu->is_in_wfi = false;
+    qemu_set_irq(cpu->wfi, cpu->is_in_wfi);
 }
 
 void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
@@ -1125,6 +1128,8 @@ static void arm_cpu_initfn(Object *obj)
 
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
                        ARRAY_SIZE(cpu->gt_timer_outputs));
+
+    qdev_init_gpio_out_named(DEVICE(cpu), &cpu->wfi, "wfi", 1);
 
     qdev_init_gpio_out_named(DEVICE(cpu), &cpu->gicv3_maintenance_interrupt,
                              "gicv3-maintenance-interrupt", 1);
@@ -2249,6 +2254,15 @@ static const Property arm_cpu_properties[] = {
     DEFINE_PROP_BOOL("backcompat-pauth-default-use-qarma5", ARMCPU,
                       backcompat_pauth_default_use_qarma5, false),
 };
+
+/* Update state of wfi out gpio */
+static void update_wfi_out(void *opaque, int level)
+{
+    ARMCPU *cpu = ARM_CPU(opaque);
+
+    cpu->is_in_wfi = level;
+    qemu_set_irq(cpu->wfi, level);
+}
 
 static const gchar *arm_gdb_arch_name(CPUState *cs)
 {

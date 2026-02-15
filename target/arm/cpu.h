@@ -916,6 +916,8 @@ struct ArchCPU {
 
     CPUARMState env;
 
+    bool is_in_wfi;
+
     /* Coprocessor information */
     GHashTable *cp_regs;
     /* For marshalling (mostly coprocessor) register state between the
@@ -961,6 +963,9 @@ struct ArchCPU {
     qemu_irq gicv3_maintenance_interrupt;
     /* GPIO output for the PMU interrupt */
     qemu_irq pmu_interrupt;
+
+    /* WFI notification */
+    qemu_irq wfi;
 
     /* MemoryRegion to use for secure physical accesses */
     MemoryRegion *secure_memory;

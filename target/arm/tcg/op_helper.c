@@ -26,6 +26,9 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/probe.h"
 #include "cpregs.h"
+#include "hw/irq.h"
+#include "system/cpus.h"
+#include "system/cpu-timers.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
@@ -383,12 +386,12 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
 #else
     CPUState *cs = env_cpu(env);
     uint32_t excp;
+    ARMCPU *cpu = env_archcpu(env);
     int target_el = check_wfx_trap(env, false, &excp);
 
     if (cpu_has_work(cs)) {
-        /* Don't bother to go into our "low power state" if
-         * we would just wake up immediately.
-         */
+        cs->exception_index = -1;
+        cpu_loop_exit(cs);
         return;
     }
 
@@ -403,8 +406,16 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
                         target_el);
     }
 
-    cs->exception_index = EXCP_HLT;
-    cs->halted = 1;
+    if (use_icount) {
+        cs->exception_index = EXCP_YIELD;
+    } else {
+        cs->halted = 1;
+        cs->exception_index = EXCP_HLT;
+    }
+
+    cpu->is_in_wfi = true;
+    qemu_set_irq(cpu->wfi, 1);
+
     cpu_loop_exit(cs);
 #endif
 }
