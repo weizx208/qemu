@@ -388,6 +388,8 @@ typedef enum {
     READ4 = 0x13,
     FAST_READ = 0x0b,
     FAST_READ4 = 0x0c,
+    O_FAST_READ = 0x9d,
+    O_FAST_READ4 = 0xfc,
     DOR = 0x3b,
     DOR4 = 0x3c,
     QOR = 0x6b,
@@ -396,6 +398,11 @@ typedef enum {
     DIOR4 = 0xbc,
     QIOR = 0xeb,
     QIOR4 = 0xec,
+    OOR = 0x8b,
+    OOR4 = 0x8c,
+    OOR4_MT35X = 0x7c, /* according mt35x datasheet */
+    OIOR = 0xcb,
+    OIOR4 = 0xcc,
 
     PP = 0x02,
     PP4 = 0x12,
@@ -404,6 +411,10 @@ typedef enum {
     QPP = 0x32,
     QPP_4 = 0x34,
     RDID_90 = 0x90,
+    RDID_AB = 0xab,
+    AAI = 0xad,
+    OPP = 0x82,
+    OPP4 = 0x84,
     RDID_AB = 0xab,
     AAI_WP = 0xad,
 
@@ -605,12 +616,12 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
     switch (cmd) {
     case ERASE_4K:
     case ERASE4_4K:
-        len = 4 * KiB;
+        len = 4 << 10;
         capa_to_assert = ER_4K;
         break;
     case ERASE_32K:
     case ERASE4_32K:
-        len = 32 * KiB;
+        len = 32 << 10;
         capa_to_assert = ER_32K;
         break;
     case ERASE_SECTOR:
@@ -719,14 +730,19 @@ static inline int get_addr_length(Flash *s)
    case PP4:
    case PP4_4:
    case QPP_4:
+   case OPP4:
    case READ4:
    case QIOR4:
+   case OIOR4:
    case ERASE4_4K:
    case ERASE4_32K:
    case ERASE4_SECTOR:
    case FAST_READ4:
+   case O_FAST_READ4:
    case DOR4:
    case QOR4:
+   case OOR4:
+   case OOR4_MT35X:
    case DIOR4:
        return 4;
    default:
@@ -759,6 +775,8 @@ static void complete_collecting_data(Flash *s)
     case PP:
     case PP4:
     case PP4_4:
+    case OPP:
+    case OPP4:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case AAI_WP:
@@ -778,6 +796,13 @@ static void complete_collecting_data(Flash *s)
     case DIOR4:
     case QIOR:
     case QIOR4:
+    case OOR:
+    case OOR4:
+    case OOR4_MT35X:
+    case OIOR:
+    case OIOR4:
+    case O_FAST_READ:
+    case O_FAST_READ4:
         s->state = STATE_READ;
         break;
     case ERASE_4K:
@@ -811,7 +836,6 @@ static void complete_collecting_data(Flash *s)
         case MAN_MACRONIX:
             s->quad_enable = extract32(s->data[0], 6, 1);
             if (s->len > 1) {
-                s->volatile_cfg = s->data[1];
                 s->four_bytes_address_mode = extract32(s->data[1], 5, 1);
             }
             break;
@@ -874,11 +898,9 @@ static void complete_collecting_data(Flash *s)
                           " by device\n");
         }
         break;
-
     case RDSFDP:
         s->state = STATE_READING_SFDP;
         break;
-
     default:
         break;
     }
@@ -1173,6 +1195,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE4_SECTOR:
     case PP:
     case PP4:
+    case OPP:
+    case OPP4:
     case DIE_ERASE:
     case RDID_90:
     case RDID_AB:
@@ -1218,6 +1242,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         }
         break;
 
+        break;
     case FAST_READ:
     case FAST_READ4:
         decode_fast_read_cmd(s);
@@ -1233,6 +1258,12 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
     case QOR:
     case QOR4:
+    case OOR:
+    case OOR4:
+    case OOR4_MT35X:
+    case O_FAST_READ:
+    case O_FAST_READ4:
+        decode_fast_read_cmd(s);
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
             decode_fast_read_cmd(s);
         } else {
@@ -1253,6 +1284,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case QIOR:
     case QIOR4:
+    case OIOR4:
+    case OIOR:
+        decode_qio_read_cmd(s);
         if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
             decode_qio_read_cmd(s);
         } else {
@@ -1684,10 +1718,12 @@ static void m25p80_realize(SSIPeripheral *ss, Error **errp)
         trace_m25p80_binding(s);
         s->storage = blk_blockalign(s->blk, s->size);
 
-        if (!blk_check_size_and_read_all(s->blk, DEVICE(s),
-                                         s->storage, s->size, errp)) {
+        /* Xilinx */
+        if (blk_pread(s->blk, 0, s->size, s->storage, 0) < 0) {
+            error_setg(errp, "failed to read the initial flash content");
             return;
         }
+
     } else {
         trace_m25p80_binding_no_bdrv(s);
         s->storage = blk_blockalign(NULL, s->size);
