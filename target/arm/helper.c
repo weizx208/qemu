@@ -9839,6 +9839,11 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
         tsz_oob = false;
     }
 
+    /* Xilinx */
+    if (!cpu_isar_feature(aa64_lva, cpu)) {
+        tsz_oob = false;
+    }
+
     /* Present TBI as a composite with TBID.  */
     tbi = aa64_va_parameter_tbi(tcr, mmu_idx);
     if (!data) {
