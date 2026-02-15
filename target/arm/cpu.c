@@ -227,6 +227,10 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     ARMCPU *cpu = ARM_CPU(cs);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
     CPUARMState *env = &cpu->env;
+#ifndef CONFIG_USER_ONLY
+    CPUClass *cc = CPU_GET_CLASS(cs);
+    vaddr old_pc = is_a64(&cpu->env) ? cpu->env.pc : cpu->env.regs[15];
+#endif
 
     trace_arm_cpu_reset(arm_cpu_mp_affinity(cpu));
 
@@ -328,7 +332,7 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 
         /* Sample rvbar at reset.  */
         env->cp15.rvbar = cpu->rvbar_prop;
-        env->pc = env->cp15.rvbar;
+
 #endif
     } else {
 #if defined(CONFIG_USER_ONLY)
@@ -343,6 +347,12 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
             env->regs[15] = cpu->rvbar_prop;
         }
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        cc->set_pc(cs, cpu->rvbar_prop);
+    }
+#endif
 
 #if defined(CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
@@ -565,6 +575,10 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 #ifndef CONFIG_USER_ONLY
     if (kvm_enabled()) {
         kvm_arm_reset_vcpu(cpu);
+    }
+
+    if (!runstate_is_running()) {
+        cc->set_pc(cs, old_pc);
     }
 #endif
 
