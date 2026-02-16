@@ -1209,6 +1209,10 @@ static void arm_cpu_initfn(Object *obj)
 static const Property arm_cpu_gt_cntfrq_property =
             DEFINE_PROP_UINT64("cntfrq", ARMCPU, gt_cntfrq_hz, 0);
 
+static const Property arm_cpu_gt_cntfrq_property_alias =
+            DEFINE_PROP_UINT64("generic-timer-frequency", ARMCPU, gt_cntfrq_hz,
+                               0);
+
 static const Property arm_cpu_reset_cbar_property =
             DEFINE_PROP_UINT64("reset-cbar", ARMCPU, reset_cbar, 0);
 
@@ -1564,6 +1568,7 @@ static void arm_cpu_post_init(Object *obj)
 
     if (arm_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER)) {
         qdev_property_add_static(DEVICE(cpu), &arm_cpu_gt_cntfrq_property);
+        qdev_property_add_static(DEVICE(cpu), &arm_cpu_gt_cntfrq_property_alias);
     }
 
     if (kvm_enabled()) {
