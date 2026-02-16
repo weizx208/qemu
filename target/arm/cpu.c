@@ -2259,6 +2259,9 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 }
 
 static const Property arm_cpu_properties[] = {
+    DEFINE_PROP_UINT64("ctr", ARMCPU, ctr, 0),
+    DEFINE_PROP_UINT64("ccsidr0", ARMCPU, ccsidr[0], 0),
+    DEFINE_PROP_UINT64("ccsidr1", ARMCPU, ccsidr[1], 0),
     DEFINE_PROP_UINT64("midr", ARMCPU, midr, 0),
     DEFINE_PROP_UINT64("mp-affinity", ARMCPU,
                         mp_affinity, ARM64_AFFINITY_INVALID),
