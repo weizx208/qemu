@@ -10,6 +10,8 @@ hwcore_ss.add(files(
   'irq.c',
   'clock.c',
   'qdev-clock.c',
+  # Xilinx
+  'gpio.c',
 ))
 
 common_ss.add(files('cpu-common.c'))
@@ -29,7 +31,6 @@ system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutl
 system_ss.add(files(
   'cpu-system.c',
   'fw-path-provider.c',
-  'gpio.c',
   'hotplug.c',
   'loader.c',
   'machine-hmp-cmds.c',
