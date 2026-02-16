@@ -25,10 +25,10 @@
 #define TYPE_XLNX_VERSAL_CFU_APB "xlnx-versal-cfu-apb"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalCFUAPB, XLNX_VERSAL_CFU_APB)
 
-#define TYPE_XLNX_VERSAL_CFU_FDRO "xlnx-versal-cfu-fdro"
+#define TYPE_XLNX_VERSAL_CFU_FDRO "xlnx-versal-cfu-fdro-x"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalCFUFDRO, XLNX_VERSAL_CFU_FDRO)
 
-#define TYPE_XLNX_VERSAL_CFU_SFR "xlnx-versal-cfu-sfr"
+#define TYPE_XLNX_VERSAL_CFU_SFR "xlnx-versal-cfu-sfr-x"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalCFUSFR, XLNX_VERSAL_CFU_SFR)
 
 REG32(CFU_ISR, 0x0)
