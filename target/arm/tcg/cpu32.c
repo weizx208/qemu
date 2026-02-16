@@ -734,6 +734,8 @@ static void cortex_r52_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_BACKCOMPAT_CNTFRQ);
     set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
+    set_feature(&cpu->env, ARM_FEATURE_MPIDR);
+    set_feature(&cpu->env, ARM_FEATURE_PMU);
     cpu->midr = 0x411fd133; /* r1p3 */
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034023;
@@ -766,6 +768,9 @@ static void cortex_r52_initfn(Object *obj)
     cpu->pmsav8r_hdregion = 16;
 
     define_arm_cp_regs(cpu, cortex_r52_cp_reginfo);
+    cpu->gic_num_lrs = 4;
+    cpu->gic_vpribits = 5;
+    cpu->gic_vprebits = 5;
 }
 
 static void cortex_r5f_initfn(Object *obj)
