@@ -582,6 +582,10 @@ struct CPUState {
     /* Used for user-only emulation of prctl(PR_SET_UNALIGN). */
     bool prctl_unalign_sigbus;
 
+    bool reset_pin; /* state of reset pin */
+    bool halt_pin; /* state of halt pin */
+    bool arch_halt_pin;
+
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
 
@@ -1201,6 +1205,10 @@ void cpu_exec_unrealizefn(CPUState *cpu);
 void cpu_exec_reset_hold(CPUState *cpu);
 
 extern const VMStateDescription vmstate_cpu_common;
+
+void cpu_halt_gpio(void *opaque, int irq, int level);
+void cpu_reset_gpio(void *opaque, int irq, int level);
+void cpu_halt_update(CPUState *cpu);
 
 #define UNASSIGNED_CPU_INDEX -1
 #define UNASSIGNED_CLUSTER_INDEX -1
