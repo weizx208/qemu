@@ -42,6 +42,7 @@
 #include "hw/intc/armv7m_nvic.h"
 #endif /* CONFIG_TCG */
 #endif /* !CONFIG_USER_ONLY */
+#include "system/runstate.h"
 #include "system/tcg.h"
 #include "system/qtest.h"
 #include "system/hw_accel.h"
@@ -248,7 +249,9 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->isar.mvfr1;
     env->vfp.xregs[ARM_VFP_MVFR2] = cpu->isar.mvfr2;
 
-    cpu->power_state = cs->start_powered_off ? PSCI_OFF : PSCI_ON;
+    cpu->power_state = cs->start_powered_off || cs->halt_pin
+                                             || cs->arch_halt_pin ?
+                           PSCI_OFF : PSCI_ON;
 
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
@@ -807,6 +810,37 @@ static void arm_wfxt_timer_cb(void *opaque)
 }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+static void arm_cpu_set_ncpuhalt(void *opaque, int irq, int level)
+{
+    CPUState *cs = opaque;
+    ARMCPU *cpu = ARM_CPU(cs);
+    int old_value = cs->arch_halt_pin;
+
+    /* FIXME: This code should be active in order to implement the semantic
+     * where an already running CPU cannot be halted. This doesn't work though,
+     * as QEMU can not make any guarantees on initial ordering of setting the
+     * halt/reset GPIOs on machine init. So just make nCPUHALT a regular halt
+     * for the moment.
+     */
+#if 0
+    if (!cs->reset_pin) {
+        return;
+    }
+#endif
+    cs->arch_halt_pin = level;
+    /* As we set the powered_off status on CPU reset we need to make sure that
+     * we unset it as well.
+     */
+    cpu->power_state = level ? PSCI_OFF : PSCI_ON;
+    cpu_halt_update(cs);
+
+    if (cs->arch_halt_pin != old_value && !cs->arch_halt_pin) {
+        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+    }
+}
+#endif
+
 static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     ARMCPU *ac = ARM_CPU(cpu);
@@ -1141,6 +1175,7 @@ static void arm_cpu_initfn(Object *obj)
         qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 6);
     }
 
+    qdev_init_gpio_in_named(DEVICE(cpu), arm_cpu_set_ncpuhalt, "ncpuhalt", 1);
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
                        ARRAY_SIZE(cpu->gt_timer_outputs));
 
@@ -2282,6 +2317,14 @@ static void update_wfi_out(void *opaque, int level)
     qemu_set_irq(cpu->wfi, level);
 }
 
+static void arm_cpu_pwr_cntrl(void *opaque, int n, int level)
+{
+    DeviceClass *dc_parent = DEVICE_CLASS(ARM_CPU_PARENT_CLASS);
+
+    dc_parent->pwr_cntrl(opaque, n, level);
+    update_wfi_out(opaque, level);
+}
+
 static const gchar *arm_gdb_arch_name(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -2411,6 +2454,8 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
     device_class_set_parent_realize(dc, arm_cpu_realizefn,
                                     &acc->parent_realize);
 
+    dc->pwr_cntrl = arm_cpu_pwr_cntrl;
+
     device_class_set_props(dc, arm_cpu_properties);
 
     resettable_class_set_parent_phases(rc, NULL, arm_cpu_reset_hold, NULL,
@@ -2423,6 +2468,7 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
+    dc->rst_cntrl = cpu_reset_gpio;
     cc->sysemu_ops = &arm_sysemu_ops;
 #endif
     cc->gdb_arch_name = arm_gdb_arch_name;
