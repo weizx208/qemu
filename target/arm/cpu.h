@@ -778,6 +778,9 @@ typedef struct CPUArchState {
         uint32_t rnr[M_REG_NUM_BANKS];
     } pmsav7;
 
+    MemTxAttrs *memattr_ns;
+    MemTxAttrs *memattr_s;
+
     /* PMSAv8 MPU */
     struct {
         /* The PMSAv8 implementation also shares some PMSAv7 config

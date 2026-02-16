@@ -600,6 +600,19 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     }
     cpu->is_in_wfi = false;
     qemu_set_irq(cpu->wfi, cpu->is_in_wfi);
+
+#ifndef CONFIG_USER_ONLY
+    if (cpu->env.memattr_ns) {
+        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs = *cpu->env.memattr_ns;
+    }
+
+    if (cpu->env.memattr_s) {
+        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = *cpu->env.memattr_s;
+    } else if (arm_feature(env, ARM_FEATURE_EL3)) {
+            /* Only set secure mode if the CPU support EL3 */
+            cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
+    }
+#endif
 }
 
 void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
@@ -1215,6 +1228,18 @@ static void arm_cpu_initfn(Object *obj)
         /* TCG and HVF implement PSCI 1.1 */
         cpu->psci_version = QEMU_PSCI_VERSION_1_1;
     }
+
+#ifndef CONFIG_USER_ONLY
+    object_property_add_link(obj, "memattr_ns", TYPE_MEMORY_TRANSACTION_ATTR,
+                             (Object **)&cpu->env.memattr_ns,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+
+    object_property_add_link(obj, "memattr_s", TYPE_MEMORY_TRANSACTION_ATTR,
+                             (Object **)&cpu->env.memattr_s,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+#endif
 }
 
 /*
@@ -2223,6 +2248,12 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int smp_cpus = ms->smp.cpus;
     bool has_secure = cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY);
+
+/* Xilinx: We always want to ensure that two address spaces are created
+ *         because we allow the secure bit to be overwritten from the outside
+ *         and in future this could be run time configurable.
+ */
+    has_secure = true;
 
     /*
      * We must set cs->num_ases to the final value before
