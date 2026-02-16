@@ -585,6 +585,31 @@ static const ARMCPRegInfo cortexr5_cp_reginfo[] = {
       .opc2 = 0, .access = PL1_W, .type = ARM_CP_NOP },
 };
 
+static void cortex_r4_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+
+    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_PMSA);
+    cpu->midr = 0x411FC144; /* r1p4 */
+    SET_IDREG(isar, ID_PFR0, 0x00000131);
+    SET_IDREG(isar, ID_PFR1, 0x00000001);
+    SET_IDREG(isar, ID_DFR0, 0x00010400);
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
+    SET_IDREG(isar, ID_MMFR0, 0x0210030);
+    SET_IDREG(isar, ID_MMFR1, 0x00000000);
+    SET_IDREG(isar, ID_MMFR2, 0x01200000);
+    SET_IDREG(isar, ID_MMFR3, 0x00000211);
+    SET_IDREG(isar, ID_ISAR0, 0x01101111);
+    SET_IDREG(isar, ID_ISAR1, 0x13112111);
+    SET_IDREG(isar, ID_ISAR2, 0x21232131);
+    SET_IDREG(isar, ID_ISAR3, 0x01112131);
+    SET_IDREG(isar, ID_ISAR4, 0x00010142);
+    SET_IDREG(isar, ID_ISAR5, 0x00000000);
+    cpu->mp_is_up = true;
+}
+
 static void cortex_r5_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -893,6 +918,7 @@ static const ARMCPUInfo arm_tcg_cpus[] = {
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
     { .name = "cortex-a15",  .initfn = cortex_a15_initfn },
+    { .name = "cortex-r4",   .initfn = cortex_r4_initfn },
     { .name = "cortex-r5",   .initfn = cortex_r5_initfn },
     { .name = "cortex-r5f",  .initfn = cortex_r5f_initfn },
     { .name = "cortex-r52",  .initfn = cortex_r52_initfn },
