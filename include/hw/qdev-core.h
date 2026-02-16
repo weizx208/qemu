@@ -174,6 +174,12 @@ struct DeviceClass {
     DeviceUnrealize unrealize;
     DeviceSyncConfig sync_config;
 
+    /* callbacks for setting of power state */
+    void (*pwr_cntrl)(void *opaque, int n, int level);
+    void (*hlt_cntrl)(void *opaque, int n, int level);
+    /* reset control */
+    void (*rst_cntrl)(void *opaque, int n, int level);
+
     /**
      * @vmsd: device state serialisation description for
      * migration/save/restore
@@ -196,6 +202,12 @@ struct NamedGPIOList {
     int num_out;
     QLIST_ENTRY(NamedGPIOList) node;
 };
+
+typedef struct PowerState {
+    bool power;
+    bool halt;
+    bool active;
+} PowerState;
 
 typedef struct Clock Clock;
 typedef struct NamedClockList NamedClockList;
@@ -299,6 +311,9 @@ struct DeviceState {
      * Used to prevent re-entrancy confusing things.
      */
     MemReentrancyGuard mem_reentrancy_guard;
+
+    /* Xilinx: Remove  */
+    PowerState ps;
 };
 
 typedef struct DeviceListener DeviceListener;

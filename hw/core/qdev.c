@@ -36,6 +36,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
+#include "hw/pm_debug.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "trace.h"
@@ -667,6 +668,7 @@ static bool device_get_hotplugged(Object *obj, Error **errp)
 static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
 
     if (phase_check(PHASE_MACHINE_READY)) {
         dev->hotplugged = 1;
@@ -676,6 +678,12 @@ static void device_initfn(Object *obj)
     dev->instance_id_alias = -1;
     dev->realized = false;
     dev->allow_unplug_during_migration = false;
+
+    /* Power and retention control. */
+    qdev_init_gpio_in_named(dev, dc->pwr_cntrl, "pwr_cntrl", 1);
+    qdev_init_gpio_in_named(dev, dc->hlt_cntrl, "hlt_cntrl", 1);
+    /* Reset control. */
+    qdev_init_gpio_in_named(dev, dc->rst_cntrl, "rst_cntrl", 1);
 
     QLIST_INIT(&dev->gpios);
     QLIST_INIT(&dev->clocks);
@@ -754,6 +762,50 @@ static void device_unparent(Object *obj)
     }
 }
 
+static void device_pwr_hlt_cntrl(void *opaque, const char *from)
+{
+    const char *to;
+    DeviceState *dev = DEVICE(opaque);
+
+    dev->ps.active = dev->ps.power && !dev->ps.halt;
+    to = PM_STATE(dev);
+
+    if (from != to) {
+        PM_DEBUG_PRINT("%s: from %s to %s\n", dev->id, from, to);
+    }
+}
+
+static void device_pwr_cntrl(void *opaque, int n, int level)
+{
+    DeviceState *dev = DEVICE(opaque);
+    const char *from = PM_STATE(dev);
+
+    dev->ps.power = level;
+
+    device_pwr_hlt_cntrl(opaque, from);
+}
+
+static void device_hlt_cntrl(void *opaque, int n, int level)
+{
+    DeviceState *dev = DEVICE(opaque);
+    const char *from = PM_STATE(dev);
+
+    dev->ps.halt = level;
+
+    device_pwr_hlt_cntrl(opaque, from);
+}
+
+/* Default rst_cntrl callback for all devices. */
+static void device_rst_cntrl(void *opaque, int n, int level)
+{
+    DeviceState *dev = DEVICE(opaque);
+    DeviceClass *klass = DEVICE_GET_CLASS(dev);
+
+    if (klass->reset) {
+        klass->reset(dev);
+    }
+}
+
 static char *
 device_vmstate_if_get_id(VMStateIf *obj)
 {
@@ -777,6 +829,13 @@ static void device_class_init(ObjectClass *class, const void *data)
      * should override it in their class_init()
      */
     dc->hotpluggable = true;
+
+    /* power state callbacks */
+    dc->pwr_cntrl = device_pwr_cntrl;
+    dc->hlt_cntrl = device_hlt_cntrl;
+    /* reset control callback */
+    dc->rst_cntrl = device_rst_cntrl;
+
     dc->user_creatable = true;
     vc->get_id = device_vmstate_if_get_id;
     rc->get_state = device_get_reset_state;
