@@ -889,6 +889,12 @@ static CPAccessResult access_tdcc(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static void dcc_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    putchar(value);
+}
+
 static void oslar_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
@@ -998,7 +1004,7 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
     /* Architecturally DBGDTRTX is named DBGDTRRX when used for reads */
     { .name = "DBGDTRTX_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 3, .crn = 0, .crm = 5, .opc2 = 0,
-      .access = PL0_RW, .accessfn = access_tdcc,
+      .access = PL0_RW, .writefn = dcc_write,  /* Xilinx */
       .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "DBGDTRTX", .state = ARM_CP_STATE_AA32, .cp = 14,
       .opc1 = 0, .crn = 0, .crm = 5, .opc2 = 0,
