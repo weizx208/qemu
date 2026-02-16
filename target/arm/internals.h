@@ -1762,6 +1762,14 @@ static inline bool arm_gdbstub_is_aarch64(ARMCPU *cpu)
     return arm_feature(&cpu->env, ARM_FEATURE_AARCH64);
 }
 
+/* Xilinx */
+int aarch64_el1_gdb_get_reg(CPUState *cs, GByteArray *buf, int reg);
+int aarch64_el1_gdb_set_reg(CPUState *cs, uint8_t *buf, int reg);
+int aarch64_el2_gdb_get_reg(CPUState *cs, GByteArray *buf, int reg);
+int aarch64_el2_gdb_set_reg(CPUState *cs, uint8_t *buf, int reg);
+int aarch64_el3_gdb_get_reg(CPUState *cs, GByteArray *buf, int reg);
+int aarch64_el3_gdb_set_reg(CPUState *cs, uint8_t *buf, int reg);
+
 /* Read the CONTROL register as the MRS instruction would. */
 uint32_t arm_v7m_mrs_control(CPUARMState *env, uint32_t secure);
 
