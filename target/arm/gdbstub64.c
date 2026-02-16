@@ -32,10 +32,69 @@
 #include "exec/target_page.h"
 #endif
 
+#ifndef CONFIG_USER_ONLY
+
+/* FIXME: This should be generalized and moved into helper.c */
+static void map_a32_to_a64_regs(CPUARMState *env)
+{
+    unsigned int i;
+
+    for (i = 0; i < 8; i++) {
+        env->xregs[i] = env->regs[i];
+    }
+    for (i = 0; i < ARRAY_SIZE(env->usr_regs); i++) {
+        env->xregs[i + 8] = env->usr_regs[i];
+    }
+    env->xregs[13] = env->banked_r13[bank_number(ARM_CPU_MODE_USR)];
+    env->xregs[14] = env->banked_r14[bank_number(ARM_CPU_MODE_USR)];
+
+    for (i = 0; i < ARRAY_SIZE(env->fiq_regs); i++) {
+        env->xregs[i + 24] = env->fiq_regs[i];
+    }
+    env->xregs[29] = env->banked_r13[bank_number(ARM_CPU_MODE_FIQ)];
+    env->xregs[30] = env->banked_r14[bank_number(ARM_CPU_MODE_FIQ)];
+
+    /* HAX!  */
+    env->xregs[31] = env->regs[13];
+
+    env->pc = env->regs[15];
+    pstate_write(env, env->spsr | (1 << 4));
+}
+
+static void map_a64_to_a32_regs(CPUARMState *env)
+{
+    unsigned int i = 0;
+
+    for (i = 0; i < 8; i++) {
+        env->regs[i] = env->xregs[i];
+    }
+    for (i = 0; i < ARRAY_SIZE(env->usr_regs); i++) {
+        env->xregs[i + 8] = env->usr_regs[i];
+    }
+    env->banked_r13[bank_number(ARM_CPU_MODE_USR)] = env->xregs[13];
+    env->banked_r14[bank_number(ARM_CPU_MODE_USR)] = env->xregs[14];
+
+    for (i = 0; i < ARRAY_SIZE(env->usr_regs); i++) {
+        env->fiq_regs[i] = env->xregs[i + 24];
+    }
+    env->banked_r13[bank_number(ARM_CPU_MODE_FIQ)] = env->xregs[29];
+    env->banked_r14[bank_number(ARM_CPU_MODE_FIQ)] = env->xregs[30];
+
+    env->regs[15] = env->pc;
+}
+
+#endif
+
 int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+
+#ifndef CONFIG_USER_ONLY
+    if (!is_a64(env)) {
+        map_a32_to_a64_regs(env);
+    }
+#endif
 
     if (n < 31) {
         /* Core integer register.  */
@@ -59,29 +118,46 @@ int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     uint64_t tmp;
+    int rlen = 0;
+
+#ifndef CONFIG_USER_ONLY
+    if (!is_a64(env)) {
+        map_a32_to_a64_regs(env);
+    }
+#endif
 
     tmp = ldq_p(mem_buf);
 
     if (n < 31) {
         /* Core integer register.  */
         env->xregs[n] = tmp;
-        return 8;
+        rlen = 8;
     }
     switch (n) {
     case 31:
         env->xregs[31] = tmp;
-        return 8;
+        rlen = 8;
+        break;
     case 32:
         env->pc = tmp;
-        return 8;
+        rlen = 8;
+        break;
     case 33:
         /* CPSR */
         /* pstate is now a 64-bit value; can we simply adjust the xml? */
         pstate_write(env, tmp);
-        return 4;
+        rlen = 4;
+        break;
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (!is_a64(env)) {
+        map_a64_to_a32_regs(env);
+    }
+#endif
+
     /* Unknown register.  */
-    return 0;
+    return rlen;
 }
 
 int aarch64_gdb_get_fpu_reg(CPUState *cs, GByteArray *buf, int reg)
