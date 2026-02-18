@@ -56,10 +56,7 @@ static int qdev_reset_one(DeviceState *dev, void *opaque)
 
 static int qbus_reset_one(BusState *bus, void *opaque)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
-    if (bc->reset) {
-        bc->reset(bus);
-    }
+    bus_cold_reset(bus);
     return 0;
 }
 
