@@ -44,6 +44,21 @@ static ResettableContainer *get_root_reset_container(void)
 }
 
 /*
+ * Same as get_root_reset_container() but with the loader container, which
+ * runs after the device resets.
+ */
+static ResettableContainer *get_loader_reset_container(void)
+{
+    static ResettableContainer *loader_reset_container;
+
+    if (!loader_reset_container) {
+        loader_reset_container =
+            RESETTABLE_CONTAINER(object_new(TYPE_RESETTABLE_CONTAINER));
+    }
+    return loader_reset_container;
+}
+
+/*
  * This is an Object which implements Resettable simply to call the
  * callback function in the hold phase.
  */
@@ -174,4 +189,27 @@ void qemu_devices_reset(ResetType type)
 {
     /* Reset the simulation */
     resettable_reset(OBJECT(get_root_reset_container()), type);
+
+    /* Run the loader reset handlers */
+    resettable_reset(OBJECT(get_loader_reset_container()), type);
+}
+
+void qemu_register_reset_loader(QEMUResetHandler *func, void *opaque)
+{
+    Object *obj = object_new(TYPE_LEGACY_RESET);
+    LegacyReset *lr = LEGACY_RESET(obj);
+
+    lr->func = func;
+    lr->opaque = opaque;
+    resettable_container_add(get_loader_reset_container(), obj);
+}
+
+void qemu_unregister_reset_loader(QEMUResetHandler *func, void *opaque)
+{
+    Object *obj = OBJECT(find_legacy_reset(func, opaque));
+
+    if (obj) {
+        resettable_container_remove(get_loader_reset_container(), obj);
+        object_unref(obj);
+    }
 }

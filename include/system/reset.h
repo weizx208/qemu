@@ -124,4 +124,31 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque);
  */
 void qemu_devices_reset(ResetType type);
 
+/**
+ * qemu_register_reset_loader: Register a callback for system reset which runs
+ * after the first reset list.
+ *
+ * @func: function to call
+ * @opaque: opaque data to pass to @func
+ *
+ * It is not permitted to register or unregister reset functions or
+ * resettable objects from within the @func callback.
+ *
+ * We assume that the caller holds the BQL.
+ */
+void qemu_register_reset_loader(QEMUResetHandler *func, void *opaque);
+
+/**
+ * qemu_unregister_reset_loader: Revert the effect of
+ * qemu_register_reset_loader.
+ *
+ * @func: function to call
+ * @opaque: opaque data to pass to @func
+ *
+ * It is not permitted to register or unregister reset functions or
+ * resettable objects from within the @func callback.
+ *
+ * We assume that the caller holds the BQL.
+ */
+void qemu_unregister_reset_loader(QEMUResetHandler *func, void *opaque);
 #endif
