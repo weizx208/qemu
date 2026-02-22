@@ -477,6 +477,20 @@ static void machine_set_linux(Object *obj, bool value, Error **errp)
     ms->is_linux = value;
 }
 
+static bool machine_get_dynamic_mem(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->dynamic_mem;
+}
+
+static void machine_set_dynamic_mem(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->dynamic_mem = value;
+}
+
 static bool machine_get_mem_merge(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1322,6 +1336,11 @@ static void machine_initfn(Object *obj)
                              machine_get_linux, machine_set_linux);
     object_property_set_description(obj, "linux",
                                     "Force a Linux style boot");
+    object_property_add_bool(obj, "dynamic-mem",
+                             machine_get_dynamic_mem,
+                             machine_set_dynamic_mem);
+    object_property_set_description(obj, "dynamic-mem",
+                                    "Enable dynamic memory support");
     if (mc->nvdimm_supported) {
         ms->nvdimms_state = g_new0(NVDIMMState, 1);
         object_property_add_bool(obj, "nvdimm",

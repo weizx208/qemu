@@ -405,6 +405,7 @@ struct MachineState {
     char *hw_dtb;
     char *dumpdtb;
     bool is_linux;
+    bool dynamic_mem;
     int phandle_start;
     char *dt_compatible;
     bool dump_guest_core;
