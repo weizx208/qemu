@@ -32,6 +32,8 @@
 #include <libfdt.h>
 #include "hw/fdt_generic_util.h"
 #include "hw/fdt_generic_devices.h"
+#include "hw/hotplug.h"
+#include "hw/misc/amd-ddr-memory.h"
 
 #ifndef ARM_GENERIC_FDT_DEBUG
 #define ARM_GENERIC_FDT_DEBUG 3
@@ -62,6 +64,8 @@
 /* Meaningless, but keeps arm boot happy */
 #define SMP_BOOTREG_ADDR 0xfffffffc
 
+#define DDR_LOW_SIZE 0x80000000
+
 static struct arm_boot_info arm_generic_fdt_binfo = {};
 
 /* Entry point for secondary CPU */
@@ -85,6 +89,22 @@ static void arm_write_secondary_boot(ARMCPU *cpu,
     }
     rom_add_blob_fixed("smpboot", zynq_smpboot, sizeof(zynq_smpboot),
                        SMP_BOOT_ADDR);
+}
+
+static void set_default_hwdtb_ddr_map(void *fdt)
+{
+    int offset = -1;
+    char node_path[DT_PATH_LENGTH];
+
+    do {
+        offset = fdt_node_offset_by_compatible(fdt, offset,
+                                               "qemu:memory-region-ddr");
+        if (offset > 0) {
+            fdt_get_path(fdt, offset, node_path, DT_PATH_LENGTH);
+            qemu_fdt_setprop_string(fdt, node_path, "compatible",
+                                    "qemu:memory-region");
+        }
+    } while (offset > 0);
 }
 
 static void zynq7000_usb_nuke_phy(void *fdt)
@@ -282,6 +302,7 @@ static char *zynq7000_qspi_flash_node_clone(void *fdt)
 
 static memory_info init_memory(void *fdt, ram_addr_t ram_size, bool zynq_7000)
 {
+    bool dynamic_mem;
     FDTMachineInfo *fdti;
     char node_path[DT_PATH_LENGTH];
     MemoryRegion *mem_area;
@@ -309,6 +330,12 @@ static memory_info init_memory(void *fdt, ram_addr_t ram_size, bool zynq_7000)
         qemu_fdt_setprop_string(fdt, "/memory", "compatible",
                                 "qemu:memory-region");
         qemu_fdt_setprop_cells(fdt, "/memory", "qemu,ram", 1);
+    }
+
+    dynamic_mem = object_property_get_bool(OBJECT(qdev_get_machine()),
+                                           "dynamic-mem", NULL);
+    if (dynamic_mem == false) {
+        set_default_hwdtb_ddr_map(fdt);
     }
 
     /* Instantiate peripherals from the FDT.  */
@@ -415,7 +442,7 @@ static memory_info init_memory(void *fdt, ram_addr_t ram_size, bool zynq_7000)
             qemu_log_mask(LOG_GUEST_ERROR, "No memory was specified in the " \
                           "device tree, are there no memory nodes on the " \
                           "root level?\n");
-        } else if (mem_created < ram_size) {
+        } else if (dynamic_mem == false && mem_created < ram_size) {
             /* We need to create more memory to match what the user asked for.
              * We do this based on the qemu:memory-region-spec values.
              */
@@ -480,8 +507,14 @@ static memory_info init_memory(void *fdt, ram_addr_t ram_size, bool zynq_7000)
                 }
             } while (mem_offset > 0 && ram_size > mem_created);
         } else {
-            /* The device tree generated more or equal amount of memory then
-             * the user specified. Set that internally in QEMU.
+            /*
+             * Handle the following cases:
+             * 1) The device tree generated more or equal amount of memory then
+             *    the user specified.
+             * 2) dynamic-memory is enabled, it then reflects the size of the
+             *    first portion of memory created (DDR at address 0).
+             *
+             * Set this internally in QEMU.
              */
             DB_PRINT(0, "No extra memory is required\n");
 
@@ -737,6 +770,87 @@ static void arm_generic_fdt_dep_machine_init(MachineClass *mc)
 fdt_register_compatibility_opaque(pflash_cfi01_fdt_init,
                                   "compatibile:cfi-flash", NULL);
 
-DEFINE_MACHINE(GENERAL_MACHINE_NAME, arm_generic_fdt_machine_init)
+static void arm_generic_fdt_machine_plug(HotplugHandler *hotplug_dev,
+                                         DeviceState *dev, Error **errp)
+{
+    MachineState *ms = MACHINE(hotplug_dev);
+
+    if (!ms->dynamic_mem) {
+        return;
+    }
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_AMD_DDR_MEMORY)) {
+        AMDDDRMemory *ddr = AMD_DDR_MEMORY(dev);
+        Object *mem_obj;
+        MemoryRegion *c;
+        uint8_t ram;
+        char *name = NULL;
+
+        /* DDR low is handled by the hwdtb */
+        if (ddr->address < DDR_LOW_SIZE) {
+            return;
+        }
+
+        mem_obj = object_resolve_path_type("/memory@00000000",
+                                           TYPE_MEMORY_REGION, NULL);
+        if (!mem_obj) {
+            mem_obj = object_resolve_path_type("/memory@0",
+                                               TYPE_MEMORY_REGION, NULL);
+        }
+        if (!mem_obj) {
+            error_setg(errp,
+                       "/memory@00000000 or /memory@0 is missing in the FDT");
+            return;
+        }
+
+        name = g_strdup_printf("qemu-memory-_%s", memory_region_name(&ddr->mr));
+        object_property_set_str(OBJECT(&ddr->mr), "filename", name, errp);
+
+        ram = (machine_path) ? ddr->max_ram_property : 1;
+        object_property_set_uint(OBJECT(&ddr->mr), "ram", ram, errp);
+
+        c = MEMORY_REGION(mem_obj);
+
+        memory_region_add_subregion(c, ddr->address, &ddr->mr);
+    }
+}
+
+static HotplugHandler *arm_generic_fdt_get_hotplug_handler(MachineState *ms,
+                                                           DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_AMD_DDR_MEMORY)) {
+        return HOTPLUG_HANDLER(ms);
+    }
+    return NULL;
+}
+
+static void arm_generic_fdt_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+
+    arm_generic_fdt_machine_init(mc);
+
+    mc->get_hotplug_handler = arm_generic_fdt_get_hotplug_handler;
+
+    hc->plug = arm_generic_fdt_machine_plug;
+}
+
+static const TypeInfo arm_generic_fdt_machine_typeinfo = {
+    .name       = MACHINE_TYPE_NAME(GENERAL_MACHINE_NAME),
+    .parent     = TYPE_MACHINE,
+    .class_init = arm_generic_fdt_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    },
+};
+
+static void arm_generic_fdt_machine_register_types(void)
+{
+    type_register_static(&arm_generic_fdt_machine_typeinfo);
+}
+type_init(arm_generic_fdt_machine_register_types)
+
 DEFINE_MACHINE(ZYNQ7000_MACHINE_NAME, arm_generic_fdt_7000_machine_init)
 DEFINE_MACHINE(DEP_GENERAL_MACHINE_NAME, arm_generic_fdt_dep_machine_init)
