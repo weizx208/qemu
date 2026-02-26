@@ -507,7 +507,7 @@ static void versal_trng_init(Object *obj)
     reg_array =
         register_init_block32(DEVICE(obj), pmc_trng_regs_info,
                               ARRAY_SIZE(pmc_trng_regs_info),
-                              s->pmc_regs_info, &p->regs[R_RESET],
+                              s->pmc_regs_info, p->regs,
                               &pmc_trng_imp_ops,
                               XILINX_TRNG_ERR_DEBUG,
                               (R_PMC_TRNG_MAX) * 4);
