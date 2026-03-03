@@ -192,6 +192,9 @@ static size_t pmx_efuse_mapping_pmx_get_bit_idx(XlnxEfuseMapIf *iface,
 
     case XLNX_EFUSE_BIT_GLITCH_DET_EN:
         return 0x2fd;
+
+    default:
+        break;
     }
 
     return 0;

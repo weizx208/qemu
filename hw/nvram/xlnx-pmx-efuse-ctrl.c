@@ -256,6 +256,30 @@ static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PPK2_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_PPK3_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK3_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_PPK4_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK4_WR_LK);
+    case XLNX_EFUSE_AC_TBIT1_PPK4_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK4_WR_LK);
+    case XLNX_EFUSE_AC_TBIT1_PPK5_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK5_WR_LK);
+     case XLNX_EFUSE_AC_TBIT1_PPK6_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK6_WR_LK);
+     case XLNX_EFUSE_AC_TBIT1_PPK7_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK7_WR_LK);
     case XLNX_EFUSE_AC_TBIT0_AES_WR_LK:
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
