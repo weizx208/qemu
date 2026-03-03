@@ -41,6 +41,7 @@
 #endif
 
 #define TYPE_XILINX_ASU_SHA2 "xlnx.asu_sha2"
+#define TYPE_XILINX_ASU_SHA2_V2_1 "xlnx.asu_sha2_v2.1"
 
 #define XILINX_ASU_SHA2(obj) \
      OBJECT_CHECK(ASU_SHA2, (obj), TYPE_XILINX_ASU_SHA2)
@@ -57,10 +58,15 @@ enum ASU_SHA_MODE {
     SHA_MODE_384 = 1,
     SHA_MODE_512 = 2,
     SHA_MODE_RESERVED = 3,
+    SHA_MODE_RESERVED2 = 4,
+    SHA_MODE_256_LMS_OTS = 5,
+    SHA_MODE_256_SLH_DSA = 6,
 };
 
 #define ASU_SHA2_MAX_DIGEST_LEN (512 >> 3)
 #define ASU_SHA2_MAX_BLOCK_SIZE (144)
+#define ASU_SHA2_MAX_CHAIN_BUF_LEN 48
+#define ASU_SHA2_V2_1 0x20001
 
 REG32(SHA_START, 0x0)
     FIELD(SHA_START, VALUE, 0, 1)
@@ -85,7 +91,7 @@ REG32(SHA_DIGEST_13, 0x44)
 REG32(SHA_DIGEST_14, 0x48)
 REG32(SHA_DIGEST_15, 0x4c)
 REG32(SHA_MODE, 0xa0)
-    FIELD(SHA_MODE, VALUE, 0, 2)
+    FIELD(SHA_MODE, VALUE, 0, 3)
 REG32(SHA_AUTO_PADDING, 0xa4)
     FIELD(SHA_AUTO_PADDING, ENABLE, 0, 1)
 REG32(SHA_SLV_ERR_CTRL, 0xb0)
@@ -102,8 +108,13 @@ REG32(SHA_IER, 0xbc)
 REG32(SHA_IDR, 0xc0)
     FIELD(SHA_IDR, SLVERR, 1, 1)
     FIELD(SHA_IDR, DONE, 0, 1)
+REG32(SHA_CHAIN, 0xc8)
+    FIELD(SHA_CHAIN, STEPS, 16, 8)
+    FIELD(SHA_CHAIN, START, 0, 8)
+REG32(SHA_VERSION, 0xf8)
+    FIELD(SHA_VERSION, VALUE, 0, 32)
 
-#define ASU_SHA2_R_MAX (R_SHA_IDR + 1)
+#define ASU_SHA2_R_MAX (R_SHA_VERSION + 1)
 
 typedef struct ASU_SHA2 {
     SysBusDevice parent_obj;
@@ -117,6 +128,9 @@ typedef struct ASU_SHA2 {
 
     /* Hash algorithm latched when start was asserted.  */
     enum ASU_SHA_MODE alg;
+    uint8_t chain_buf[ASU_SHA2_MAX_CHAIN_BUF_LEN];
+    uint32_t cbuf_offset;
+    uint32_t version;
 
     union {
         struct sha256_ctx sha256;
@@ -161,6 +175,16 @@ static void asu_sha2_start_postw(RegisterInfo *reg, uint64_t value)
     s->alg = ARRAY_FIELD_EX32(s->regs, SHA_MODE, VALUE);
 
     switch (s->alg) {
+    case SHA_MODE_256_LMS_OTS:
+    case SHA_MODE_256_SLH_DSA:
+        if (s->regs[R_SHA_VERSION] < ASU_SHA2_V2_1) {
+            asu_sha2_log_guest_error(s, __func__, "LMS_OTS/SLH_DSA"
+                                                  " not supported");
+            return;
+        }
+        /*
+         * Fall through
+         */
     case SHA_MODE_256:
         sha256_init(&s->hash_contexts.sha256);
         break;
@@ -191,6 +215,7 @@ static void asu_sha2_reset(DeviceState *dev)
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
         register_reset(&s->regs_info[i]);
     }
+    s->regs[R_SHA_VERSION] = s->version;
 }
 
 static void asu_sha2_reset_postw(RegisterInfo *reg, uint64_t value)
@@ -292,6 +317,9 @@ static const RegisterAccessInfo asu_sha2_regs_info[] = {
         .pre_write = sha_ier_prew,
     },{ .name = "SHA_IDR",  .addr = A_SHA_IDR,
         .pre_write = sha_idr_prew,
+    },{ .name = "SHA_CHAIN",  .addr = A_SHA_CHAIN,
+    },{ .name = "SHA_VERSION",  .addr = A_SHA_VERSION,
+        .ro = 0xffffffff,
     }
 };
 
@@ -304,6 +332,13 @@ static const MemoryRegionOps asu_sha2_ops = {
         .max_access_size = 4,
     },
 };
+
+static void asu_sha2_v2_1_init(Object *obj)
+{
+    ASU_SHA2 *s = XILINX_ASU_SHA2(obj);
+
+    s->version = ASU_SHA2_V2_1;
+}
 
 static void asu_sha2_init(Object *obj)
 {
@@ -339,6 +374,8 @@ static bool asu_sha2_stream_can_push(StreamSink *obj,
 static size_t asu_sha2_digest_size(ASU_SHA2 *s)
 {
     switch (s->alg) {
+    case SHA_MODE_256_LMS_OTS:
+    case SHA_MODE_256_SLH_DSA:
     case SHA_MODE_256:
         return 256 / 8;
     case SHA_MODE_384:
@@ -350,6 +387,46 @@ static size_t asu_sha2_digest_size(ASU_SHA2 *s)
     }
 }
 
+static void asu_sha2_digest_chaining(ASU_SHA2 *s, size_t digest_len,
+                                     uint8_t *digest)
+{
+    int j;
+    uint8_t chain_start = ARRAY_FIELD_EX32(s->regs, SHA_CHAIN, START);
+    uint8_t num_steps = ARRAY_FIELD_EX32(s->regs, SHA_CHAIN, STEPS);
+    size_t len = 0;
+    /*
+     * Calculate digest for iteration 0.
+     */
+    sha256_digest(&s->hash_contexts.sha256, digest_len,
+                  digest);
+    /*
+     * LMS_DSA:
+     *     Replace Chain address every time
+     *     in the payload and append previous hash.
+     */
+    for (j = chain_start + 1; j < chain_start + num_steps; j++) {
+        switch (s->alg) {
+        case SHA_MODE_256_LMS_OTS:
+            s->chain_buf[0x16] = j;
+            len = 23;
+            break;
+        case SHA_MODE_256_SLH_DSA:
+            *(uint32_t *)&s->chain_buf[0x2c] = cpu_to_be32(j);
+            len = 48;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        sha256_update(&s->hash_contexts.sha256, len, s->chain_buf);
+        sha256_update(&s->hash_contexts.sha256, digest_len,
+                      digest);
+        sha256_digest(&s->hash_contexts.sha256, digest_len,
+                      digest);
+    }
+    s->cbuf_offset = 0;
+    memset(s->chain_buf, 0, ASU_SHA2_MAX_CHAIN_BUF_LEN);
+}
+
 static void asu_sha2_update_digest(ASU_SHA2 *s)
 {
     uint32_t digest[ASU_SHA2_MAX_DIGEST_LEN >> 2] = {0};
@@ -357,6 +434,11 @@ static void asu_sha2_update_digest(ASU_SHA2 *s)
 
     if (ARRAY_FIELD_EX32(s->regs, SHA_AUTO_PADDING, ENABLE)) {
         switch (s->alg) {
+        case SHA_MODE_256_SLH_DSA:
+        case SHA_MODE_256_LMS_OTS:
+            asu_sha2_digest_chaining(s, digest_len,
+                                     (uint8_t *)&digest);
+            break;
         case SHA_MODE_256:
             sha256_digest(&s->hash_contexts.sha256, digest_len,
                           (uint8_t *)&digest);
@@ -374,6 +456,11 @@ static void asu_sha2_update_digest(ASU_SHA2 *s)
         }
     } else {
         switch (s->alg) {
+        case SHA_MODE_256_SLH_DSA:
+        case SHA_MODE_256_LMS_OTS:
+            qemu_log_mask(LOG_GUEST_ERROR, "LMS_OTS & SLH_DSA should have "
+                                           "autopadding enabled!");
+            break;
         case SHA_MODE_256:
             sha256_digest_no_pad(&s->hash_contexts.sha256, digest_len,
                                  (uint8_t *)&digest);
@@ -392,6 +479,39 @@ static void asu_sha2_update_digest(ASU_SHA2 *s)
     }
 
     memcpy(&s->regs[R_SHA_DIGEST_0], digest, digest_len);
+}
+
+static void asu_sha2_chaining_buf_copy(ASU_SHA2 *s,
+                                       uint8_t *buf,
+                                       size_t len)
+{
+    uint32_t copy_max = s->alg == SHA_MODE_256_LMS_OTS ? 23 : 48;
+    uint32_t copy_len;
+
+    if (s->cbuf_offset < copy_max) {
+        copy_len = s->cbuf_offset + len <= copy_max ? len :
+                                    copy_max - s->cbuf_offset;
+        memcpy(s->chain_buf, buf, copy_len);
+        s->cbuf_offset += copy_len;
+        if (s->cbuf_offset == copy_max) {
+            if (s->alg == SHA_MODE_256_LMS_OTS) {
+                s->chain_buf[0x16] = ARRAY_FIELD_EX32(s->regs, SHA_CHAIN,
+                                                      START);
+            } else if (s->alg == SHA_MODE_256_SLH_DSA) {
+                *(uint32_t *)&s->chain_buf[0x2c] =
+                    cpu_to_be32(ARRAY_FIELD_EX32(s->regs, SHA_CHAIN,
+                                                 START));
+            } else {
+                g_assert_not_reached();
+            }
+            sha256_update(&s->hash_contexts.sha256, copy_max,
+                          s->chain_buf);
+            sha256_update(&s->hash_contexts.sha256, len - copy_len,
+                          buf + copy_len);
+        }
+    } else {
+        sha256_update(&s->hash_contexts.sha256, len, buf);
+    }
 }
 
 /*
@@ -413,6 +533,30 @@ static size_t asu_sha2_stream_push(StreamSink *obj,
     }
 
     switch (s->alg) {
+    case SHA_MODE_256_LMS_OTS:
+        /*
+         * Copy the first 23 bytes of the data for chaining reference.
+         *  0x00 - 0x10 : I (16 bytes)
+         *  0x10 - 0x14 : q (4 bytes)
+         *  0x14 - 0x16 : i (2 bytes)
+         *  0x16 - 0x17 : j (1 byte, this field is updated during chaining)
+         *
+         *  Fallthrough
+         */
+    case SHA_MODE_256_SLH_DSA:
+        /*
+         * Copy the PK.seed (16 bytes) + ADRS (32 bytes)
+         *  0x00 - 0x10: PK.seed
+         *  0x10 - 0x30: ADRS
+         *     0x10 - 0x14: Layer addr
+         *     0x14 - 0x20: Tree addr
+         *     0x20 - 0x24: Type
+         *     0x24 - 0x28: Key addr
+         *     0x28 - 0x2c: Chain addr
+         *     0x2c - 0x30: Hash addr (this field is updated during chaining)
+         */
+        asu_sha2_chaining_buf_copy(s, buf, len);
+        break;
     case SHA_MODE_256:
         sha256_update(&s->hash_contexts.sha256, len, buf);
         break;
@@ -473,9 +617,16 @@ static const TypeInfo asu_sha2_info = {
     }
 };
 
+static const TypeInfo asu_sha2_v2_1_info = {
+    .name = TYPE_XILINX_ASU_SHA2_V2_1,
+    .parent = TYPE_XILINX_ASU_SHA2,
+    .instance_init = asu_sha2_v2_1_init,
+};
+
 static void asu_sha2_register_types(void)
 {
     type_register_static(&asu_sha2_info);
+    type_register_static(&asu_sha2_v2_1_info);
 }
 
 type_init(asu_sha2_register_types)
