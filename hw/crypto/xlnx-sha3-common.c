@@ -44,7 +44,7 @@ enum State {
     XLNX_SHA3_COMMON_RUNNING,
 };
 
-#define XLNX_SHA3_COMMON_MAX_DIGEST_LEN (1088 >> 3)
+#define XLNX_SHA3_COMMON_MAX_DIGEST_LEN (1344 >> 3)
 
 static bool xlnx_sha3_common_autopadding_enabled(XlnxSha3Common *s)
 {
@@ -105,6 +105,8 @@ static size_t xlnx_sha3_common_block_size(XlnxSha3Common *s)
     case SHA_MODE_SHAKE256:
     case SHA_MODE_SHAKE256_256:
         return 136;
+    case SHA_MODE_SHAKE128:
+        return 168;
     case SHA_MODE_384:
         return 104;
     case SHA_MODE_512:
@@ -128,6 +130,8 @@ static size_t xlnx_sha3_common_digest_size(XlnxSha3Common *s)
     case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
     case SHA_MODE_SHAKE256:
         return 1088 / 8;
+    case SHA_MODE_SHAKE128:
+        return 1344 / 8;
     default:
         return 0;
     }
@@ -137,6 +141,7 @@ static size_t xlnx_sha3_common_digest_size(XlnxSha3Common *s)
 static uint8_t xlnx_sha3_common_get_padding_suffix(XlnxSha3Common *s)
 {
     switch (s->alg) {
+    case SHA_MODE_SHAKE128:
     case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
     case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
     case SHA_MODE_SHAKE256:
@@ -170,6 +175,7 @@ void xlnx_sha3_common_start(XlnxSha3Common *s)
     case SHA_MODE_256:
     case SHA_MODE_384:
     case SHA_MODE_512:
+    case SHA_MODE_SHAKE128:
     case SHA_MODE_SHAKE256:
     case SHA_MODE_SHAKE256_256:
     case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
@@ -207,11 +213,12 @@ void xlnx_sha3_common_reset(XlnxSha3Common *s, int reseting)
 void xlnx_sha3_common_next_xof(XlnxSha3Common *s)
 {
     /* User asks 136 additional SHAKE256 digest.  */
-    if (!(s->alg == SHA_MODE_SHAKE256 ||
+    if (!(s->alg == SHA_MODE_SHAKE128 ||
+          s->alg == SHA_MODE_SHAKE256 ||
           s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN ||
           s->alg == SHA_MODE_SHAKE256_SLH_DSA_CHAIN)) {
         xlnx_sha3_common_log_guest_error(s, __func__,
-                                         "IP expected to be in SHAKE256"
+                                         "IP expected to be in SHAKE128/SHAKE256"
                                          " mode\n");
         return;
     }
@@ -263,6 +270,7 @@ static bool xlnx_sha3_common_handle_data(XlnxSha3Common *s,
                 memcpy(&s->data[s->data_ptr],
                        &buf[len - remaining],
                        block_size - s->data_ptr);
+
                 remaining -= (block_size - s->data_ptr);
                 s->data_ptr = 0;
                 keccak_absorb(&s->sponge, block_size, s->data);
