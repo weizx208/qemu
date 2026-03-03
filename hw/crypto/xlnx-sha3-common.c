@@ -45,6 +45,7 @@ enum State {
 };
 
 #define XLNX_SHA3_COMMON_MAX_DIGEST_LEN (1344 >> 3)
+#define SLH_DSA_HASH_ADDR_OFFSET 0x3c
 
 static bool xlnx_sha3_common_autopadding_enabled(XlnxSha3Common *s)
 {
@@ -395,8 +396,8 @@ static void xlnx_sha3_common_chain_slh_dsa(XlnxSha3Common *s)
          */
         keccak_init(&s->sponge);
         s->data_ptr = 0;
-        *(uint32_t *)&s->chain_buf[0x2c] = cpu_to_be32(j);
-        xlnx_sha3_common_handle_data(s, s->chain_buf, 48, false);
+        *(uint32_t *)&s->chain_buf[SLH_DSA_HASH_ADDR_OFFSET] = cpu_to_be32(j);
+        xlnx_sha3_common_handle_data(s, s->chain_buf, 64, false);
         xlnx_sha3_common_handle_data(s, (uint8_t *) digest,
             XLNX_SHA3_COMMON_CHAIN_DIGEST_LEN, true);
         if (j < (chain_start + chain_steps - 1)) {
@@ -421,14 +422,14 @@ static void xlnx_sha3_common_chain_buf_copy(XlnxSha3Common *s,
                                              uint8_t *buf,
                                              size_t len)
 {
-    uint32_t copy_max = s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN ? 23 : 48;
+    uint32_t copy_max = s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN ? 23 : 64;
     uint32_t copy_len;
     uint8_t chain_start = xlnx_sha3_common_get_chain_start(s);
 
     if (s->cbuf_offset < copy_max) {
         copy_len = s->cbuf_offset + len <= copy_max ? len :
                                     copy_max - s->cbuf_offset;
-        memcpy(s->chain_buf, buf, copy_len);
+        memcpy(s->chain_buf + s->cbuf_offset, buf, copy_len);
         s->cbuf_offset += copy_len;
         /*
          * Insert the start chain index in backup chain_buf and
@@ -439,7 +440,7 @@ static void xlnx_sha3_common_chain_buf_copy(XlnxSha3Common *s,
                 s->chain_buf[0x16] = chain_start;
                 buf[copy_len - 1] = chain_start;
             } else if (s->alg == SHA_MODE_SHAKE256_SLH_DSA_CHAIN) {
-                *(uint32_t *)&s->chain_buf[0x2c] =
+                *(uint32_t *)&s->chain_buf[SLH_DSA_HASH_ADDR_OFFSET] =
                     cpu_to_be32(chain_start);
                 *(uint32_t *)&buf[copy_len - 4] =
                     cpu_to_be32(chain_start);
@@ -481,15 +482,15 @@ static size_t xlnx_sha3_common_stream_push(StreamSink *obj,
          */
     case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
         /*
-         * Copy the PK.seed (16 bytes) + ADRS (32 bytes)
-         *  0x00 - 0x10: PK.seed
-         *  0x10 - 0x30: ADRS
-         *     0x10 - 0x14: Layer addr
-         *     0x14 - 0x20: Tree addr
-         *     0x20 - 0x24: Type
-         *     0x24 - 0x28: Key addr
-         *     0x28 - 0x2c: Chain addr
-         *     0x2c - 0x30: Hash addr (this field is updated during chaining)
+         * Copy the PK.seed (32 bytes) + ADRS (32 bytes)
+         *  0x00 - 0x20: PK.seed
+         *  0x20 - 0x40: ADRS
+         *     0x20 - 0x24: Layer addr
+         *     0x24 - 0x30: Tree addr
+         *     0x30 - 0x34: Type
+         *     0x34 - 0x38: Key addr
+         *     0x38 - 0x3c: Chain addr
+         *     0x3c - 0x40: Hash addr (this field is updated during chaining)
          */
         xlnx_sha3_common_chain_buf_copy(s, buf, len);
         break;
