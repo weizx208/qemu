@@ -80,9 +80,27 @@ static XlnxSha3CommonAlg xlnx_sha3_common_get_algorithm(XlnxSha3Common *s)
     return k->get_algorithm(s);
 }
 
+static uint8_t xlnx_sha3_common_get_chain_start(XlnxSha3Common *s)
+{
+    XlnxSha3CommonClass *k = XLNX_SHA3_COMMON_GET_CLASS(s);
+
+    assert(k->get_chain_start);
+    return k->get_chain_start(s);
+}
+
+static uint8_t xlnx_sha3_common_get_chain_steps(XlnxSha3Common *s)
+{
+    XlnxSha3CommonClass *k = XLNX_SHA3_COMMON_GET_CLASS(s);
+
+    assert(k->get_chain_steps);
+    return k->get_chain_steps(s);
+}
+
 static size_t xlnx_sha3_common_block_size(XlnxSha3Common *s)
 {
     switch (s->alg) {
+    case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
+    case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
     case SHA_MODE_256:
     case SHA_MODE_SHAKE256:
     case SHA_MODE_SHAKE256_256:
@@ -106,6 +124,8 @@ static size_t xlnx_sha3_common_digest_size(XlnxSha3Common *s)
         return 384 / 8;
     case SHA_MODE_512:
         return 512 / 8;
+    case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
+    case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
     case SHA_MODE_SHAKE256:
         return 1088 / 8;
     default:
@@ -117,6 +137,8 @@ static size_t xlnx_sha3_common_digest_size(XlnxSha3Common *s)
 static uint8_t xlnx_sha3_common_get_padding_suffix(XlnxSha3Common *s)
 {
     switch (s->alg) {
+    case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
+    case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
     case SHA_MODE_SHAKE256:
     case SHA_MODE_SHAKE256_256:
         return 0x1f;
@@ -150,6 +172,8 @@ void xlnx_sha3_common_start(XlnxSha3Common *s)
     case SHA_MODE_512:
     case SHA_MODE_SHAKE256:
     case SHA_MODE_SHAKE256_256:
+    case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
+    case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
         break;
     default:
         /*
@@ -183,7 +207,9 @@ void xlnx_sha3_common_reset(XlnxSha3Common *s, int reseting)
 void xlnx_sha3_common_next_xof(XlnxSha3Common *s)
 {
     /* User asks 136 additional SHAKE256 digest.  */
-    if (s->alg != SHA_MODE_SHAKE256) {
+    if (!(s->alg == SHA_MODE_SHAKE256 ||
+          s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN ||
+          s->alg == SHA_MODE_SHAKE256_SLH_DSA_CHAIN)) {
         xlnx_sha3_common_log_guest_error(s, __func__,
                                          "IP expected to be in SHAKE256"
                                          " mode\n");
@@ -213,27 +239,17 @@ void xlnx_sha3_common_update_digest(XlnxSha3Common *s)
 }
 
 /*
- * Callback from the DMA, consume the data..  Store them in the data[] block
- * and pass them through to the sponge if a block boundary is crossed.
+ * Handle the received data and pass it to the sponge.
+ * The data is passed to the sponge in blocks of size
+ * xlnx_sha3_common_block_size(s).  The data is stored in
+ * s->data[] until a block is completed.
  */
-static size_t xlnx_sha3_common_stream_push(StreamSink *obj,
-                                           uint8_t *buf,
-                                           size_t len,
-                                           bool eop)
+static bool xlnx_sha3_common_handle_data(XlnxSha3Common *s,
+    uint8_t *buf, size_t len, bool eop)
 {
-    XlnxSha3Common *s = XLNX_SHA3_COMMON(obj);
-    size_t block_size;
+    size_t block_size = xlnx_sha3_common_block_size(s);
     size_t remaining = len;
     bool crossed = false;
-
-    /* Is the crypto block ready to accept data?  */
-    if (s->state != XLNX_SHA3_COMMON_RUNNING) {
-        hw_error("%s: crypto block in bad state %d\n",
-                 object_get_canonical_path(OBJECT(s)), s->state);
-        return 0;
-    }
-
-    block_size = xlnx_sha3_common_block_size(s);
 
     while (remaining) {
         if (s->data_ptr || (remaining < block_size)) {
@@ -296,8 +312,188 @@ static size_t xlnx_sha3_common_stream_push(StreamSink *obj,
         crossed = true;
         s->data_ptr = 0;
     }
+    return crossed;
+}
 
-    if (crossed) {
+static void xlnx_sha3_common_chain_lms_ots(XlnxSha3Common *s)
+{
+    int j;
+    /* Get chain start and steps */
+    uint8_t chain_start = xlnx_sha3_common_get_chain_start(s);
+    uint8_t chain_steps = xlnx_sha3_common_get_chain_steps(s);
+    size_t digest_len = xlnx_sha3_common_digest_size(s);
+    uint32_t digest[XLNX_SHA3_COMMON_MAX_DIGEST_LEN >> 2] = {0};
+    /*
+     * Calculate digest for iteration 0.
+     */
+    keccak_squeeze(&s->sponge, digest_len, &digest);
+    /*
+     * Chaining:
+     * Calculate SHAKE256 on chain_buf[0]..chain_buf[23] + digest
+     * for (chain_steps - chain_start) times.
+     */
+    for (j = chain_start + 1; j < chain_start + chain_steps; j++) {
+        /*
+         * Calculate digest of previous chain iteration.
+         * Note: Digest of first iteration is calculated based on stream data
+         *       and not on chain_buf.
+         */
+        keccak_init(&s->sponge);
+        s->data_ptr = 0;
+        s->chain_buf[22] = j;
+        xlnx_sha3_common_handle_data(s, s->chain_buf, 23, false);
+        xlnx_sha3_common_handle_data(s, (uint8_t *)digest, digest_len, true);
+        if (j < (chain_start + chain_steps - 1)) {
+            /*
+             * Digest for last iteration is not calculated here.
+             * It is calculated in xlnx_sha3_common_update_digest
+             * function.
+             */
+            keccak_squeeze(&s->sponge, digest_len, &digest);
+        }
+    }
+    /*
+     * Clear the chain_buf and cbuf_offset
+     * Final digest is computed at end of xlnx_sha3_common_stream_push function
+     * and not here.
+     */
+    memset(s->chain_buf, 0, sizeof(s->chain_buf));
+    s->cbuf_offset = 0;
+}
+
+static void xlnx_sha3_common_chain_slh_dsa(XlnxSha3Common *s)
+{
+    uint32_t j;
+    /* Get chain start and steps */
+    uint8_t chain_start = xlnx_sha3_common_get_chain_start(s);
+    uint8_t chain_steps = xlnx_sha3_common_get_chain_steps(s);
+    size_t digest_len = xlnx_sha3_common_digest_size(s);
+    uint32_t digest[XLNX_SHA3_COMMON_MAX_DIGEST_LEN >> 2] = {0};
+
+    /*
+     * Calculate digest for iteration 0.
+     */
+    keccak_squeeze(&s->sponge, digest_len, &digest);
+
+    /*
+     * Calculate SHAKE256 on chain_buf[0]..chain_buf[47] + digest
+     */
+    for (j = chain_start + 1; j < chain_start + chain_steps; j++) {
+        /*
+         * Calculate digest of previous chain iteration.
+         * Note: Digest of first iteration is calculated based on stream data
+         *       and not on chain_buf.
+         */
+        keccak_init(&s->sponge);
+        s->data_ptr = 0;
+        *(uint32_t *)&s->chain_buf[0x2c] = cpu_to_be32(j);
+        xlnx_sha3_common_handle_data(s, s->chain_buf, 48, false);
+        xlnx_sha3_common_handle_data(s, (uint8_t *) digest, digest_len, true);
+        if (j < (chain_start + chain_steps - 1)) {
+            /*
+             * Digest for last iteration is not calculated here.
+             * It is calculated in xlnx_sha3_common_update_digest
+             * function.
+             */
+            keccak_squeeze(&s->sponge, digest_len, &digest);
+        }
+    }
+    /*
+     * Clear the chain_buf and cbuf_offset
+     * Final digest is computed at end of xlnx_sha3_common_stream_push function
+     * and not here.
+     */
+    memset(s->chain_buf, 0, sizeof(s->chain_buf));
+    s->cbuf_offset = 0;
+}
+
+static void xlnx_sha3_common_chain_buf_copy(XlnxSha3Common *s,
+                                             uint8_t *buf,
+                                             size_t len)
+{
+    uint32_t copy_max = s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN ? 23 : 48;
+    uint32_t copy_len;
+    uint8_t chain_start = xlnx_sha3_common_get_chain_start(s);
+
+    if (s->cbuf_offset < copy_max) {
+        copy_len = s->cbuf_offset + len <= copy_max ? len :
+                                    copy_max - s->cbuf_offset;
+        memcpy(s->chain_buf, buf, copy_len);
+        s->cbuf_offset += copy_len;
+        /*
+         * Insert the start chain index in backup chain_buf and
+         * actual stream buf.
+         */
+        if (s->cbuf_offset == copy_max) {
+            if (s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN) {
+                s->chain_buf[0x16] = chain_start;
+                buf[copy_len - 1] = chain_start;
+            } else if (s->alg == SHA_MODE_SHAKE256_SLH_DSA_CHAIN) {
+                *(uint32_t *)&s->chain_buf[0x2c] =
+                    cpu_to_be32(chain_start);
+                *(uint32_t *)&buf[copy_len - 4] =
+                    cpu_to_be32(chain_start);
+            } else {
+                g_assert_not_reached();
+            }
+        }
+    }
+}
+
+/*
+ * Callback from the DMA, consume the data..  Store them in the data[] block
+ * and pass them through to the sponge if a block boundary is crossed.
+ */
+static size_t xlnx_sha3_common_stream_push(StreamSink *obj,
+                                           uint8_t *buf,
+                                           size_t len,
+                                           bool eop)
+{
+    XlnxSha3Common *s = XLNX_SHA3_COMMON(obj);
+
+    /* Is the crypto block ready to accept data?  */
+    if (s->state != XLNX_SHA3_COMMON_RUNNING) {
+        hw_error("%s: crypto block in bad state %d\n",
+                 object_get_canonical_path(OBJECT(s)), s->state);
+        return 0;
+    }
+
+    switch (s->alg) {
+    case SHA_MODE_SHAKE256_LMS_OTS_CHAIN:
+        /*
+         * Copy the first 23 bytes of data for chaining.
+         *  0x00 - 0x10 : I
+         *  0x10 - 0x14 : q
+         *  0x14 - 0x16 : i
+         *  0x16 - 0x17 : j (this field is updated during chaining)
+         *
+         *  Fallthrough
+         */
+    case SHA_MODE_SHAKE256_SLH_DSA_CHAIN:
+        /*
+         * Copy the PK.seed (16 bytes) + ADRS (32 bytes)
+         *  0x00 - 0x10: PK.seed
+         *  0x10 - 0x30: ADRS
+         *     0x10 - 0x14: Layer addr
+         *     0x14 - 0x20: Tree addr
+         *     0x20 - 0x24: Type
+         *     0x24 - 0x28: Key addr
+         *     0x28 - 0x2c: Chain addr
+         *     0x2c - 0x30: Hash addr (this field is updated during chaining)
+         */
+        xlnx_sha3_common_chain_buf_copy(s, buf, len);
+        break;
+    default:
+        break;
+    }
+
+    if (xlnx_sha3_common_handle_data(s, buf, len, eop)) {
+        /* Handle LMS_OTS/SLH_DSA Chaining */
+        if (s->alg == SHA_MODE_SHAKE256_LMS_OTS_CHAIN) {
+            xlnx_sha3_common_chain_lms_ots(s);
+        } else if (s->alg == SHA_MODE_SHAKE256_SLH_DSA_CHAIN) {
+            xlnx_sha3_common_chain_slh_dsa(s);
+        }
         /* If we cross a block boundary, update the digest.  */
         xlnx_sha3_common_update_digest(s);
     }

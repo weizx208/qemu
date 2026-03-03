@@ -33,6 +33,7 @@
 OBJECT_DECLARE_TYPE(XlnxSha3Common, XlnxSha3CommonClass, XLNX_SHA3_COMMON)
 
 #define XLNX_SHA3_COMMON_MAX_BLOCK_SIZE (144)
+#define XLNX_SHA3_COMMON_CHAIN_BUF_SIZE (48)
 
 enum XlnxSha3CommonAlg {
     SHA_MODE_UNIMPLEMENTED,
@@ -41,6 +42,8 @@ enum XlnxSha3CommonAlg {
     SHA_MODE_512,
     SHA_MODE_SHAKE256,
     SHA_MODE_SHAKE256_256,
+    SHA_MODE_SHAKE256_LMS_OTS_CHAIN,
+    SHA_MODE_SHAKE256_SLH_DSA_CHAIN,
 };
 typedef enum XlnxSha3CommonAlg XlnxSha3CommonAlg;
 
@@ -62,6 +65,8 @@ struct XlnxSha3Common {
     keccak_sponge_t sponge;
     /* Hash algorithm selected when starting.  */
     XlnxSha3CommonAlg alg;
+    uint32_t cbuf_offset;
+    uint8_t chain_buf[XLNX_SHA3_COMMON_CHAIN_BUF_SIZE];
 };
 typedef struct XlnxSha3Common XlnxSha3Common;
 
@@ -84,6 +89,8 @@ struct XlnxSha3CommonClass {
     bool (*is_autopadding_enabled)(XlnxSha3Common *s);
     void (*end_of_packet_notifier)(XlnxSha3Common *s);
     void (*write_digest)(XlnxSha3Common *s, uint32_t *digest, size_t size);
+    uint8_t (*get_chain_start)(XlnxSha3Common *s);
+    uint8_t (*get_chain_steps)(XlnxSha3Common *s);
     XlnxSha3CommonAlg (*get_algorithm)(XlnxSha3Common *s);
 };
 typedef struct XlnxSha3CommonClass XlnxSha3CommonClass;
