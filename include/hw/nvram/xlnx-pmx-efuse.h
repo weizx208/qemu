@@ -76,6 +76,7 @@ typedef enum XlnxEfuseBitIdx {
     XLNX_EFUSE_BIT_PPK5_WR_LK,
     XLNX_EFUSE_BIT_PPK6_WR_LK,
     XLNX_EFUSE_BIT_PPK7_WR_LK,
+    XLNX_EFUSE_BIT_PPK8_WR_LK,
 } XlnxEfuseBitIdx;
 
 typedef enum XlnxEfuseAccessCtrl {
@@ -104,7 +105,8 @@ typedef enum XlnxEfuseAccessCtrl {
     XLNX_EFUSE_AC_TBIT1_PPK4_WR_LK,
     XLNX_EFUSE_AC_TBIT1_PPK5_WR_LK,
     XLNX_EFUSE_AC_TBIT1_PPK6_WR_LK,
-    XLNX_EFUSE_AC_TBIT1_PPK7_WR_LK
+    XLNX_EFUSE_AC_TBIT1_PPK7_WR_LK,
+    XLNX_EFUSE_AC_TBIT1_PPK8_WR_LK
 } XlnxEfuseAccessCtrl;
 
 typedef enum XlnxEfuseAccessCtrlIdx {
