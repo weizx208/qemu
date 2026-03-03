@@ -350,7 +350,8 @@ static void xlnx_sha3_common_chain_lms_ots(XlnxSha3Common *s)
         s->data_ptr = 0;
         s->chain_buf[22] = j;
         xlnx_sha3_common_handle_data(s, s->chain_buf, 23, false);
-        xlnx_sha3_common_handle_data(s, (uint8_t *)digest, digest_len, true);
+        xlnx_sha3_common_handle_data(s, (uint8_t *)digest,
+            XLNX_SHA3_COMMON_CHAIN_DIGEST_LEN, true);
         if (j < (chain_start + chain_steps - 1)) {
             /*
              * Digest for last iteration is not calculated here.
@@ -396,7 +397,8 @@ static void xlnx_sha3_common_chain_slh_dsa(XlnxSha3Common *s)
         s->data_ptr = 0;
         *(uint32_t *)&s->chain_buf[0x2c] = cpu_to_be32(j);
         xlnx_sha3_common_handle_data(s, s->chain_buf, 48, false);
-        xlnx_sha3_common_handle_data(s, (uint8_t *) digest, digest_len, true);
+        xlnx_sha3_common_handle_data(s, (uint8_t *) digest,
+            XLNX_SHA3_COMMON_CHAIN_DIGEST_LEN, true);
         if (j < (chain_start + chain_steps - 1)) {
             /*
              * Digest for last iteration is not calculated here.
