@@ -65,7 +65,8 @@ enum ASU_SHA_MODE {
 
 #define ASU_SHA2_MAX_DIGEST_LEN (512 >> 3)
 #define ASU_SHA2_MAX_BLOCK_SIZE (144)
-#define ASU_SHA2_MAX_CHAIN_BUF_LEN 48
+#define ASU_SHA2_MAX_CHAIN_BUF_LEN 64
+#define ASU_SHA2_SLH_DSA_HASH_ADDR 0x3C
 #define ASU_SHA2_V2_1 0x20001
 
 REG32(SHA_START, 0x0)
@@ -411,8 +412,9 @@ static void asu_sha2_digest_chaining(ASU_SHA2 *s, size_t digest_len,
             len = 23;
             break;
         case SHA_MODE_256_SLH_DSA:
-            *(uint32_t *)&s->chain_buf[0x2c] = cpu_to_be32(j);
-            len = 48;
+            *(uint32_t *)&s->chain_buf[ASU_SHA2_SLH_DSA_HASH_ADDR] =
+                cpu_to_be32(j);
+            len = 64;
             break;
         default:
             g_assert_not_reached();
@@ -485,20 +487,20 @@ static void asu_sha2_chaining_buf_copy(ASU_SHA2 *s,
                                        uint8_t *buf,
                                        size_t len)
 {
-    uint32_t copy_max = s->alg == SHA_MODE_256_LMS_OTS ? 23 : 48;
+    uint32_t copy_max = s->alg == SHA_MODE_256_LMS_OTS ? 23 : 64;
     uint32_t copy_len;
 
     if (s->cbuf_offset < copy_max) {
         copy_len = s->cbuf_offset + len <= copy_max ? len :
                                     copy_max - s->cbuf_offset;
-        memcpy(s->chain_buf, buf, copy_len);
+        memcpy(s->chain_buf + s->cbuf_offset, buf, copy_len);
         s->cbuf_offset += copy_len;
         if (s->cbuf_offset == copy_max) {
             if (s->alg == SHA_MODE_256_LMS_OTS) {
                 s->chain_buf[0x16] = ARRAY_FIELD_EX32(s->regs, SHA_CHAIN,
                                                       START);
             } else if (s->alg == SHA_MODE_256_SLH_DSA) {
-                *(uint32_t *)&s->chain_buf[0x2c] =
+                *(uint32_t *)&s->chain_buf[ASU_SHA2_SLH_DSA_HASH_ADDR] =
                     cpu_to_be32(ARRAY_FIELD_EX32(s->regs, SHA_CHAIN,
                                                  START));
             } else {
@@ -546,14 +548,14 @@ static size_t asu_sha2_stream_push(StreamSink *obj,
     case SHA_MODE_256_SLH_DSA:
         /*
          * Copy the PK.seed (16 bytes) + ADRS (32 bytes)
-         *  0x00 - 0x10: PK.seed
-         *  0x10 - 0x30: ADRS
-         *     0x10 - 0x14: Layer addr
-         *     0x14 - 0x20: Tree addr
-         *     0x20 - 0x24: Type
-         *     0x24 - 0x28: Key addr
-         *     0x28 - 0x2c: Chain addr
-         *     0x2c - 0x30: Hash addr (this field is updated during chaining)
+         *  0x00 - 0x20: PK.seed
+         *  0x20 - 0x40: ADRS
+         *     0x20 - 0x24: Layer addr
+         *     0x24 - 0x30: Tree addr
+         *     0x30 - 0x34: Type
+         *     0x34 - 0x38: Key addr
+         *     0x38 - 0x3c: Chain addr
+         *     0x3c - 0x40: Hash addr (this field is updated during chaining)
          */
         asu_sha2_chaining_buf_copy(s, buf, len);
         break;
