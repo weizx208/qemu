@@ -174,6 +174,9 @@ static size_t xc2vp3202_efuse_mapping_get_bit_idx(XlnxEfuseMapIf *iface,
     case XLNX_EFUSE_BIT_PPK7_WR_LK:
         return 0x3fc;
 
+    case XLNX_EFUSE_BIT_PPK8_WR_LK:
+        return 0x3fd;
+
     case XLNX_EFUSE_BIT_AES_CRC_LK_0:
         return 0x5a9;
 

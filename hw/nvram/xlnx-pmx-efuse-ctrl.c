@@ -229,7 +229,9 @@ static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
     case XLNX_EFUSE_AC_DME:
         return s->ac_dme;
     case XLNX_EFUSE_AC_DNA:
-        return s->ac_dna;
+        return s->ac_dna
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_DNA_WR_LK);
     case XLNX_EFUSE_AC_FACTORY:
         return s->ac_factory;
     case XLNX_EFUSE_AC_RFSOC:
@@ -303,6 +305,10 @@ static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
         return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
             || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
                                       XLNX_EFUSE_BIT_PUF_SYN_LK);
+    case XLNX_EFUSE_AC_TBIT1_PPK8_WR_LK:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK8_WR_LK);
     default:
         g_assert_not_reached();
     }
