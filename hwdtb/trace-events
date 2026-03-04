@@ -1,1 +1,3 @@
-# traces TODO
+hwdtb_node_parse(const char *path) "%s"
+hwdtb_node_parse_connection(const char *path, const char *kind, size_t index, const char *target, const char *tuple) "%s: %s[%zu] -> %s[%s]"
+hwdtb_node_phandle(const char *path, uint32_t phandle) "%s: %" PRIu32

@@ -16,6 +16,281 @@
 
 #include <libfdt.h>
 
+const char *hwdtb_node_get_name(const HwDtbNode *node)
+{
+    if (node->parent == NULL) {
+        return "(root)";
+    }
+
+    return fdt_get_name(node->hwdtb->fdt, node->offset, NULL);
+}
+
+const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
+                                               const char *prop_name,
+                                               size_t *len)
+{
+    int offset;
+
+    fdt_for_each_property_offset(offset, node->hwdtb->fdt, node->offset) {
+        const struct fdt_property *prop;
+        const char *n;
+        int l;
+
+        prop = fdt_get_property_by_offset(node->hwdtb->fdt, offset, &l);
+        if (prop == NULL) {
+            return NULL;
+        }
+
+        n = fdt_get_string(node->hwdtb->fdt, fdt32_ld(&prop->nameoff), NULL);
+
+        if (!strcmp(n, prop_name)) {
+            if (len) {
+                *len = l;
+            }
+            return prop;
+        }
+    }
+
+    return NULL;
+}
+
+bool hwdtb_node_has_prop(const HwDtbNode *node, const char *prop_name)
+{
+    return hwdtb_node_get_prop(node, prop_name, NULL) != NULL;
+}
+
+bool hwdtb_fdt_prop_parse_uint(const struct fdt_property *prop, size_t skip,
+                               size_t max, uint64_t *ret, size_t *lenp)
+{
+    size_t len = fdt32_to_cpu(prop->len);
+    const char *data = prop->data;
+
+    if (skip >= len) {
+        return false;
+    }
+
+    len -= skip;
+    data += skip;
+
+    len = max ?: len;
+
+    switch (len) {
+    case 1:
+        *ret = prop->data[0];
+        break;
+
+    case 2:
+        /* fdt16_ld is available in recent libfdt versions only */
+        *ret = lduw_be_p((uint16_t *) data);
+        break;
+
+    case 4:
+        *ret = fdt32_ld((fdt32_t *) data);
+        break;
+
+    case 8:
+        *ret = fdt64_ld((fdt64_t *) data);
+        break;
+
+    default:
+        return false;
+    }
+
+    if (lenp) {
+        *lenp = len;
+    }
+
+    return true;
+}
+
+bool hwdtb_fdt_prop_parse_uint64(const struct fdt_property *prop,
+                                 uint64_t *ret)
+{
+    size_t len;
+
+    if (!hwdtb_fdt_prop_parse_uint(prop, 0, 0, ret, &len)) {
+        return false;
+    }
+
+    return len == 8;
+}
+
+bool hwdtb_fdt_prop_parse_uint32(const struct fdt_property *prop,
+                                 uint32_t *ret)
+{
+    uint64_t v;
+    size_t len;
+
+    if (!hwdtb_fdt_prop_parse_uint(prop, 0, 0, &v, &len)) {
+        return false;
+    }
+
+    if (len != 4) {
+        return false;
+    }
+
+    *ret = v;
+    return true;
+}
+
+bool hwdtb_fdt_prop_parse_nth_uint32(const struct fdt_property *prop,
+                                     size_t idx, uint32_t *ret)
+{
+    uint64_t v;
+    size_t len;
+
+    if (!hwdtb_fdt_prop_parse_uint(prop, idx * sizeof(fdt32_t), sizeof(fdt32_t),
+                                   &v, &len)) {
+        return false;
+    }
+
+    if (len != 4) {
+        return false;
+    }
+
+    *ret = v;
+    return true;
+}
+
+const char *hwdtb_fdt_prop_parse_string(const struct fdt_property *prop)
+{
+    const char *ret;
+    size_t prop_len = fdt32_ld(&prop->len);
+
+    ret = prop->data;
+
+    if (ret[prop_len - 1] != '\0') {
+        return NULL;
+    }
+
+    return ret;
+}
+
+const char *hwdtb_fdt_prop_parse_next_string(const struct fdt_property *prop,
+                                             const char *prev)
+{
+    size_t len, prev_len;
+
+    if (prev == NULL) {
+        return hwdtb_fdt_prop_parse_string(prop);
+    }
+
+    len = fdt32_to_cpu(prop->len);
+    prev_len = strlen(prev) + 1;
+
+    if (((prev - prop->data) + prev_len) == len) {
+        /* reached the last string */
+        return NULL;
+    }
+
+    return prev + prev_len;
+}
+
+bool hwdtb_node_get_prop_uint(const HwDtbNode *node, const char *prop_name,
+                              uint64_t *ret)
+{
+    const struct fdt_property *prop;
+
+    prop = hwdtb_node_get_prop(node, prop_name, NULL);
+
+    if (prop == NULL) {
+        return false;
+    }
+
+    return hwdtb_fdt_prop_parse_uint((void *) prop, 0, 0, ret, NULL);
+}
+
+bool hwdtb_node_get_prop_uint64(const HwDtbNode *node, const char *prop_name,
+                                uint64_t *val)
+{
+    const struct fdt_property *prop;
+
+    prop = hwdtb_node_get_prop(node, prop_name, NULL);
+
+    if (prop == NULL) {
+        return false;
+    }
+
+    return hwdtb_fdt_prop_parse_uint64(prop, val);
+}
+
+bool hwdtb_node_get_prop_uint32(const HwDtbNode *node, const char *prop_name,
+                                uint32_t *val)
+{
+    const struct fdt_property *prop;
+
+    prop = hwdtb_node_get_prop(node, prop_name, NULL);
+
+    if (prop == NULL) {
+        return false;
+    }
+
+    return hwdtb_fdt_prop_parse_uint32(prop, val);
+}
+
+bool hwdtb_node_get_prop_nth_uint32(const HwDtbNode *node,
+                                    const char *prop_name, size_t idx,
+                                    uint32_t *val)
+{
+    const struct fdt_property *prop;
+
+    prop = hwdtb_node_get_prop(node, prop_name, NULL);
+
+    if (prop == NULL) {
+        return false;
+    }
+
+    return hwdtb_fdt_prop_parse_nth_uint32(prop, idx, val);
+}
+
+const char *hwdtb_node_get_prop_string(const HwDtbNode *node,
+                                       const char *prop_name)
+{
+    const struct fdt_property *prop;
+
+    prop = hwdtb_node_get_prop(node, prop_name, NULL);
+
+    if (prop == NULL) {
+        return NULL;
+    }
+
+    return hwdtb_fdt_prop_parse_string(prop);
+}
+
+const char *hwdtb_node_get_prop_strings(const HwDtbNode *node,
+                                        const char *prop_name,
+                                        const char *prev)
+{
+    const struct fdt_property *prop;
+
+    prop = hwdtb_node_get_prop(node, prop_name, NULL);
+
+    if (prop == NULL) {
+        return NULL;
+    }
+
+    return hwdtb_fdt_prop_parse_next_string(prop, prev);
+}
+
+HwDtbNode *hwdtb_get_node_by_phandle(HwDtb *hwdtb, uint32_t phandle)
+{
+    gpointer lookup;
+
+    lookup = g_hash_table_lookup(hwdtb->node_by_phandle,
+                                 GINT_TO_POINTER(phandle));
+
+    return (HwDtbNode *) lookup;
+}
+
+HwDtbNode *hwdtb_get_node_by_path(HwDtb *hwdtb, const char *path)
+{
+    gpointer lookup;
+
+    lookup = g_hash_table_lookup(hwdtb->node_by_path, path);
+
+    return (HwDtbNode *) lookup;
+}
+
 HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
 {
     HwDtb *hwdtb;
@@ -26,7 +301,7 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
 
     memory_region_transaction_begin();
 
-    /* TODO */
+    hwdtb_parse(hwdtb);
 
     memory_region_transaction_commit();
 
@@ -38,7 +313,23 @@ void hwdtb_create_machine_oneshot(MachineState *machine, void *fdt)
     hwdtb_free(hwdtb_create_machine(machine, fdt));
 }
 
+static void hwdtb_node_free(HwDtbNode *node)
+{
+    HwDtbNode *child, *child_next;
+
+    QSIMPLEQ_FOREACH_SAFE(child, &node->children, link, child_next) {
+        hwdtb_node_free(child);
+    }
+
+    g_free(node->path);
+    g_free(node);
+}
+
 void hwdtb_free(HwDtb *hwdtb)
 {
+    g_hash_table_destroy(hwdtb->node_by_phandle);
+    g_hash_table_destroy(hwdtb->node_by_path);
+
+    hwdtb_node_free(hwdtb->root);
     g_free(hwdtb);
 }
