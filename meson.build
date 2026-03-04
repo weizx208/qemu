@@ -3697,6 +3697,7 @@ if have_system
     'system',
     'ui',
     'hw/remote',
+    'hwdtb',
   ]
 endif
 if have_system or have_user
@@ -3897,6 +3898,7 @@ subdir('fpu')
 subdir('accel')
 subdir('plugins')
 subdir('ebpf')
+subdir('hwdtb')
 
 if 'CONFIG_TCG' in config_all_accel
   subdir('contrib/plugins')
