@@ -272,6 +272,44 @@ const char *hwdtb_node_get_prop_strings(const HwDtbNode *node,
     return hwdtb_fdt_prop_parse_next_string(prop, prev);
 }
 
+bool hwdtb_node_reg_get_first_addr(const HwDtbNode *node, uint64_t *ret)
+{
+    HwDtbRegTuple *reg = QSIMPLEQ_FIRST(&node->reg);
+    HwDtbRegEntry *addr;
+
+    if (reg == NULL) {
+        return false;
+    }
+
+    addr = &reg->entry[HWDTB_REG_ADDR];
+
+    if (!addr->valid) {
+        return false;
+    }
+
+    *ret = addr->val;
+    return true;
+}
+
+bool hwdtb_node_reg_get_first_size(const HwDtbNode *node, uint64_t *ret)
+{
+    HwDtbRegTuple *reg = QSIMPLEQ_FIRST(&node->reg);
+    HwDtbRegEntry *size;
+
+    if (reg == NULL) {
+        return false;
+    }
+
+    size = &reg->entry[HWDTB_REG_SIZE];
+
+    if (!size->valid) {
+        return false;
+    }
+
+    *ret = size->val;
+    return true;
+}
+
 HwDtbNode *hwdtb_get_node_by_phandle(HwDtb *hwdtb, uint32_t phandle)
 {
     gpointer lookup;
@@ -289,6 +327,61 @@ HwDtbNode *hwdtb_get_node_by_path(HwDtb *hwdtb, const char *path)
     lookup = g_hash_table_lookup(hwdtb->node_by_path, path);
 
     return (HwDtbNode *) lookup;
+}
+
+HwDtbRegTuple *hwdtb_node_reg_get_first(HwDtbNode *hwdtb)
+{
+    return QSIMPLEQ_FIRST(&hwdtb->reg);
+}
+
+uint64_t hwdtb_reg_tuple_val_nofail(const HwDtbRegTuple *tuple,
+                                    HwDtbRegEntryKind entry)
+{
+    g_assert(tuple->entry[entry].valid);
+
+    return tuple->entry[entry].val;
+}
+
+uint64_t hwdtb_reg_tuple_val_or(const HwDtbRegTuple *tuple,
+                                HwDtbRegEntryKind entry,
+                                uint64_t def_value)
+{
+    if (tuple == NULL) {
+        return def_value;
+    }
+
+    return tuple->entry[entry].valid ? tuple->entry[entry].val : def_value;
+}
+
+uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
+                                        HwDtbRegTuple *tuple,
+                                        HwDtbRegEntryKind kind,
+                                        uint64_t def_value)
+{
+    uint64_t ret;
+
+    if ((tuple != NULL) && (tuple->entry[kind].valid)) {
+        return tuple->entry[kind].val;
+    } else if (hwdtb_node_get_prop_uint(node, prop, &ret)) {
+        return ret;
+    } else {
+        return def_value;
+    }
+}
+
+void hwdtb_str_append_tuple(GString *str, const GArray *tuple)
+{
+    size_t i;
+    bool comma;
+
+    comma = str->len && isdigit(str->str[str->len - 1]);
+
+    for (i = 0; i < tuple->len; i++) {
+        g_string_append_printf(str, "%s%" PRIu32,
+                               comma ? ", " : "",
+                               g_array_index(tuple, uint32_t, i));
+        comma = true;
+    }
 }
 
 HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
@@ -316,9 +409,14 @@ void hwdtb_create_machine_oneshot(MachineState *machine, void *fdt)
 static void hwdtb_node_free(HwDtbNode *node)
 {
     HwDtbNode *child, *child_next;
+    HwDtbRegTuple *tuple, *tuple_next;
 
     QSIMPLEQ_FOREACH_SAFE(child, &node->children, link, child_next) {
         hwdtb_node_free(child);
+    }
+
+    hwdtb_node_foreach_reg_tuple_safe(tuple, node, tuple_next) {
+        g_free(tuple);
     }
 
     g_free(node->path);

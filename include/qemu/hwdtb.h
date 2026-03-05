@@ -18,6 +18,44 @@
 typedef struct HwDtb HwDtb;
 typedef struct HwDtbNode HwDtbNode;
 
+typedef enum HwDtbRegEntryKind {
+    HWDTB_REG_ADDR,
+    HWDTB_REG_SIZE,
+    HWDTB_REG_BUS,
+    HWDTB_REG_PRIO,
+
+    HWDTB_NUM_REG_KIND
+} HwDtbRegEntryKind;
+
+/**
+ * One entry of any kind.
+ *
+ * @val: the value, at most two fdt cells (64 bits)
+ * @valid: the corresponding kind was found in the tuple. If false this entry
+ *         must be ignored.
+ */
+typedef struct HwDtbRegEntry {
+    uint64_t val;
+    bool valid;
+} HwDtbRegEntry;
+
+/**
+ * A <address size bus prio> tuple, not necessarily with all values valid.
+ *
+ * @target: in case of a reg-extended property, contains the phandle specified
+ *          as the first value in the tuple
+ * @extended: true if the parsed property was reg-extended. see @target.
+ */
+typedef struct HwDtbRegTuple {
+    HwDtbRegEntry entry[HWDTB_NUM_REG_KIND];
+
+    size_t idx;
+    HwDtbNode *target;
+    bool extended;
+
+    QSIMPLEQ_ENTRY(HwDtbRegTuple) link;
+} HwDtbRegTuple;
+
 /**
  * HwDtbNode
  *
@@ -28,6 +66,10 @@ typedef struct HwDtbNode HwDtbNode;
  *         modifications are not permitted during hwdtb machine creation
  * @path full path in the fdt
  *
+ * @reg_num_cells parsed #xxx-cells for the reg property. Inherits the parent
+ *                value if unspecified by the node.
+ * @reg parsed `reg' or `reg-extended' property
+ *
  * @hwdtb the parent hwdtb
  * @parent the parent node in the tree
  *
@@ -37,6 +79,8 @@ typedef struct HwDtbNode HwDtbNode;
 struct HwDtbNode {
     int offset;
     char *path;
+    int reg_num_cells[HWDTB_NUM_REG_KIND];
+    QSIMPLEQ_HEAD(, HwDtbRegTuple) reg;
 
     HwDtb *hwdtb;
     HwDtbNode *parent;
@@ -263,5 +307,60 @@ HwDtbNode *hwdtb_get_node_by_phandle(HwDtb *hwdtb, uint32_t phandle);
  * @return the node at @path, or %NULL if not found
  */
 HwDtbNode *hwdtb_get_node_by_path(HwDtb *hwdtb, const char *path);
+
+/**
+ * hwdtb_node_reg_get_first
+ *
+ * Convenient function to retrieve the first tuple of the reg property of @node
+ *
+ * @return the first tuple of the @node's reg property, or %NULL if @node has no
+ * parsed reg property
+ */
+HwDtbRegTuple *hwdtb_node_reg_get_first(HwDtbNode *node);
+
+/**
+ * hwdtb_node_reg_get_first_addr
+ *
+ * Convenient function to retrieve the address value in the first tuple of the
+ * reg property of @node
+ *
+ * @node the node to query the address on
+ * @ret a pointer to a uint64_t in which the address is written on success
+ *
+ * @return true if the first tuple exists and has a valid address value, false
+ * otherwise. If false is returned, ret is left untouched.
+ */
+bool hwdtb_node_reg_get_first_addr(const HwDtbNode *node, uint64_t *ret);
+
+/**
+ * hwdtb_node_reg_get_first_size
+ *
+ * Convenient function to retrieve the address value in the first tuple of the
+ * reg property of @node
+ *
+ * @node the node to query the address on
+ * @ret a pointer to a uint64_t in which the address is written on success
+ *
+ * @return true if the first tuple exists and has a valid address value, false
+ * otherwise. If false is returned, ret is left untouched.
+ */
+bool hwdtb_node_reg_get_first_size(const HwDtbNode *node, uint64_t *ret);
+
+uint64_t hwdtb_reg_tuple_val_nofail(const HwDtbRegTuple *tuple,
+                                    HwDtbRegEntryKind entry);
+uint64_t hwdtb_reg_tuple_val_or(const HwDtbRegTuple *tuple,
+                                HwDtbRegEntryKind entry, uint64_t def_value);
+uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
+                                        HwDtbRegTuple *tuple,
+                                        HwDtbRegEntryKind kind,
+                                        uint64_t def_value);
+
+#define hwdtb_node_foreach_reg_tuple(tuple_, node_) \
+    QSIMPLEQ_FOREACH((tuple_), &((node_)->reg), link)
+
+#define hwdtb_node_foreach_reg_tuple_safe(tuple_, node_, next_) \
+    QSIMPLEQ_FOREACH_SAFE((tuple_), &((node_)->reg), link, next_)
+
+void hwdtb_str_append_tuple(GString *str, const GArray *tuple);
 
 #endif
