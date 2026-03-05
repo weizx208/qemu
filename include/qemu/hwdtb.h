@@ -62,10 +62,20 @@ typedef struct HwDtbRegTuple {
  * %HWDTB_CON_INTERRUPT: interrupts = <...>
  * %HWDTB_CON_GPIO: gpios = <...>
  * %HWDTB_CON_CLOCK: clocks = <...>
+ *
+ * The rest are legacy kinds that are eventually handled as GPIOs. @see parse.c
+ * for the connection descriptors.
  */
 typedef enum HwDtbConnectionKind {
     HWDTB_CON_INTERRUPT,
     HWDTB_CON_GPIO,
+    HWDTB_CON_POWER_GPIO,
+    HWDTB_CON_RESET_GPIO,
+    HWDTB_CON_INTERRUPT_GPIO,
+
+    /* - Legacy -- pmu_global */
+    HWDTB_CON_ERROR_OUT_GPIO,
+    HWDTB_CON_PWR_STATE_GPIO,
 
     HWDTB_NUM_GPIO_CON,
 

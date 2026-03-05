@@ -59,6 +59,41 @@ static const ConnectionFormatDescr CONNECTION_FORMAT[] = {
         .names = "gpio-names",
     },
 
+    [HWDTB_CON_POWER_GPIO] = {
+        .id = "power-gpio",
+        .spec_extended = "power-gpios",
+        .num_cells = "#gpio-cells",
+        .controller = "gpio-controller",
+    },
+
+    [HWDTB_CON_RESET_GPIO] = {
+        .id = "reset-gpio",
+        .spec_extended = "reset-gpios",
+        .num_cells = "#gpio-cells",
+        .controller = "gpio-controller",
+    },
+
+    [HWDTB_CON_INTERRUPT_GPIO] = {
+        .id = "interrupt-gpio",
+        .spec_extended = "interrupt-gpios",
+        .num_cells = "#gpio-cells",
+        .controller = "gpio-controller",
+    },
+
+    [HWDTB_CON_ERROR_OUT_GPIO] = {
+        .id = "error-out-gpio",
+        .spec_extended = "error-out-gpios",
+        .num_cells = "#gpio-cells",
+        .controller = "gpio-controller",
+    },
+
+    [HWDTB_CON_PWR_STATE_GPIO] = {
+        .id = "pwr-state-gpio",
+        .spec_extended = "pwr-state-gpios",
+        .num_cells = "#gpio-cells",
+        .controller = "gpio-controller",
+    },
+
     [HWDTB_CON_CLOCK] = {
         .id = "clock",
         .spec_extended = "clocks",
