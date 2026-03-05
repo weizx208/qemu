@@ -511,10 +511,17 @@ static bool conn_get_parent_info(HwDtbNode *node, HwDtbNode *parent,
 
     /* retrieve parent #*-cells property */
     if (!hwdtb_node_get_prop_uint32(parent, descr->num_cells, num_cells)) {
+        /*
+         * --- Legacy ---
+         * Some nodes (ZynqMP IPI nodes) have a custom interrupt-map property
+         * but no #interrupt-cells. Remove this hack once those are fixed
+         * (return false here instead).
+         */
         hwdtb_report_err(node,
-                         HWDTB_ERR3(CONN, MISSING_OR_INVAL_PROP, ON_PARENT),
+                         HWDTB_ERR3(CONN, MISSING_OR_INVAL_PROP, ON_PARENT)
+                         ". Defaulting to 1. Please fix the hwdtb.",
                          descr->id, descr->num_cells, parent->path);
-        return false;
+        *num_cells = 1;
     }
 
     if (!descr->controller && !descr->map) {
@@ -722,9 +729,16 @@ static bool conn_target_expand_map(HwDtbNode *node, HwDtbConnectionTarget *map,
     }
 
     if (!hwdtb_node_get_prop_uint32(target, descr->num_cells, &conn_cells)) {
-        hwdtb_report_err(target, HWDTB_ERR2(CONN, MISSING_PROP), descr->id,
+        hwdtb_report_err(target, HWDTB_ERR2(CONN, MISSING_PROP)
+                         ". Defaulting to 1. Please fix the hwdtb.", descr->id,
                          descr->num_cells);
-        return false;
+        /*
+         * --- Legacy ---
+         * Some nodes (ZynqMP IPI nodes) have a custom interrupt-map property
+         * but no #interrupt-cells. Remove this hack once those are fixed
+         * (return false here instead).
+         */
+        conn_cells = 1;
     }
 
     addr_cells = node->parent->reg_num_cells[HWDTB_REG_ADDR];
@@ -1112,7 +1126,13 @@ static void parse_connection(HwDtbNode *node, HwDtbConnectionKind kind,
     /* check if this node has a *-map property and #*-cells property */
     update_nexus_ctx =
         (descr->map && hwdtb_node_has_prop(node, descr->map))
-        && (descr->num_cells && hwdtb_node_has_prop(node, descr->num_cells));
+        /* -- Legacy --
+         * Some nodes (ZynqMP IPI nodes) have a custom interrupt-map property
+         * but no #interrupt-cells. Restore this check once those are fixed
+         * (remove the true ||).
+         */
+        && (true ||
+            (descr->num_cells && hwdtb_node_has_prop(node, descr->num_cells)));
 
     update_parent_ctx =
         descr->parent && hwdtb_node_has_prop(node, descr->parent);
