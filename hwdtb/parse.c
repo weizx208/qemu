@@ -539,15 +539,23 @@ static bool conn_get_parent_info(HwDtbNode *node, HwDtbNode *parent,
     if (!controller_prop && !map_prop) {
         if (descr->map) {
             hwdtb_report_err(node,
-                             HWDTB_ERR3(CONN, MISSING_PROP_OR_PROP, ON_PARENT),
+                             HWDTB_ERR3(CONN, MISSING_PROP_OR_PROP, ON_PARENT)
+                             ". Assuming controller. Please fix the hwdtb.",
                              descr->id, descr->controller, descr->map,
                              parent->path);
         } else {
-            hwdtb_report_err(node, HWDTB_ERR3(CONN, MISSING_PROP, ON_PARENT),
+            hwdtb_report_err(node, HWDTB_ERR3(CONN, MISSING_PROP, ON_PARENT)
+                             ". Assuming controller. Please fix the hwdtb.",
                              descr->id, descr->controller, parent->path);
         }
 
-        return false;
+        /*
+         * -- Legacy --
+         * Assume this is a controller when we have a num-cells property but no
+         * controller nor map property. Existing DTBs should be fixed and this
+         * hack removed (return false here instead).
+         */
+        controller_prop = true;
     }
 
     *is_map = map_prop;
