@@ -57,6 +57,81 @@ typedef struct HwDtbRegTuple {
 } HwDtbRegTuple;
 
 /**
+ * Connection kind
+ *
+ * %HWDTB_CON_INTERRUPT: interrupts = <...>
+ * %HWDTB_CON_GPIO: gpios = <...>
+ * %HWDTB_CON_CLOCK: clocks = <...>
+ */
+typedef enum HwDtbConnectionKind {
+    HWDTB_CON_INTERRUPT,
+    HWDTB_CON_GPIO,
+
+    HWDTB_NUM_GPIO_CON,
+
+    HWDTB_CON_CLOCK = HWDTB_NUM_GPIO_CON,
+
+    HWDTB_NUM_CON
+} HwDtbConnectionKind;
+
+/**
+ * A connection target
+ *
+ * Used to describe the target of a connection
+ *
+ * @node the node targeted by the connection
+ * @name the connection name on the target. Used only for clocks which have a
+ *       `clock-output-names' property for that.
+ * @tuple the connection tuple
+ * @gpio When the connection refers to a GPIO (or an IRQ), this field describes
+ *       the GPIO as resolved by the GPIO resolution pass. @see HwDtbResolvedGPIO.
+ */
+typedef struct HwDtbConnectionTarget {
+    HwDtbNode *target;
+    const char *name;
+    GArray *tuple;
+} HwDtbConnectionTarget;
+
+/**
+ * A parsed connection on a node. Can be a GPIO or a clock.
+ *
+ * @kind the connection kind
+ * @name the parsed name of the connection. E.g., for GPIOs, this is specified
+ *       using gpio-names in the DTB.
+ * @idx the connection index in the connection tuple.
+ * @targets an array of HwDtbConnectionTarget. Usually connections are 1-1 in a
+ *          DTB. However hwdtb abuse the interrupt-map property to connect one
+ *          output IRQ to multiple inputs.
+ * @gpio When the connection refers to a GPIO (or an IRQ), this field describes
+ *       the GPIO as resolved by the GPIO resolution pass. @see
+ *       HwDtbResolvedGPIO.
+ *
+ * Example:
+ *
+ * foo {
+ *     interrupt-extended = <&bar 0 1 2>;
+ * };
+ *
+ * bar: bar {
+ *     interrupt-controller;
+ *     #interrupt-cells = <3>;
+ * };
+ *
+ * This will create one connection of kind HWDTB_CON_INTERRUPT, with NULL name
+ * (unspecified here, would have been specified using interrupt-names), and
+ * index 0. This connection will have one target with tuple (0, 1, 2).
+ */
+typedef struct HwDtbConnection {
+    HwDtbConnectionKind kind;
+    size_t idx;
+    const char *name;
+
+    GArray *targets;
+
+    QSIMPLEQ_ENTRY(HwDtbConnection) link;
+} HwDtbConnection;
+
+/**
  * HwDtbNode
  *
  * Describes a node from the hwdtb, with additional decorations filled during
@@ -70,6 +145,8 @@ typedef struct HwDtbRegTuple {
  *                value if unspecified by the node.
  * @reg parsed `reg' or `reg-extended' property
  *
+ * @connection parsed connections
+ *
  * @hwdtb the parent hwdtb
  * @parent the parent node in the tree
  *
@@ -81,6 +158,8 @@ struct HwDtbNode {
     char *path;
     int reg_num_cells[HWDTB_NUM_REG_KIND];
     QSIMPLEQ_HEAD(, HwDtbRegTuple) reg;
+
+    QSIMPLEQ_HEAD(, HwDtbConnection) connection[HWDTB_NUM_CON];
 
     HwDtb *hwdtb;
     HwDtbNode *parent;
@@ -360,6 +439,12 @@ uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
 
 #define hwdtb_node_foreach_reg_tuple_safe(tuple_, node_, next_) \
     QSIMPLEQ_FOREACH_SAFE((tuple_), &((node_)->reg), link, next_)
+
+#define hwdtb_node_foreach_connection(conn_, node_, kind_) \
+    QSIMPLEQ_FOREACH((conn_), &((node_)->connection[kind_]), link)
+
+#define hwdtb_node_foreach_connection_safe(conn_, node_, kind_, next_) \
+    QSIMPLEQ_FOREACH_SAFE((conn_), &((node_)->connection[kind_]), link, next_)
 
 void hwdtb_str_append_tuple(GString *str, const GArray *tuple);
 

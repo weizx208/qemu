@@ -406,10 +406,27 @@ void hwdtb_create_machine_oneshot(MachineState *machine, void *fdt)
     hwdtb_free(hwdtb_create_machine(machine, fdt));
 }
 
+static void hwdtb_conn_free(HwDtbConnection *conn)
+{
+    size_t i;
+
+    for (i = 0; i < conn->targets->len; i++) {
+        HwDtbConnectionTarget *target;
+
+        target = &g_array_index(conn->targets, HwDtbConnectionTarget, i);
+        g_array_free(target->tuple, true);
+    }
+
+    g_array_free(conn->targets, true);
+    g_free(conn);
+}
+
 static void hwdtb_node_free(HwDtbNode *node)
 {
     HwDtbNode *child, *child_next;
     HwDtbRegTuple *tuple, *tuple_next;
+    HwDtbConnection *conn, *conn_next;
+    size_t i;
 
     QSIMPLEQ_FOREACH_SAFE(child, &node->children, link, child_next) {
         hwdtb_node_free(child);
@@ -417,6 +434,12 @@ static void hwdtb_node_free(HwDtbNode *node)
 
     hwdtb_node_foreach_reg_tuple_safe(tuple, node, tuple_next) {
         g_free(tuple);
+    }
+
+    for (i = 0; i < HWDTB_NUM_CON; i++) {
+        hwdtb_node_foreach_connection_safe(conn, node, i, conn_next) {
+            hwdtb_conn_free(conn);
+        }
     }
 
     g_free(node->path);
