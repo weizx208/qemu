@@ -3,4 +3,5 @@ system_ss.add(files([
   'resolve.c',
   'factory.c',
   'util.c',
+  'proxy.c',
 ]))

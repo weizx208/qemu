@@ -15,6 +15,22 @@
 #include "qom/object.h"
 #include <libfdt.h>
 
+#define TYPE_HWDTB_PROXY "hwdtb-proxy"
+OBJECT_DECLARE_SIMPLE_TYPE(HwDtbProxyState, HWDTB_PROXY)
+
+typedef enum HwDtbProxyFlags {
+    HWDTB_PROXY_LOCAL_OBJ = (1 << 0), /* local object: object created by hwdtb subsystem */
+    HWDTB_PROXY_PARENT_ON_OBJ = (1 << 1), /* when parenting on the proxy, parent on the aliased object instead */
+} HwDtbProxyFlags;
+
+struct HwDtbProxyState {
+    Object parent;
+
+    Object *proxy;
+    HwDtbProxyFlags flags;
+
+};
+
 typedef struct HwDtb HwDtb;
 typedef struct HwDtbNode HwDtbNode;
 
@@ -324,6 +340,65 @@ void hwdtb_node_register_callback_before(HwDtbNode *node, HwDtbPass pass,
                                          HwDtbPassCallbackFn fn, void *opaque);
 
 void hwdtb_call_callbacks(HwDtb *hwdtb, HwDtbPass pass);
+
+/**
+ * hwdtb_create_proxy
+ *
+ * Create a proxy object for QOM object @obj
+ *
+ * A proxy object has a "proxy" link property pointing to @obj. It is used when
+ * we want to have objects in the hwdtb tree that are not created by the hwdtb
+ * itself. Since they are created outside of hwdtb context, they cannot be
+ * parented in the hwdtb tree, hence this proxy object. The proxy object can be
+ * parented as normal because it is created in the hwdtb context.
+ *
+ * Another use-case is when the object is supposed to be at some place in the
+ * hwdtb tree but we need to parent them elsewhere in practice. This is the case
+ * for the CPUs that must be parented to a CPU cluster to be associated with it.
+ * In that case the CPU is a hwdtb object (so the HWDTB_PROXY_LOCAL_OBJ flag is
+ * used), but elsewhere in the QOM tree.
+ *
+ * When querying the QOM object associated to a hwdtb node, use
+ * hwdtb_get_obj(node) instead of reading node->obj directly. This function
+ * handles proxy objects correctly.
+ *
+ * @obj the object to create a proxy for
+ * @flags flags associated to the proxy
+ *
+ * @return the created proxy object
+ */
+Object *hwdtb_create_proxy(Object *obj, HwDtbProxyFlags flags);
+
+/**
+ * hwdtb_is_proxy
+ *
+ * @return true if the QOM object associated to @node is a proxy object
+ */
+bool hwdtb_is_proxy(const HwDtbNode *node);
+
+/**
+ * hwdtb_proxy_is_to_local
+ *
+ * @return true if @node is the QOM object associated to @node is a proxy
+ * aliasing an object created by the hwdtb subsystem.
+ */
+bool hwdtb_is_proxy_to_local(const HwDtbNode *node);
+
+/**
+ * hwdtb_proxy_is_to_foreign
+ *
+ * @return true if @node is the QOM object associated to @node is a proxy
+ * aliasing an object not created by the hwdtb subsystem.
+ */
+bool hwdtb_is_proxy_to_foreign(const HwDtbNode *node);
+
+/**
+ * hwdtb_proxy_has_flags
+ *
+ * @return true if @node is the QOM object associated to @node is a proxy
+ * and the proxy has the flags @flags set.
+ */
+bool hwdtb_proxy_has_flags(const HwDtbNode *node, HwDtbProxyFlags flags);
 
 /**
  * hwdtb_get_obj

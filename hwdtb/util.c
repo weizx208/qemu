@@ -43,7 +43,11 @@ const char *hwdtb_node_get_name(const HwDtbNode *node)
 
 Object *hwdtb_get_obj(const HwDtbNode *node)
 {
-    return node->obj;
+    if (object_dynamic_cast(node->obj, TYPE_HWDTB_PROXY)) {
+        return object_property_get_link(node->obj, "proxy", &error_abort);
+    } else {
+        return node->obj;
+    }
 }
 
 const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
