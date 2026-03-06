@@ -308,6 +308,7 @@ void hwdtb_parse(HwDtb *hwdtb);
 void hwdtb_resolve(HwDtb *hwdtb);
 void hwdtb_instantiate(HwDtb *hwdtb);
 void hwdtb_set_properties(HwDtb *hwdtb);
+void hwdtb_attach_block_devs(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk

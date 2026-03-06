@@ -13,4 +13,5 @@ hwdtb_node_set_prop_link_proxy(const char *path, const char *prop, const char *v
 hwdtb_node_set_prop_uint(const char *path, const char *prop, uint64_t val) "%s/%s = %" PRIu64
 hwdtb_node_set_prop_int(const char *path, const char *prop, int64_t val) "%s/%s = %" PRId64
 hwdtb_node_set_prop_bool(const char *path, const char *prop, bool val) "%s/%s = %d"
+hwdtb_node_set_prop_drive(const char *path, const char *prop, const char *val) "%s/%s = %s"
 hwdtb_node_auto_parent_cpu_to_cluster(const char *cpu, const char *cpu_type) "%s: auto cluster for type %s"

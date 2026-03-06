@@ -195,4 +195,5 @@ static void hwdtb_set_prop_on_obj(HwDtbNode *node)
 void hwdtb_set_properties(HwDtb *hwdtb)
 {
     hwdtb_walk(hwdtb, hwdtb_set_prop_on_obj);
+    hwdtb_attach_block_devs(hwdtb);
 }

@@ -3,6 +3,7 @@ system_ss.add(files([
   'resolve.c',
   'factory.c',
   'create.c',
+  'blockdev.c',
   'util.c',
   'proxy.c',
   'fdt-input-visitor.c',
