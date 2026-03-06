@@ -199,7 +199,28 @@ static bool visit_fdt_prop_link(FDTInputVisitor *v, const char *name,
         return false;
     }
 
+    /*
+     * -- Legacy --
+     * The legacy fdt_generic code has this hack where it looks for a
+     * <propname>-target link property on the linked object. If found, it uses
+     * the value of this link property as the linked object instead of the one
+     * specified in the hwdtb.
+     */
+    target_prop = g_strconcat(name, "-target", NULL);
     link_obj = hwdtb_get_obj(link);
+
+    if (object_property_find(link_obj, target_prop)) {
+        Object *proxy = object_property_get_link(link_obj, target_prop, errp);
+
+        if (proxy) {
+            *obj = object_get_canonical_path(proxy);
+
+            trace_hwdtb_node_set_prop_link_proxy(v->node->path, name, *obj);
+            return true;
+        }
+
+    }
+
     *obj = object_get_canonical_path(link_obj);
     trace_hwdtb_node_set_prop_link(v->node->path, name, *obj);
     return true;
