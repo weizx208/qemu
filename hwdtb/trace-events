@@ -2,3 +2,7 @@ hwdtb_node_parse(const char *path) "%s"
 hwdtb_node_parse_connection(const char *path, const char *kind, size_t index, const char *target, const char *tuple) "%s: %s[%zu] -> %s[%s]"
 hwdtb_node_parse_conn_map_resolve(const char *path, const char *map_path, const char *kind, const char *src_tuple, const char *target, const char *target_tuple) "%s: %s/%s[%s] -> %s[%s]"
 hwdtb_node_phandle(const char *path, uint32_t phandle) "%s: %" PRIu32
+
+hwdtb_node_resolve_candidates(const char *path, const char *candidates) "%s: %s"
+hwdtb_node_resolve_success(const char *path, const char *type) "%s -> %s"
+hwdtb_node_resolve_failure(const char *path) "%s"

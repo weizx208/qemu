@@ -141,6 +141,8 @@ typedef struct HwDtbConnection {
     QSIMPLEQ_ENTRY(HwDtbConnection) link;
 } HwDtbConnection;
 
+typedef Object *(*HwDtbObjectFactory)(HwDtbNode *);
+
 /**
  * HwDtbNode
  *
@@ -150,6 +152,11 @@ typedef struct HwDtbConnection {
  * @offset offset in the fdt. Note that because offset are cached, fdt
  *         modifications are not permitted during hwdtb machine creation
  * @path full path in the fdt
+ *
+ * @oc Object class resolved from compatible string during the resolve pass
+ * @factory Factory function resolved from compatible string during the resolve
+ *          pass
+ * @obj QOM object created during the creation pass
  *
  * @reg_num_cells parsed #xxx-cells for the reg property. Inherits the parent
  *                value if unspecified by the node.
@@ -166,6 +173,10 @@ typedef struct HwDtbConnection {
 struct HwDtbNode {
     int offset;
     char *path;
+    ObjectClass *oc;
+    HwDtbObjectFactory factory;
+    Object *obj;
+
     int reg_num_cells[HWDTB_NUM_REG_KIND];
     QSIMPLEQ_HEAD(, HwDtbRegTuple) reg;
 
@@ -176,6 +187,14 @@ struct HwDtbNode {
     QSIMPLEQ_HEAD(, HwDtbNode) children;
     QSIMPLEQ_ENTRY(HwDtbNode) link;
 };
+
+/*
+ * Convenient macro to retrieve the QOM object associated with a node, while
+ * converting it to a specific QOM type. This returns NULL if the type
+ * mismatches.
+ */
+#define HWDTB_NODE_AS(node_, qom_type_) \
+    qom_type_(object_dynamic_cast(hwdtb_get_obj(node_), TYPE_ ## qom_type_))
 
 /**
  * The main HwDtb structure
@@ -234,11 +253,35 @@ void hwdtb_free(HwDtb *hwdtb);
 
 /* Entry points of the various passes */
 void hwdtb_parse(HwDtb *hwdtb);
+void hwdtb_resolve(HwDtb *hwdtb);
+
+/*
+ * hwdtb_walk
+ *
+ * Do a pre-order traversal of the @hwdtb tree, calling @fn for each node
+ */
+void hwdtb_walk(HwDtb *hwdtb, void (*fn)(HwDtbNode *node));
 
 #define hwdtb_node_foreach_child(child, parent) \
     QSIMPLEQ_FOREACH((child), &((parent)->children), link)
 
 const char *hwdtb_node_get_name(const HwDtbNode *node);
+
+const char *hwdtb_compat_translate(const char *compat);
+HwDtbObjectFactory hwdtb_get_factory_for_compat(const char *compat);
+HwDtbObjectFactory hwdtb_get_default_factory(void);
+
+/**
+ * hwdtb_get_obj
+ *
+ * Query the QOM object associated with @node
+ *
+ * @node the node on which to query the QOM object
+ *
+ * @return the associated QOM object, or %NULL if the hwdtb creation phase has
+ * not been done yet.
+ */
+Object *hwdtb_get_obj(const HwDtbNode *node);
 
 /* Low-level FDT properties parsing functions */
 bool hwdtb_fdt_prop_parse_uint(const struct fdt_property *prop, size_t skip,

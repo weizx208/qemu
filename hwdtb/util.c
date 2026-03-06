@@ -16,6 +16,22 @@
 
 #include <libfdt.h>
 
+static void hwdtb_walk_node(HwDtbNode *node, void (*fn)(HwDtbNode *node))
+{
+    HwDtbNode *child;
+
+    fn(node);
+
+    hwdtb_node_foreach_child(child, node) {
+        hwdtb_walk_node(child, fn);
+    }
+}
+
+void hwdtb_walk(HwDtb *hwdtb, void (*fn)(HwDtbNode *node))
+{
+    hwdtb_walk_node(hwdtb->root, fn);
+}
+
 const char *hwdtb_node_get_name(const HwDtbNode *node)
 {
     if (node->parent == NULL) {
@@ -23,6 +39,11 @@ const char *hwdtb_node_get_name(const HwDtbNode *node)
     }
 
     return fdt_get_name(node->hwdtb->fdt, node->offset, NULL);
+}
+
+Object *hwdtb_get_obj(const HwDtbNode *node)
+{
+    return node->obj;
 }
 
 const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
@@ -395,6 +416,7 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     memory_region_transaction_begin();
 
     hwdtb_parse(hwdtb);
+    hwdtb_resolve(hwdtb);
 
     memory_region_transaction_commit();
 
