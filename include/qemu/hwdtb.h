@@ -219,6 +219,7 @@ struct HwDtbNode {
 typedef enum HwDtbPass {
     HWDTB_PASS_INSTANTIATE,
     HWDTB_PASS_SET_PROPERTIES,
+    HWDTB_PASS_CONNECT_CLOCK,
     HWDTB_PASS_END,
 
     HWDTB_NUM_PASSES
@@ -318,6 +319,7 @@ void hwdtb_attach_block_devs(HwDtb *hwdtb);
 void hwdtb_attach_net_devs(HwDtb *hwdtb);
 void hwdtb_attach_char_devs(HwDtb *hwdtb);
 void hwdtb_attach_remote_ports(HwDtb *hwdtb);
+void hwdtb_connect_clocks(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk

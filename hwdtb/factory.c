@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/hwdtb.h"
 #include "qom/object.h"
+#include "hw/clock.h"
 #include "error.h"
 #include "trace.h"
 
@@ -31,10 +32,29 @@ static Object *hwdtb_factory_from_oc(HwDtbNode *node)
     return object_new_with_class(node->oc);
 }
 
+static Object *hwdtb_factory_fixed_clock(HwDtbNode *node)
+{
+    uint64_t clock_freq;
+    Object *ret;
+
+    if (!hwdtb_node_get_prop_uint(node, "clock-frequency", &clock_freq)) {
+        clock_freq = 0;
+        hwdtb_report_err(node, HWDTB_ERR2(MISSING_PROP, DEFAULT_VAL_U64),
+                         "clock-frequency", clock_freq);
+    }
+
+    /* FIXME: clock should be created with clock_new. Need the parent */
+    ret = object_new(TYPE_CLOCK);
+    clock_set_hz(CLOCK(ret), clock_freq);
+
+    return ret;
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
 };
 
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
+    { "fixed-clock", hwdtb_factory_fixed_clock },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
