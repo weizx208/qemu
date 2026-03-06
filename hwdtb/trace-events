@@ -17,5 +17,6 @@ hwdtb_node_set_prop_drive(const char *path, const char *prop, const char *val) "
 hwdtb_node_set_prop_nic(const char *path, const char *val) "%s/nic = %s"
 hwdtb_node_set_prop_chr(const char *path, const char *val) "%s/chardev = %s"
 hwdtb_node_set_prop_chr_failure(const char *path) "%s/chardev: no available chardev"
+hwdtb_node_remote_port_dev_bind(const char *path, size_t slot, const char *parent, uint32_t chan) "%s: binding slot %zu to %s[%" PRIu32 "]"
 
 hwdtb_node_auto_parent_cpu_to_cluster(const char *cpu, const char *cpu_type) "%s: auto cluster for type %s"

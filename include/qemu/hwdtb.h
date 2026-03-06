@@ -317,6 +317,7 @@ void hwdtb_set_properties(HwDtb *hwdtb);
 void hwdtb_attach_block_devs(HwDtb *hwdtb);
 void hwdtb_attach_net_devs(HwDtb *hwdtb);
 void hwdtb_attach_char_devs(HwDtb *hwdtb);
+void hwdtb_attach_remote_ports(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk

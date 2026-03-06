@@ -745,7 +745,9 @@ static void rp_realize(DeviceState *dev, Error **errp)
     RemotePort *s = REMOTE_PORT(dev);
     int r;
 
-    s->prefix = object_get_canonical_path(OBJECT(dev));
+    if (s->prefix == NULL) {
+        s->prefix = object_get_canonical_path(OBJECT(dev));
+    }
 
     s->peer.clk_base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
@@ -925,6 +927,7 @@ static const Property rp_properties[] = {
     DEFINE_PROP_BOOL("sync", RemotePort, do_sync, false),
     DEFINE_PROP_UINT64("sync-quantum", RemotePort, peer.local_cfg.quantum,
                        1000000),
+    DEFINE_PROP_STRING("prefix", RemotePort, prefix),
 };
 
 static void rp_init(Object *obj)

@@ -87,7 +87,7 @@ struct RemotePort {
 
     bool resets[32];
 
-    const char *prefix;
+    char *prefix;
     const char *remote_prefix;
 
     uint32_t current_id;

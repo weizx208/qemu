@@ -231,4 +231,5 @@ void hwdtb_set_properties(HwDtb *hwdtb)
     hwdtb_attach_block_devs(hwdtb);
     hwdtb_attach_net_devs(hwdtb);
     hwdtb_attach_char_devs(hwdtb);
+    hwdtb_attach_remote_ports(hwdtb);
 }
