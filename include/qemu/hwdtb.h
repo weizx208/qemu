@@ -218,6 +218,7 @@ struct HwDtbNode {
  */
 typedef enum HwDtbPass {
     HWDTB_PASS_INSTANTIATE,
+    HWDTB_PASS_SET_PROPERTIES,
     HWDTB_PASS_END,
 
     HWDTB_NUM_PASSES
@@ -306,6 +307,7 @@ void hwdtb_free(HwDtb *hwdtb);
 void hwdtb_parse(HwDtb *hwdtb);
 void hwdtb_resolve(HwDtb *hwdtb);
 void hwdtb_instantiate(HwDtb *hwdtb);
+void hwdtb_set_properties(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk
@@ -595,6 +597,15 @@ const char *hwdtb_node_get_prop_strings(const HwDtbNode *node, const char *prop,
  */
 void hwdtb_node_add_child_obj(const HwDtbNode *node, const char *name,
                               Object *child);
+
+/**
+ * hwdtb_node_input_visitor_new
+ *
+ * Create a new input Visitor to parse the FDT properties of @node
+ *
+ * @return the created visitor
+ */
+Visitor *hwdtb_node_input_visitor_new(HwDtbNode *node);
 
 /**
  * hwdtb_get_node_by_phandle

@@ -12,6 +12,7 @@
 #include "qemu/log.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/hwdtb.h"
 #include "qom/object.h"
 #include "hw/qdev-properties.h"
@@ -149,4 +150,49 @@ void hwdtb_instantiate(HwDtb *hwdtb)
     root->obj = hwdtb_create_proxy(OBJECT(hwdtb->machine),
                                    HWDTB_PROXY_PARENT_ON_OBJ);
     instantiate_and_parent_children(hwdtb->root);
+}
+
+static void hwdtb_set_prop_on_obj(HwDtbNode *node)
+{
+    Visitor *v;
+    ObjectPropertyIterator iter;
+    ObjectProperty *prop;
+    Object *obj;
+
+    if (hwdtb_is_proxy_to_foreign(node)) {
+        /* not created by hwdtb, don't try to set properties on it */
+        return;
+    }
+
+    v = hwdtb_node_input_visitor_new(node);
+    obj = hwdtb_get_obj(node);
+
+    object_property_iter_init(&iter, obj);
+    while ((prop = object_property_iter_next(&iter))) {
+        Error *err = NULL;
+
+        if (!hwdtb_node_has_prop(node, prop->name)) {
+            continue;
+        }
+
+        if (!prop->set) {
+            /* read-only property */
+            continue;
+        }
+
+        prop->set(obj, v, prop->name, prop->opaque, &err);
+
+        if (err != NULL) {
+            hwdtb_report_err(node, "error while setting property %s: %s",
+                             prop->name, error_get_pretty(err));
+            error_free(err);
+        }
+    }
+
+    visit_free(v);
+}
+
+void hwdtb_set_properties(HwDtb *hwdtb)
+{
+    hwdtb_walk(hwdtb, hwdtb_set_prop_on_obj);
 }

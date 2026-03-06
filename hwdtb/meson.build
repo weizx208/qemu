@@ -5,4 +5,5 @@ system_ss.add(files([
   'create.c',
   'util.c',
   'proxy.c',
+  'fdt-input-visitor.c',
 ]))
