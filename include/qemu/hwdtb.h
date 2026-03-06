@@ -196,6 +196,24 @@ struct HwDtbNode {
 #define HWDTB_NODE_AS(node_, qom_type_) \
     qom_type_(object_dynamic_cast(hwdtb_get_obj(node_), TYPE_ ## qom_type_))
 
+/*
+ * All the hwdtb passes. Callbacks can be registered for a node, before or after
+ * a pass is run (@see hwdtb_node_register_callback)
+ */
+typedef enum HwDtbPass {
+    HWDTB_PASS_END,
+
+    HWDTB_NUM_PASSES
+} HwDtbPass;
+
+typedef void (*HwDtbPassCallbackFn)(HwDtbNode *node, void *opaque);
+
+typedef struct HwDtbPassCallback {
+    HwDtbPassCallbackFn fn;
+    HwDtbNode *node;
+    void *opaque;
+} HwDtbPassCallback;
+
 /**
  * The main HwDtb structure
  *
@@ -205,6 +223,8 @@ struct HwDtbNode {
  *
  * @node_by_phandle hash table to retrieve a node given a phandle
  * @node_by_path hash table to retrieve a node given a full path
+ *
+ * @callbacks registered callbacks for the various passes
  */
 struct HwDtb {
     MachineState *machine;
@@ -213,6 +233,8 @@ struct HwDtb {
 
     GHashTable *node_by_phandle;
     GHashTable *node_by_path;
+
+    GArray *callbacks[HWDTB_NUM_PASSES];
 };
 
 /**
@@ -270,6 +292,38 @@ const char *hwdtb_node_get_name(const HwDtbNode *node);
 const char *hwdtb_compat_translate(const char *compat);
 HwDtbObjectFactory hwdtb_get_factory_for_compat(const char *compat);
 HwDtbObjectFactory hwdtb_get_default_factory(void);
+
+/**
+ * hwdtb_node_register_callback
+ *
+ * Register a callback for @node to be executed after @pass
+ *
+ * @node the node to call the callback for
+ * @pass the pass after which the callback is called
+ * @fn the callback
+ * @opaque the opaque value passed to the callback
+ */
+void hwdtb_node_register_callback(HwDtbNode *node, HwDtbPass pass,
+                                  HwDtbPassCallbackFn fn, void *opaque);
+
+/**
+ * hwdtb_node_register_callback_before
+ *
+ * Register a callback for @node to be executed before @pass
+ * Pass must be HWDTB_PASS_SET_PROPERTIES or a later pass. It cannot be the
+ * first pass (HWDTB_PASS_INSTANTIATE). If an action is required before
+ * instantiation on a given node, this must be done through a factory function.
+ *
+ * @node the node to call the callback for
+ * @pass the pass before which the callback is called
+ *       (>= HWDTB_PASS_SET_PROPERTIES)
+ * @fn the callback
+ * @opaque the opaque value passed to the callback
+ */
+void hwdtb_node_register_callback_before(HwDtbNode *node, HwDtbPass pass,
+                                         HwDtbPassCallbackFn fn, void *opaque);
+
+void hwdtb_call_callbacks(HwDtb *hwdtb, HwDtbPass pass);
 
 /**
  * hwdtb_get_obj

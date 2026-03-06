@@ -405,18 +405,53 @@ void hwdtb_str_append_tuple(GString *str, const GArray *tuple)
     }
 }
 
+void hwdtb_node_register_callback(HwDtbNode *node, HwDtbPass pass,
+                                  HwDtbPassCallbackFn fn, void *opaque)
+{
+    HwDtbPassCallback cb = { .fn = fn, .node = node, .opaque = opaque };
+
+    g_array_append_val(node->hwdtb->callbacks[pass], cb);
+}
+
+void hwdtb_node_register_callback_before(HwDtbNode *node, HwDtbPass pass,
+                                         HwDtbPassCallbackFn fn, void *opaque)
+{
+    g_assert(pass > 0);
+    hwdtb_node_register_callback(node, pass - 1, fn, opaque);
+}
+
+void hwdtb_call_callbacks(HwDtb *hwdtb, HwDtbPass pass)
+{
+    size_t i;
+
+    for (i = 0; i < hwdtb->callbacks[pass]->len; i++) {
+        HwDtbPassCallback *cb;
+
+        cb = &g_array_index(hwdtb->callbacks[pass], HwDtbPassCallback, i);
+        cb->fn(cb->node, cb->opaque);
+    }
+}
+
 HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
 {
     HwDtb *hwdtb;
+    size_t i;
 
     hwdtb = g_new0(HwDtb, 1);
     hwdtb->machine = machine;
     hwdtb->fdt = fdt;
 
+    for (i = 0; i < HWDTB_NUM_PASSES; i++) {
+        hwdtb->callbacks[i] = g_array_new(false, false,
+                                          sizeof(HwDtbPassCallback));
+    }
+
     memory_region_transaction_begin();
 
     hwdtb_parse(hwdtb);
     hwdtb_resolve(hwdtb);
+
+    hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);
 
     memory_region_transaction_commit();
 
@@ -470,8 +505,14 @@ static void hwdtb_node_free(HwDtbNode *node)
 
 void hwdtb_free(HwDtb *hwdtb)
 {
+    size_t i;
+
     g_hash_table_destroy(hwdtb->node_by_phandle);
     g_hash_table_destroy(hwdtb->node_by_path);
+
+    for (i = 0; i < HWDTB_NUM_PASSES; i++) {
+        g_array_free(hwdtb->callbacks[i], true);
+    }
 
     hwdtb_node_free(hwdtb->root);
     g_free(hwdtb);
