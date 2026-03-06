@@ -6,3 +6,5 @@ hwdtb_node_phandle(const char *path, uint32_t phandle) "%s: %" PRIu32
 hwdtb_node_resolve_candidates(const char *path, const char *candidates) "%s: %s"
 hwdtb_node_resolve_success(const char *path, const char *type) "%s -> %s"
 hwdtb_node_resolve_failure(const char *path) "%s"
+
+hwdtb_node_auto_parent_cpu_to_cluster(const char *cpu, const char *cpu_type) "%s: auto cluster for type %s"

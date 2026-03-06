@@ -50,6 +50,15 @@ Object *hwdtb_get_obj(const HwDtbNode *node)
     }
 }
 
+Object *hwdtb_get_parenting_obj(const HwDtbNode *node)
+{
+    if (hwdtb_proxy_has_flags(node, HWDTB_PROXY_PARENT_ON_OBJ)) {
+        return hwdtb_get_obj(node);
+    } else {
+        return node->obj;
+    }
+}
+
 const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
                                                const char *prop_name,
                                                size_t *len)
@@ -335,6 +344,17 @@ bool hwdtb_node_reg_get_first_size(const HwDtbNode *node, uint64_t *ret)
     return true;
 }
 
+void hwdtb_node_add_child_obj(const HwDtbNode *node, const char *name,
+                              Object *child)
+{
+    g_autofree char *n;
+
+    g_assert(node->obj);
+
+    n = g_strdup_printf("hwdtb-auto<%s>", name);
+    object_property_add_child(hwdtb_get_parenting_obj(node), n, child);
+}
+
 HwDtbNode *hwdtb_get_node_by_phandle(HwDtb *hwdtb, uint32_t phandle)
 {
     gpointer lookup;
@@ -420,7 +440,7 @@ void hwdtb_node_register_callback(HwDtbNode *node, HwDtbPass pass,
 void hwdtb_node_register_callback_before(HwDtbNode *node, HwDtbPass pass,
                                          HwDtbPassCallbackFn fn, void *opaque)
 {
-    g_assert(pass > 0);
+    g_assert(pass > HWDTB_PASS_INSTANTIATE);
     hwdtb_node_register_callback(node, pass - 1, fn, opaque);
 }
 
@@ -445,6 +465,12 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb->machine = machine;
     hwdtb->fdt = fdt;
 
+    hwdtb->node_by_phandle = g_hash_table_new(NULL, NULL);
+    hwdtb->node_by_path = g_hash_table_new(g_str_hash, g_str_equal);
+    hwdtb->cpu_clusters = g_hash_table_new(g_str_hash, g_str_equal);
+    hwdtb->next_cluster_id = 0;
+    hwdtb->num_cpu_found = 0;
+
     for (i = 0; i < HWDTB_NUM_PASSES; i++) {
         hwdtb->callbacks[i] = g_array_new(false, false,
                                           sizeof(HwDtbPassCallback));
@@ -454,6 +480,9 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
 
     hwdtb_parse(hwdtb);
     hwdtb_resolve(hwdtb);
+
+    hwdtb_instantiate(hwdtb);
+    hwdtb_call_callbacks(hwdtb, HWDTB_PASS_INSTANTIATE);
 
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);
 
@@ -513,6 +542,7 @@ void hwdtb_free(HwDtb *hwdtb)
 
     g_hash_table_destroy(hwdtb->node_by_phandle);
     g_hash_table_destroy(hwdtb->node_by_path);
+    g_hash_table_destroy(hwdtb->cpu_clusters);
 
     for (i = 0; i < HWDTB_NUM_PASSES; i++) {
         g_array_free(hwdtb->callbacks[i], true);

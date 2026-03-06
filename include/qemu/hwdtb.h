@@ -217,6 +217,7 @@ struct HwDtbNode {
  * a pass is run (@see hwdtb_node_register_callback)
  */
 typedef enum HwDtbPass {
+    HWDTB_PASS_INSTANTIATE,
     HWDTB_PASS_END,
 
     HWDTB_NUM_PASSES
@@ -240,6 +241,13 @@ typedef struct HwDtbPassCallback {
  * @node_by_phandle hash table to retrieve a node given a phandle
  * @node_by_path hash table to retrieve a node given a full path
  *
+ * @cpu_clusters hash table of automatically created CPU clusters. Indexed by
+ *               CPU type.
+ * @next_cluster_id keep tracks of cluster IDs used by the hwdtb to not clash
+ *                  with them with auto-clusters.
+ *
+ * @num_cpu_found number of CPU found. Used by Zynq7000 legacy code
+ *
  * @callbacks registered callbacks for the various passes
  */
 struct HwDtb {
@@ -249,6 +257,11 @@ struct HwDtb {
 
     GHashTable *node_by_phandle;
     GHashTable *node_by_path;
+
+    GHashTable *cpu_clusters;
+    uint32_t next_cluster_id;
+
+    size_t num_cpu_found;
 
     GArray *callbacks[HWDTB_NUM_PASSES];
 };
@@ -292,6 +305,7 @@ void hwdtb_free(HwDtb *hwdtb);
 /* Entry points of the various passes */
 void hwdtb_parse(HwDtb *hwdtb);
 void hwdtb_resolve(HwDtb *hwdtb);
+void hwdtb_instantiate(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk
@@ -411,6 +425,22 @@ bool hwdtb_proxy_has_flags(const HwDtbNode *node, HwDtbProxyFlags flags);
  * not been done yet.
  */
 Object *hwdtb_get_obj(const HwDtbNode *node);
+
+/**
+ * hwdtb_get_parenting_obj
+ *
+ * Query the QOM object associated with @node. The returned object is meant to
+ * be used for parenting other children objects. If the object associated to the
+ * node is a proxy, the returning object can either be the proxy itself or the
+ * aliased QOM object depending on the proxy flag HWDTB_PROXY_PARENT_ON_OBJ
+ * value.
+ *
+ * @node the node on which to query the QOM object
+ *
+ * @return the associated QOM object, or %NULL if the hwdtb creation phase has
+ * not been done yet.
+ */
+Object *hwdtb_get_parenting_obj(const HwDtbNode *node);
 
 /* Low-level FDT properties parsing functions */
 bool hwdtb_fdt_prop_parse_uint(const struct fdt_property *prop, size_t skip,
@@ -550,6 +580,21 @@ const char *hwdtb_node_get_prop_string(const HwDtbNode *node, const char *prop);
  */
 const char *hwdtb_node_get_prop_strings(const HwDtbNode *node, const char *prop,
                                         const char *prev);
+
+/**
+ * hwdtb_node_add_child_obj
+ *
+ * Add an arbitrary QOM object @child as a child to the QOM object associated
+ * with @node. This function takes care of naming the child using the
+ * hwdtb-auto<> "namespace" to avoid name clashes in the QOM hierarchy.
+ *
+ * @node the node for which the QOM object is looked up and serve as the parent
+ *       for @child
+ * @name the name of the child
+ * @child the object to parent
+ */
+void hwdtb_node_add_child_obj(const HwDtbNode *node, const char *name,
+                              Object *child);
 
 /**
  * hwdtb_get_node_by_phandle
