@@ -15,4 +15,7 @@ hwdtb_node_set_prop_int(const char *path, const char *prop, int64_t val) "%s/%s 
 hwdtb_node_set_prop_bool(const char *path, const char *prop, bool val) "%s/%s = %d"
 hwdtb_node_set_prop_drive(const char *path, const char *prop, const char *val) "%s/%s = %s"
 hwdtb_node_set_prop_nic(const char *path, const char *val) "%s/nic = %s"
+hwdtb_node_set_prop_chr(const char *path, const char *val) "%s/chardev = %s"
+hwdtb_node_set_prop_chr_failure(const char *path) "%s/chardev: no available chardev"
+
 hwdtb_node_auto_parent_cpu_to_cluster(const char *cpu, const char *cpu_type) "%s: auto cluster for type %s"

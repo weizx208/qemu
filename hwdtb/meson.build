@@ -5,6 +5,7 @@ system_ss.add(files([
   'create.c',
   'blockdev.c',
   'netdev.c',
+  'chardev.c',
   'util.c',
   'proxy.c',
   'fdt-input-visitor.c',

@@ -469,6 +469,8 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb->node_by_path = g_hash_table_new(g_str_hash, g_str_equal);
     hwdtb->cpu_clusters = g_hash_table_new(g_str_hash, g_str_equal);
     hwdtb->next_cluster_id = 0;
+    hwdtb->next_serial_hd = 0;
+    hwdtb->reserved_serial_hd = 0;
     hwdtb->num_cpu_found = 0;
 
     for (i = 0; i < HWDTB_NUM_PASSES; i++) {

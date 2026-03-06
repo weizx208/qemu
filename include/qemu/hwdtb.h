@@ -247,6 +247,9 @@ typedef struct HwDtbPassCallback {
  * @next_cluster_id keep tracks of cluster IDs used by the hwdtb to not clash
  *                  with them with auto-clusters.
  *
+ * @next_serial_hd next Chardev to return from the serial_hd() call
+ * @reserved_serial_hd keep tracks of reserved serial_hds by the hwdtb
+ *
  * @num_cpu_found number of CPU found. Used by Zynq7000 legacy code
  *
  * @callbacks registered callbacks for the various passes
@@ -261,6 +264,9 @@ struct HwDtb {
 
     GHashTable *cpu_clusters;
     uint32_t next_cluster_id;
+
+    size_t next_serial_hd;
+    uint32_t reserved_serial_hd;
 
     size_t num_cpu_found;
 
@@ -310,6 +316,7 @@ void hwdtb_instantiate(HwDtb *hwdtb);
 void hwdtb_set_properties(HwDtb *hwdtb);
 void hwdtb_attach_block_devs(HwDtb *hwdtb);
 void hwdtb_attach_net_devs(HwDtb *hwdtb);
+void hwdtb_attach_char_devs(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk

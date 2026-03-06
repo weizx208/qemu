@@ -152,6 +152,35 @@ void hwdtb_instantiate(HwDtb *hwdtb)
     instantiate_and_parent_children(hwdtb->root);
 }
 
+static void set_chardev_prop_reserved(HwDtbNode *node)
+{
+    const char *chardev;
+    unsigned int serial_idx;
+
+    chardev = hwdtb_node_get_prop_string(node, "chardev");
+
+    if (chardev == NULL) {
+        return;
+    }
+
+    if (!strstart(chardev, "serial", NULL)) {
+        return;
+    }
+
+    if (qemu_strtoui(chardev + strlen("serial"), NULL, 10, &serial_idx)) {
+        return;
+    }
+
+    if (serial_idx > 31) {
+        hwdtb_report_err(node, "chardev value `%s' > 31, not supported",
+                         chardev);
+        return;
+    }
+
+    node->hwdtb->reserved_serial_hd |= (1 << serial_idx);
+}
+
+
 static void hwdtb_set_prop_on_obj(HwDtbNode *node)
 {
     Visitor *v;
@@ -180,6 +209,10 @@ static void hwdtb_set_prop_on_obj(HwDtbNode *node)
             continue;
         }
 
+        if (!strcmp(prop->name, "chardev")) {
+            set_chardev_prop_reserved(node);
+        }
+
         prop->set(obj, v, prop->name, prop->opaque, &err);
 
         if (err != NULL) {
@@ -197,4 +230,5 @@ void hwdtb_set_properties(HwDtb *hwdtb)
     hwdtb_walk(hwdtb, hwdtb_set_prop_on_obj);
     hwdtb_attach_block_devs(hwdtb);
     hwdtb_attach_net_devs(hwdtb);
+    hwdtb_attach_char_devs(hwdtb);
 }
