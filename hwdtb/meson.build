@@ -9,6 +9,7 @@ system_ss.add(files([
   'remote-port.c',
   'clock.c',
   'realize.c',
+  'legacy-mmap-iface.c',
   'memory-map.c',
   'util.c',
   'proxy.c',

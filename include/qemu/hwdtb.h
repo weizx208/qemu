@@ -323,6 +323,7 @@ void hwdtb_attach_char_devs(HwDtb *hwdtb);
 void hwdtb_attach_remote_ports(HwDtb *hwdtb);
 void hwdtb_connect_clocks(HwDtb *hwdtb);
 void hwdtb_realize_devs(HwDtb *hwdtb);
+void hwdtb_legacy_mmap_iface(HwDtb *hwdtb);
 void hwdtb_mem_map_nodes(HwDtb *hwdtb);
 
 /*
