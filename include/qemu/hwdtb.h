@@ -100,6 +100,30 @@ typedef enum HwDtbConnectionKind {
     HWDTB_NUM_CON
 } HwDtbConnectionKind;
 
+typedef enum HwDtbGPIOResolutionStatus {
+    HWDTB_GPIO_UNRESOLVED,
+    HWDTB_GPIO_INPUT,
+    HWDTB_GPIO_OUTPUT,
+    HWDTB_GPIO_LEGACY_INTC,
+    HWDTB_GPIO_RESOLUTION_FAILURE,
+} HwDtbGPIOResolutionStatus;
+
+/**
+ * A resolved GPIO
+ *
+ * Found in HwDtbConnection and HwDtbConnectionTarget structs. Describe the GPIO
+ * after it has been resolved by the GPIO resolution pass.
+ *
+ * @sta the resolution status (unresolved, input, output, legacy intc or failure)
+ * @name the QEMU GPIO namespace in which the GPIO can be found on the device
+ * @idx the index of the GPIO in the GPIO namespace
+ */
+typedef struct HwDtbResolvedGPIO {
+    HwDtbGPIOResolutionStatus sta;
+    const char *name; /* GPIO namespace */
+    size_t idx;
+} HwDtbResolvedGPIO;
+
 /**
  * A connection target
  *
@@ -116,6 +140,7 @@ typedef struct HwDtbConnectionTarget {
     HwDtbNode *target;
     const char *name;
     GArray *tuple;
+    HwDtbResolvedGPIO gpio;
 } HwDtbConnectionTarget;
 
 /**
@@ -151,6 +176,7 @@ typedef struct HwDtbConnection {
     HwDtbConnectionKind kind;
     size_t idx;
     const char *name;
+    HwDtbResolvedGPIO gpio;
 
     GArray *targets;
 
@@ -222,6 +248,7 @@ typedef enum HwDtbPass {
     HWDTB_PASS_CONNECT_CLOCK,
     HWDTB_PASS_REALIZE,
     HWDTB_PASS_MEM_MAP,
+    HWDTB_PASS_RESOLVE_GPIO,
     HWDTB_PASS_END,
 
     HWDTB_NUM_PASSES
@@ -325,6 +352,7 @@ void hwdtb_connect_clocks(HwDtb *hwdtb);
 void hwdtb_realize_devs(HwDtb *hwdtb);
 void hwdtb_legacy_mmap_iface(HwDtb *hwdtb);
 void hwdtb_mem_map_nodes(HwDtb *hwdtb);
+void hwdtb_gpio_resolve(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk
@@ -616,6 +644,24 @@ void hwdtb_node_add_child_obj(const HwDtbNode *node, const char *name,
                               Object *child);
 
 /**
+ * hwdtb_node_has_gpio_input
+ *
+ * @return true if the input GPIO (@name, @idx) is found on the qdev associated
+ * to @node.
+ */
+bool hwdtb_node_has_gpio_input(const HwDtbNode *node, const char *name,
+                               size_t idx);
+
+/**
+ * hwdtb_node_has_gpio_output
+ *
+ * @return true if the output GPIO (@name, @idx) is found on the qdev associated
+ * to @node.
+ */
+bool hwdtb_node_has_gpio_output(const HwDtbNode *node, const char *name,
+                               size_t idx);
+
+/**
  * hwdtb_node_input_visitor_new
  *
  * Create a new input Visitor to parse the FDT properties of @node
@@ -703,4 +749,6 @@ uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
 
 void hwdtb_str_append_tuple(GString *str, const GArray *tuple);
 
+const char *hwdtb_gpio_get_resolution_str(const HwDtbResolvedGPIO *gpio);
+bool hwdtb_gpio_is_resolved(const HwDtbResolvedGPIO *gpio);
 #endif

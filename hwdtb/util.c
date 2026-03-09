@@ -355,6 +355,43 @@ void hwdtb_node_add_child_obj(const HwDtbNode *node, const char *name,
     object_property_add_child(hwdtb_get_parenting_obj(node), n, child);
 }
 
+static bool node_has_gpio(const HwDtbNode *node, const char *name, size_t idx,
+                          const char *unnamed_ns, const char *prop_type_prefix)
+{
+    g_autofree char *propname = NULL;
+    DeviceState *dev;
+    ObjectProperty *prop;
+
+    dev = HWDTB_NODE_AS(node, DEVICE);
+
+    if (dev == NULL) {
+        return NULL;
+    }
+
+    name = name ?: unnamed_ns;
+    propname = g_strdup_printf("%s[%zu]", name, idx);
+
+    prop = object_property_find(OBJECT(dev), propname);
+
+    if (prop == NULL) {
+        return false;
+    }
+
+    return strstart(prop->type, prop_type_prefix, NULL);
+}
+
+bool hwdtb_node_has_gpio_output(const HwDtbNode *node, const char *name,
+                               size_t idx)
+{
+    return node_has_gpio(node, name, idx, "unnamed-gpio-out", "link<");
+}
+
+bool hwdtb_node_has_gpio_input(const HwDtbNode *node, const char *name,
+                               size_t idx)
+{
+    return node_has_gpio(node, name, idx, "unnamed-gpio-in", "child<");
+}
+
 HwDtbNode *hwdtb_get_node_by_phandle(HwDtb *hwdtb, uint32_t phandle)
 {
     gpointer lookup;
@@ -429,6 +466,24 @@ void hwdtb_str_append_tuple(GString *str, const GArray *tuple)
     }
 }
 
+const char *hwdtb_gpio_get_resolution_str(const HwDtbResolvedGPIO *gpio)
+{
+    static const char *GPIO_RESO_STR[] = {
+        [HWDTB_GPIO_UNRESOLVED] = "unresolved",
+        [HWDTB_GPIO_INPUT] = "input",
+        [HWDTB_GPIO_OUTPUT] = "output",
+        [HWDTB_GPIO_LEGACY_INTC] = "legacy-intc-iface",
+        [HWDTB_GPIO_RESOLUTION_FAILURE] = "failure",
+    };
+
+    return GPIO_RESO_STR[gpio->sta];
+}
+
+bool hwdtb_gpio_is_resolved(const HwDtbResolvedGPIO *gpio)
+{
+    return gpio->sta != HWDTB_GPIO_UNRESOLVED;
+}
+
 void hwdtb_node_register_callback(HwDtbNode *node, HwDtbPass pass,
                                   HwDtbPassCallbackFn fn, void *opaque)
 {
@@ -498,6 +553,9 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb_legacy_mmap_iface(hwdtb);
     hwdtb_mem_map_nodes(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_MEM_MAP);
+
+    hwdtb_gpio_resolve(hwdtb);
+    hwdtb_call_callbacks(hwdtb, HWDTB_PASS_RESOLVE_GPIO);
 
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);
 
