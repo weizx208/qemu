@@ -2226,11 +2226,7 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
     SMMUState *sys = ARM_SMMU(obj);
     SMMUv3State *s = ARM_SMMUV3(sys);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ObjectClass *klass = object_class_by_name(TYPE_ARM_SMMUV3);
-    FDTGenericMMapClass *parent_fmc;
     unsigned int i;
-
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
 
     for (i = 0; i < (reg.n - 1); i++) {
         SMMUDevice *sdev;
@@ -2251,7 +2247,7 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
         g_free(name);
     }
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
 static void smmuv3_class_init(ObjectClass *klass, const void *data)

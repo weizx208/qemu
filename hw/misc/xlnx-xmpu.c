@@ -312,13 +312,9 @@ bool xmpu_parse_reg_common(XMPU *s, const char *tn, const char *iommu_tn,
                            Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ObjectClass *klass = object_class_by_name(tn);
-    FDTGenericMMapClass *parent_fmc;
     char *name;
     unsigned int i, mid;
     uint64_t prot_base;
-
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
 
     for (i = 0; i < (reg.n - 1); i++) {
         mid = i;
@@ -387,5 +383,5 @@ bool xmpu_parse_reg_common(XMPU *s, const char *tn, const char *iommu_tn,
     }
     s->cfg.nr_masters = (i / 2) + 1;
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }

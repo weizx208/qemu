@@ -2302,11 +2302,7 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
 {
     SMMU *s = XILINX_SMMU500(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ObjectClass *klass = object_class_by_name(TYPE_XILINX_SMMU500);
-    FDTGenericMMapClass *parent_fmc;
     unsigned int i;
-
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
 
     for (i = 0; i < (reg.n - 1); i++) {
         char *name = g_strdup_printf("smmu-tbu%d", i);
@@ -2323,7 +2319,7 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
 
     s->num_tbu = reg.n - 1;
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
 static const Property smmu_properties[] = {

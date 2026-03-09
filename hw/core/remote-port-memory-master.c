@@ -240,8 +240,6 @@ static bool rp_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
                          Error **errp)
 {
     RemotePortMemoryMaster *s = REMOTE_PORT_MEMORY_MASTER(obj);
-    FDTGenericMMapClass *parent_fmc =
-        FDT_GENERIC_MMAP_CLASS(REMOTE_PORT_MEMORY_MASTER_PARENT_CLASS);
     int i;
 
     /* Initialize rp_ops from template.  */
@@ -262,7 +260,7 @@ static bool rp_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
         g_free(name);
     }
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
 static const Property rp_properties[] = {

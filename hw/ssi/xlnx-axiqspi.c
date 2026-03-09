@@ -1980,11 +1980,8 @@ static bool axiqspi_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
                               Error **errp)
 {
     XlnxAXIQSPI *s = XLNX_AXIQSPI(obj);
-    ObjectClass *klass = object_class_by_name(TYPE_XLNX_AXIQSPI);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    FDTGenericMMapClass *parent_fmc;
 
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
     if (s->conf.xip_mode) {
         if (reg.n != 2) {
             error_setg(errp, "axiqspi: XIP mode requires 1 region, but "
@@ -1997,7 +1994,7 @@ static bool axiqspi_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
         sysbus_init_mmio(sbd, &s->xip_mr);
     }
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
 static const VMStateDescription vmstate_axiqspi = {

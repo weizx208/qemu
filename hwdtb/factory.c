@@ -17,6 +17,7 @@
 #include "system/memory.h"
 #include "hw/clock.h"
 #include "hw/sysbus.h"
+#include "hw/usb/hcd-dwc3.h"
 #include "error.h"
 #include "trace.h"
 
@@ -291,6 +292,37 @@ static Object *hwdtb_factory_fixed_clock(HwDtbNode *node)
     return ret;
 }
 
+/*
+ * -- Legacy --
+ * For usb_dwc3 devices, some old DTBs specify two reg tuples. The first one must
+ * be ignored.
+ */
+static Object *hwdtb_factory_usb_dwc3(HwDtbNode *node)
+{
+    size_t i = 0;
+    HwDtbRegTuple *first_tuple, *tuple, *next;
+
+    hwdtb_node_foreach_reg_tuple_safe(tuple, node, next) {
+        if (i == 0) {
+            first_tuple = tuple;
+        }
+
+        if (i == 1) {
+            memcpy(first_tuple->entry, tuple->entry, sizeof(tuple->entry));
+            first_tuple->extended = tuple->extended;
+            first_tuple->target = tuple->target;
+        }
+
+        if (i) {
+            QSIMPLEQ_REMOVE(&node->reg, tuple, HwDtbRegTuple, link);
+        }
+
+        i++;
+    }
+
+    return hwdtb_factory_from_oc(node);
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "simple-bus", TYPE_MEMORY_REGION },
     { "qemu:memory-region", TYPE_MEMORY_REGION },
@@ -299,6 +331,7 @@ static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { TYPE_MEMORY_REGION, hwdtb_factory_memory_region },
     { "fixed-clock", hwdtb_factory_fixed_clock },
+    { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
