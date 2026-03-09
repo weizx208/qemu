@@ -8,6 +8,7 @@ system_ss.add(files([
   'chardev.c',
   'remote-port.c',
   'clock.c',
+  'realize.c',
   'util.c',
   'proxy.c',
   'fdt-input-visitor.c',
