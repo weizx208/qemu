@@ -495,6 +495,9 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb_realize_devs(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_REALIZE);
 
+    hwdtb_mem_map_nodes(hwdtb);
+    hwdtb_call_callbacks(hwdtb, HWDTB_PASS_MEM_MAP);
+
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);
 
     memory_region_transaction_commit();

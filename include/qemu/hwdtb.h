@@ -221,6 +221,7 @@ typedef enum HwDtbPass {
     HWDTB_PASS_SET_PROPERTIES,
     HWDTB_PASS_CONNECT_CLOCK,
     HWDTB_PASS_REALIZE,
+    HWDTB_PASS_MEM_MAP,
     HWDTB_PASS_END,
 
     HWDTB_NUM_PASSES
@@ -322,6 +323,7 @@ void hwdtb_attach_char_devs(HwDtb *hwdtb);
 void hwdtb_attach_remote_ports(HwDtb *hwdtb);
 void hwdtb_connect_clocks(HwDtb *hwdtb);
 void hwdtb_realize_devs(HwDtb *hwdtb);
+void hwdtb_mem_map_nodes(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk
