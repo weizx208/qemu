@@ -1,4 +1,4 @@
-    /*
+/*
  * Physical memory management
  *
  * Copyright 2011 Red Hat, Inc. and/or its affiliates
@@ -1330,72 +1330,6 @@ void memory_region_init(MemoryRegion *mr,
     memory_region_do_init(mr, owner, name, size);
 }
 
-static void memory_region_get_addr(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    uint64_t value = mr->addr;
-
-    visit_type_uint64(v, name, &value, errp);
-}
-
-static void memory_region_set_addr(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    Error *local_err = NULL;
-    uint64_t value;
-
-    visit_type_uint64(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    memory_region_set_address(mr, value);
-}
-
-static void memory_region_set_container(Object *obj, Visitor *v, const char *name,
-                                        void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    Error *local_err = NULL;
-    MemoryRegion *old_container = mr->container;
-    MemoryRegion *new_container = NULL;
-    char *path = NULL;
-
-    visit_type_str(v, name, &path, &local_err);
-
-    if (!local_err && strcmp(path, "") != 0) {
-        new_container = MEMORY_REGION(object_resolve_link(obj, name, path,
-                                      &local_err));
-        while (new_container->alias) {
-            new_container = new_container->alias;
-        }
-    }
-
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    object_ref(OBJECT(new_container));
-
-    memory_region_transaction_begin();
-    memory_region_ref(mr);
-    if (old_container) {
-        memory_region_del_subregion(old_container, mr);
-    }
-    mr->container = new_container;
-    if (new_container) {
-        memory_region_update_container_subregions(mr);
-    }
-    memory_region_unref(mr);
-    memory_region_transaction_commit();
-
-    object_unref(OBJECT(old_container));
-}
-
 static void memory_region_get_container(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
@@ -1420,31 +1354,6 @@ static Object *memory_region_resolve_container(Object *obj, void *opaque,
     return OBJECT(mr->container);
 }
 
-static void memory_region_set_alias(const Object *obj, const char *name,
-                                    Object *val, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    MemoryRegion *subregion, *next;
-
-    /* Be conservative and only allow one shotting for the mo */
-    /* FIXME: Use a softer error than assert */
-    assert (!mr->alias);
-
-    /* FIXME: check we don't already have subregions and
-     * anything else that might be mutex with aliasing
-     */
-
-    memory_region_transaction_begin();
-    QTAILQ_FOREACH_SAFE(subregion, &mr->subregions, subregions_link, next) {
-        object_property_set_link(OBJECT(subregion), "container", OBJECT(val), errp);
-    }
-    memory_region_ref(mr);
-    mr->alias = MEMORY_REGION(val);
-    memory_region_unref(mr);
-    memory_region_transaction_commit();
-    /* FIXME: add cleanup destructors etc etc */
-}
-
 static void memory_region_get_priority(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -1453,100 +1362,6 @@ static void memory_region_get_priority(Object *obj, Visitor *v,
     int32_t value = mr->priority;
 
     visit_type_int32(v, name, &value, errp);
-}
-
-static void memory_region_set_priority(Object *obj, Visitor *v, const char *name,
-                                       void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    Error *local_err = NULL;
-    int32_t value;
-
-    visit_type_uint32(v, name, (uint32_t *)&value, &error_abort);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    if (mr->priority != value) {
-        mr->priority = value;
-        memory_region_readd_subregion(mr);
-    }
-}
-
-static void memory_region_do_set_ram(MemoryRegion *mr)
-{
-    char *c, *filename, *sanitized_name;
-
-    if (mr->addr) {
-        qemu_ram_free(mr->ram_block);
-    }
-    if (int128_eq(mr->size, int128_make64(0))) {
-        return;
-    }
-    switch (mr->ram) {
-    case(0):
-        mr->ram_block = NULL;
-        break;
-    case(1):
-        mr->ram_block = qemu_ram_alloc(int128_get64(mr->size), RAM_SHARED, mr, &error_abort);
-        break;
-    case(2):
-        if (mr->filename) {
-            filename = g_strdup_printf("%s%s%s",
-                                       machine_path ? machine_path : "",
-                                       machine_path ? G_DIR_SEPARATOR_S : "",
-                                       mr->filename);
-        } else {
-            sanitized_name = g_strdup(object_get_canonical_path(OBJECT(mr)));
-
-            for (c = sanitized_name; *c != '\0'; c++) {
-                if (*c == '/') {
-                    *c = '_';
-                }
-            }
-            filename = g_strdup_printf("%s" G_DIR_SEPARATOR_S "qemu-memory-%s",
-                                       machine_path ? machine_path : ".",
-                                       sanitized_name);
-            g_free(sanitized_name);
-        }
-        mr->ram_block = qemu_ram_alloc_from_file(int128_get64(mr->size), mr,
-                                                 RAM_SHARED, filename, 0, &error_abort);
-        g_free(filename);
-        break;
-    default:
-        abort();
-    }
-}
-
-static void memory_region_set_ram(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    Error *local_err = NULL;
-    uint8_t value;
-
-    visit_type_uint8(v, name, &value, &error_abort);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    mr->dirty_log_mask |= tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
-    /* FIXME: Sanitize error handling */
-    /* FIXME: Probably need all that transactions stuff */
-    if (mr->ram == value) {
-        return;
-    }
-
-    mr->ram = value;
-    mr->terminates = !!value; /*FIXME: Wrong */
-
-    if (int128_eq(int128_2_64(), mr->size)) {
-        return;
-    }
-
-    memory_region_do_set_ram(mr);
 }
 
 static void memory_region_get_size(Object *obj, Visitor *v, const char *name,
@@ -1558,40 +1373,6 @@ static void memory_region_get_size(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void memory_region_set_object_size(Object *obj, Visitor *v, const char *name,
-                                          void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    Error *local_err = NULL;
-    uint64_t size;
-
-    visit_type_uint64(v, name, &size, &local_err);
-
-    memory_region_set_size(mr, size);
-}
-
-static void memory_region_get_filename(Object *obj, Visitor *v,
-                                       const char *name,
-                                       void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    char *filename = mr->filename;
-
-    visit_type_str(v, name, &filename, errp);
-}
-
-static void memory_region_set_filename(Object *obj, Visitor *v,
-                                       const char *name,
-                                       void *opaque, Error **errp)
-{
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    Error *local_err = NULL;
-    char *filename;
-
-    visit_type_str(v, name, &filename, &local_err);
-    mr->filename = filename;
-}
-
 static void memory_region_initfn(Object *obj)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
@@ -1601,10 +1382,6 @@ static void memory_region_initfn(Object *obj)
     mr->enabled = true;
     mr->romd_mode = true;
     mr->destructor = memory_region_destructor_none;
-    /* Xilinx: We need this as the default to allow the amba memory regions
-     * to be created correctly.
-     */
-    mr->size = int128_2_64();
     /* Xilinx: for DMAs to work */
     mr->disable_reentrancy_guard = true;
     QTAILQ_INIT(&mr->subregions);
@@ -1613,33 +1390,19 @@ static void memory_region_initfn(Object *obj)
     op = object_property_add(OBJECT(mr), "container",
                              "link<" TYPE_MEMORY_REGION ">",
                              memory_region_get_container,
-                             memory_region_set_container,
+                             NULL, /* memory_region_set_container */
                              NULL, NULL);
     op->resolve = memory_region_resolve_container;
 
-    object_property_add_link(OBJECT(mr), "alias", TYPE_MEMORY_REGION,
-                             (Object **)&mr->alias,
-                             memory_region_set_alias,
-                             0);
-    object_property_add(OBJECT(mr), "addr", "uint64",
-                        memory_region_get_addr,
-                        memory_region_set_addr,
-                        NULL, NULL);
+    object_property_add_uint64_ptr(OBJECT(mr), "addr",
+                                   &mr->addr, OBJ_PROP_FLAG_READ);
     object_property_add(OBJECT(mr), "priority", "uint32",
                         memory_region_get_priority,
-                        memory_region_set_priority,
-                        NULL, NULL);
-    object_property_add(OBJECT(mr), "ram", "uint8",
-                        NULL, /* FIXME: Add getter */
-                        memory_region_set_ram,
-                        NULL, NULL);
-    object_property_add(OBJECT(mr), "filename", "string",
-                        memory_region_get_filename,
-                        memory_region_set_filename,
+                        NULL, /* memory_region_set_priority */
                         NULL, NULL);
     object_property_add(OBJECT(mr), "size", "uint64",
                         memory_region_get_size,
-                        memory_region_set_object_size,
+                        NULL, /* memory_region_set_size, */
                         NULL, NULL);
 }
 
@@ -1921,7 +1684,7 @@ bool memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
 {
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
-    mr->ram = 1;
+    mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc(size, ram_flags, mr, &err);
@@ -1973,7 +1736,7 @@ bool memory_region_init_ram_from_file(MemoryRegion *mr,
 {
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
-    mr->ram = 2;
+    mr->ram = true;
     mr->readonly = !!(ram_flags & RAM_READONLY);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
@@ -2023,7 +1786,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 void *ptr)
 {
     memory_region_init(mr, owner, name, size);
-    mr->ram = 3;
+    mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
 
@@ -3070,9 +2833,6 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size)
     }
     memory_region_transaction_begin();
     mr->size = s;
-    if (mr->ram) {
-        memory_region_do_set_ram(mr);
-    }
     memory_region_update_pending = true;
     memory_region_transaction_commit();
 }
