@@ -78,6 +78,16 @@ static void target_resolve(HwDtbConnection *conn, HwDtbConnectionTarget *target)
         return;
     }
 
+    if (conn->kind == HWDTB_CON_INTERRUPT &&
+        HWDTB_NODE_AS(target->target, FDT_GENERIC_INTC)) {
+        size_t i;
+
+        trace_hwdtb_node_gpio_resolve_legacy_intc(target->target->path);
+        target->gpio.sta = HWDTB_GPIO_LEGACY_INTC;
+
+        return;
+    }
+
     if (target->tuple->len != 1) {
         target->gpio.sta = HWDTB_GPIO_RESOLUTION_FAILURE;
         return;
