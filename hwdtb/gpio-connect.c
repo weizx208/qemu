@@ -39,6 +39,17 @@ static DeviceState *create_child_irq_dev_str_idx(HwDtbNode *node,
     return dev;
 }
 
+static DeviceState *create_child_split_irq_tuple_idx(HwDtbNode *node,
+                                                     const GArray *idx,
+                                                     size_t num_lines)
+{
+    g_autoptr(GString) idx_str = g_string_new("");
+
+    hwdtb_str_append_tuple(idx_str, idx);
+    return create_child_irq_dev_str_idx(node, TYPE_SPLIT_IRQ, "split",
+                                        idx_str->str, num_lines);
+}
+
 static DeviceState *create_child_or_gate_tuple_idx(HwDtbNode *node,
                                                    const GArray *idx,
                                                    size_t num_lines)
@@ -61,6 +72,64 @@ static DeviceState *create_child_split_irq(HwDtbNode *node, const char *name,
                                         num_lines);
 }
 
+static qemu_irq hwdtb_dev_get_legacy_intc_irq(HwDtbNode *node,
+                                              const GArray *tuple,
+                                              GString *descr)
+{
+    FDTGenericIntc *legacy_intc_iface;
+    FDTGenericIntcClass *fdtgic;
+    qemu_irq irq[128], ret;
+    Error *err = NULL;
+    DeviceState *split;
+    size_t num_irq, i;
+
+    legacy_intc_iface = FDT_GENERIC_INTC(hwdtb_get_obj(node));
+    fdtgic = FDT_GENERIC_INTC_GET_CLASS(hwdtb_get_obj(node));
+
+    if (!fdtgic->get_irq) {
+        g_string_assign(descr, "legacy intc iface has no get_irq method");
+        return NULL;
+    }
+
+    /*
+     * The legacy code sets the "max" parameter to the number of CPUs. Don't
+     * bother here and simply create a temporary irq array big enough for all
+     * use-cases.
+     */
+    num_irq = fdtgic->get_irq(legacy_intc_iface, irq, (uint32_t *) tuple->data,
+                              tuple->len, ARRAY_SIZE(irq), &err);
+
+    switch (num_irq) {
+    case 0:
+        g_string_assign(descr, "legacy intc iface returned 0 irq");
+        return NULL;
+
+    case 1:
+        ret = irq[0];
+
+        if (ret == NULL) {
+            g_string_assign(descr, "legacy intc iface returned one NULL irq");
+            return NULL;
+        }
+        break;
+
+    default:
+        split = create_child_split_irq_tuple_idx(node, tuple, num_irq);
+
+        for (i = 0; i < num_irq; i++) {
+            qdev_connect_gpio_out(split, i, irq[i]);
+        }
+
+        ret = qdev_get_gpio_in(split, 0);
+    }
+
+    g_string_assign(descr, "legacy-intc-iface(");
+    hwdtb_str_append_tuple(descr, tuple);
+    g_string_append_printf(descr, ") -> %zu irq(s)", num_irq);
+
+    return ret;
+}
+
 static qemu_irq hwdtb_dev_get_gpio_in_raw(HwDtbConnectionTarget *target,
                                           HwDtbConnectionKind kind,
                                           GString *descr)
@@ -73,8 +142,12 @@ static qemu_irq hwdtb_dev_get_gpio_in_raw(HwDtbConnectionTarget *target,
         g_assert_not_reached();
 
     case HWDTB_GPIO_LEGACY_INTC:
-        /* TODO */
-        return NULL;
+        /*
+         * -- Legacy --
+         * check for FDT_GENERIC_INTC interface on the device.
+         */
+        return hwdtb_dev_get_legacy_intc_irq(target->target, target->tuple,
+                                             descr);
 
     case HWDTB_GPIO_RESOLUTION_FAILURE:
         g_string_assign(descr, "GPIO resolution has failed");
@@ -336,6 +409,31 @@ static void node_perform_connections(HwDtbNode *node,
     }
 }
 
+/*
+ * -- Legacy --
+ * Call the auto_parent method on the legacy FDT_GENERIC_INTC interface if it
+ * exists.
+ */
+static void legacy_intc_call_auto_parent(HwDtbNode *node)
+{
+    FDTGenericIntc *legacy_intc_iface;
+    FDTGenericIntcClass *fgic;
+
+    legacy_intc_iface = HWDTB_NODE_AS(node, FDT_GENERIC_INTC);
+
+    if (!legacy_intc_iface) {
+        return;
+    }
+
+    fgic = FDT_GENERIC_INTC_GET_CLASS(legacy_intc_iface);
+
+    if (!fgic->auto_parent) {
+        return;
+    }
+
+    fgic->auto_parent(legacy_intc_iface, NULL);
+}
+
 static void hwdtb_connect_dev_gpios(HwDtbNode *node)
 {
     size_t i;
@@ -343,6 +441,8 @@ static void hwdtb_connect_dev_gpios(HwDtbNode *node)
     for (i = 0; i < HWDTB_NUM_GPIO_CON; i++) {
         node_perform_connections(node, i);
     }
+
+    legacy_intc_call_auto_parent(node);
 }
 
 void hwdtb_connect_gpios(HwDtb *hwdtb)
