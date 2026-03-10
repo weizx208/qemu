@@ -6046,8 +6046,7 @@ static void pmc_sysmon_set_supplies_prop_set(Object *obj, Visitor *v,
     float val;
     char *opts, **args;
 
-    visit_type_str(v, name, &opts, errp);
-    if (*errp) {
+    if (!visit_type_str(v, name, &opts, errp)) {
         return;
     }
 
