@@ -556,6 +556,7 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
 
     hwdtb_gpio_legacy_resolve(hwdtb);
     hwdtb_gpio_resolve(hwdtb);
+    hwdtb_gpio_legacy_reverse(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_RESOLVE_GPIO);
 
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);

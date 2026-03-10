@@ -354,6 +354,7 @@ void hwdtb_legacy_mmap_iface(HwDtb *hwdtb);
 void hwdtb_mem_map_nodes(HwDtb *hwdtb);
 void hwdtb_gpio_legacy_resolve(HwDtb *hwdtb);
 void hwdtb_gpio_resolve(HwDtb *hwdtb);
+void hwdtb_gpio_legacy_reverse(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk

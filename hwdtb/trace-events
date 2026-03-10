@@ -36,3 +36,4 @@ hwdtb_node_gpio_resolve_legacy_map(const char *path, size_t old_idx, const char 
 hwdtb_node_gpio_resolve_legacy_intc(const char *path) "%s"
 hwdtb_node_gpio_resolve(const char *path, const char *dir, const char *name, size_t idx) "%s: %s:%s[%zu]"
 hwdtb_node_legacy_gpio_deambiguous(const char *path, const char *name, size_t idx, const char *new_dir) "%s: [%s, %zu] new direction: %s"
+hwdtb_node_legacy_gpio_reverse(const char *path, const char *ctrl_name, size_t ctrl_idx, const char *client_path, const char *client_name, size_t client_idx) "%s: [%s,%zu] <--reversed-- %s[%s,%zu]"
