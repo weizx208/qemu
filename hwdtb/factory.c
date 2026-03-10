@@ -13,7 +13,9 @@
 #include "qemu/osdep.h"
 #include "qemu/hwdtb.h"
 #include "qom/object.h"
+#include "qom/object_interfaces.h"
 #include "qapi/error.h"
+#include "crypto/secret.h"
 #include "system/memory.h"
 #include "hw/boards.h"
 #include "hw/clock.h"
@@ -284,6 +286,34 @@ static Object *hwdtb_factory_memory_region(HwDtbNode *node)
 }
 
 /*
+ * secret objects need to be parented under /objects and must have the exact
+ * name they are given in the DTB. Create a proxy for them.
+ * user_creatable_complete must be called on them after the property set pass.
+ */
+static void hwdtb_user_creatable_call_complete(HwDtbNode *node, void *opaque)
+{
+    UserCreatable *uc;
+
+    uc = HWDTB_NODE_AS(node, USER_CREATABLE);
+    user_creatable_complete(uc, &error_abort);
+}
+
+static Object *hwdtb_factory_secret(HwDtbNode *node)
+{
+    Object *secret, *ret;
+
+    secret = hwdtb_factory_from_oc(node);
+    object_property_add_child(object_get_objects_root(),
+                              hwdtb_node_get_name(node), secret);
+    hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                 hwdtb_user_creatable_call_complete, NULL);
+
+    ret = hwdtb_create_proxy(secret, HWDTB_PROXY_LOCAL_OBJ);
+
+    return ret;
+}
+
+/*
  * -- Legacy --
  * Create additional RAM memory regions based on the value of -m command line
  * argument.
@@ -378,6 +408,7 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { "qemu:system-memory", hwdtb_factory_qemu_sysmem },
     { "qemu:memory-region-spec", hwdtb_factory_memory_region_spec },
     { "fixed-clock", hwdtb_factory_fixed_clock },
+    { TYPE_QCRYPTO_SECRET, hwdtb_factory_secret },
     { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
 };
 
