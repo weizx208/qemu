@@ -465,6 +465,7 @@ config XLNX_VERSAL
     select XLNX_USB_SUBSYS
     select XLNX_VERSAL_TRNG
     select XLNX_CSU_DMA
+    select XLNX_AXI_IIC
 
 config XLNX_VERSAL_ARM
     bool
