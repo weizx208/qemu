@@ -91,6 +91,18 @@ static void target_resolve(HwDtbConnection *conn, HwDtbConnectionTarget *target)
         trace_hwdtb_node_gpio_resolve_legacy_intc(target->target->path);
         target->gpio.sta = HWDTB_GPIO_LEGACY_INTC;
 
+        /*
+         * The index in the resolved GPIO is unused when resolved as a
+         * HWDTB_GPIO_LEGACY_INTC. However the HwDtbRegisteredGPIO hash function
+         * uses it to hash the entry. Set it to something derived from to the tuple
+         * value.
+         */
+        target->gpio.idx = 0;
+        for (i = 0; i < target->tuple->len; i++) {
+            uint32_t v = g_array_index(target->tuple, uint32_t, i);
+            target->gpio.idx |= v << (i * 8);
+        }
+
         return;
     }
 
@@ -409,4 +421,40 @@ void hwdtb_gpio_legacy_reverse(HwDtb *hwdtb)
 
     node_get_conns_to_be_reversed(hwdtb->root, &to_be_reversed);
     conns_reverse_direction(&to_be_reversed);
+}
+
+static void conn_target_register_inputs(HwDtbConnectionTarget *target)
+{
+    hwdtb_node_register_gpio(target->target, &target->gpio, 1);
+}
+
+static void conn_register(HwDtbNode *node, HwDtbConnection *conn)
+{
+    size_t i;
+
+    hwdtb_node_register_gpio(node, &conn->gpio, conn->targets->len);
+
+    for (i = 0; i < conn->targets->len; i++) {
+        HwDtbConnectionTarget *target;
+
+        target = &g_array_index(conn->targets, HwDtbConnectionTarget, i);
+        conn_target_register_inputs(target);
+    }
+}
+
+static void node_gpio_register(HwDtbNode *node)
+{
+    HwDtbConnection *conn;
+    HwDtbConnectionKind i;
+
+    for (i = 0; i < HWDTB_NUM_GPIO_CON; i++) {
+        hwdtb_node_foreach_connection(conn, node, i) {
+            conn_register(node, conn);
+        }
+    }
+}
+
+void hwdtb_gpio_register(HwDtb *hwdtb)
+{
+    hwdtb_walk(hwdtb, node_gpio_register);
 }

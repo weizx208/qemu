@@ -285,6 +285,10 @@ static HwDtbNode *hwdtb_node_new(HwDtb *hwdtb, int offset, const GString *path)
         QSIMPLEQ_INIT(&ret->connection[i]);
     }
 
+    ret->gpio_input = g_hash_table_new(hwdtb_resolved_gpio_hash,
+                                       hwdtb_resolved_gpio_equal);
+    ret->gpio_output = g_hash_table_new(hwdtb_resolved_gpio_hash,
+                                       hwdtb_resolved_gpio_equal);
     return ret;
 }
 

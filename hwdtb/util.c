@@ -451,6 +451,97 @@ uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
     }
 }
 
+gboolean hwdtb_resolved_gpio_equal(gconstpointer a, gconstpointer b)
+{
+    const HwDtbResolvedGPIO *ga = a;
+    const HwDtbResolvedGPIO *gb = b;
+
+    if (ga->sta != gb->sta) {
+        return false;
+    }
+
+    if (ga->idx != gb->idx) {
+        return false;
+    }
+
+    if (ga->name == NULL) {
+        return ga->name == gb->name;
+    }
+
+    return !strcmp(ga->name, gb->name);
+}
+
+guint hwdtb_resolved_gpio_hash(gconstpointer a)
+{
+    const HwDtbResolvedGPIO *ga = a;
+    guint ret = 0;
+
+    if (ga->name) {
+        ret += g_str_hash(ga->name);
+    }
+
+    ret += ga->idx;
+    ret += ga->sta << 16;
+
+    return ret;
+}
+
+static HwDtbRegisteredGPIO *
+lookup_registered_gpio(HwDtbNode *node, const HwDtbResolvedGPIO *gpio,
+                       bool create)
+{
+    HwDtbRegisteredGPIO *ret;
+    GHashTable *hash;
+
+    switch (gpio->sta) {
+    case HWDTB_GPIO_OUTPUT:
+        hash = node->gpio_output;
+        break;
+
+    case HWDTB_GPIO_INPUT:
+    case HWDTB_GPIO_LEGACY_INTC:
+        hash = node->gpio_input;
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    ret = g_hash_table_lookup(hash, gpio);
+
+    if ((ret == NULL) && create) {
+        ret = g_new0(HwDtbRegisteredGPIO, 1);
+
+        g_hash_table_insert(hash, (gpointer) gpio, ret);
+    } else {
+        g_assert(ret);
+        g_assert(ret->num_conn > 0);
+    }
+
+    return ret;
+}
+
+void hwdtb_node_register_gpio(HwDtbNode *node, const HwDtbResolvedGPIO *gpio,
+                              size_t num_conn)
+{
+    HwDtbRegisteredGPIO *resolved;
+
+    g_assert(gpio->sta != HWDTB_GPIO_UNRESOLVED);
+
+    if (gpio->sta == HWDTB_GPIO_RESOLUTION_FAILURE) {
+        return;
+    }
+
+    resolved = lookup_registered_gpio(node, gpio, true);
+    resolved->num_conn += num_conn;
+}
+
+HwDtbRegisteredGPIO *
+hwdtb_node_get_registered_gpio(HwDtbNode *node, const HwDtbResolvedGPIO *gpio)
+{
+    return lookup_registered_gpio(node, gpio, false);
+}
+
 void hwdtb_str_append_tuple(GString *str, const GArray *tuple)
 {
     size_t i;
@@ -557,6 +648,7 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb_gpio_legacy_resolve(hwdtb);
     hwdtb_gpio_resolve(hwdtb);
     hwdtb_gpio_legacy_reverse(hwdtb);
+    hwdtb_gpio_register(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_RESOLVE_GPIO);
 
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);
@@ -586,6 +678,28 @@ static void hwdtb_conn_free(HwDtbConnection *conn)
     g_free(conn);
 }
 
+static void hwdtb_node_free_resolved_gpio_ht(GHashTable *ht)
+{
+    GHashTableIter iter;
+    gpointer p_registered_gpio;
+
+    g_hash_table_iter_init(&iter, ht);
+
+    while (g_hash_table_iter_next(&iter, NULL, &p_registered_gpio)) {
+        HwDtbRegisteredGPIO *registered_gpio;
+
+        registered_gpio = (HwDtbRegisteredGPIO *) p_registered_gpio;
+
+        if (registered_gpio->cached_descr) {
+            g_string_free(registered_gpio->cached_descr, true);
+        }
+        g_free(registered_gpio);
+    }
+
+    g_hash_table_destroy(ht);
+
+}
+
 static void hwdtb_node_free(HwDtbNode *node)
 {
     HwDtbNode *child, *child_next;
@@ -606,6 +720,9 @@ static void hwdtb_node_free(HwDtbNode *node)
             hwdtb_conn_free(conn);
         }
     }
+
+    hwdtb_node_free_resolved_gpio_ht(node->gpio_input);
+    hwdtb_node_free_resolved_gpio_ht(node->gpio_output);
 
     g_free(node->path);
     g_free(node);

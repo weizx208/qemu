@@ -125,6 +125,28 @@ typedef struct HwDtbResolvedGPIO {
 } HwDtbResolvedGPIO;
 
 /**
+ * A registered GPIO on a node
+ *
+ * Nodes use this struct in hash tables gpio_input and gpio_output (@see
+ * HwDtbNode). Each time a GPIO is resolved on a device by the resolution pass,
+ * it is registered in such a structure. This is used by the GPIO connection
+ * pass to account for GPIOs with multiple connections. It will create the
+ * corresponding gate (`or-irq', or `split-irq') whether this GPIO is an input
+ * or an output.
+ *
+ * @num_conn number of connection to handle on this device's GPIO
+ * @gate the created gate to handle the multiple connections
+ * @cached_descr used by the connection pass for error and trace reporting
+ * @failure used by the connection pass for error reporting
+ */
+typedef struct HwDtbRegisteredGPIO {
+    size_t num_conn;
+    DeviceState *gate; /* or-irq for inputs, split-irq for outputs */
+    GString *cached_descr;
+    bool failure;
+} HwDtbRegisteredGPIO;
+
+/**
  * A connection target
  *
  * Used to describe the target of a connection
@@ -205,6 +227,10 @@ typedef Object *(*HwDtbObjectFactory)(HwDtbNode *);
  * @reg parsed `reg' or `reg-extended' property
  *
  * @connection parsed connections
+ * @gpio_input hash table of HwDtbRegisteredGPIO. Register connections for input
+ *             GPIOs on this node.
+ * @gpio_output hash table of HwDtbRegisteredGPIO. Register connections for
+ *              output GPIOs on this node.
  *
  * @hwdtb the parent hwdtb
  * @parent the parent node in the tree
@@ -223,6 +249,8 @@ struct HwDtbNode {
     QSIMPLEQ_HEAD(, HwDtbRegTuple) reg;
 
     QSIMPLEQ_HEAD(, HwDtbConnection) connection[HWDTB_NUM_CON];
+    GHashTable *gpio_input;
+    GHashTable *gpio_output;
 
     HwDtb *hwdtb;
     HwDtbNode *parent;
@@ -355,6 +383,7 @@ void hwdtb_mem_map_nodes(HwDtb *hwdtb);
 void hwdtb_gpio_legacy_resolve(HwDtb *hwdtb);
 void hwdtb_gpio_resolve(HwDtb *hwdtb);
 void hwdtb_gpio_legacy_reverse(HwDtb *hwdtb);
+void hwdtb_gpio_register(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk
@@ -749,7 +778,16 @@ uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
 #define hwdtb_node_foreach_connection_safe(conn_, node_, kind_, next_) \
     QSIMPLEQ_FOREACH_SAFE((conn_), &((node_)->connection[kind_]), link, next_)
 
+void hwdtb_node_register_gpio(HwDtbNode *node, const HwDtbResolvedGPIO *gpio,
+                              size_t num_conn);
+
+HwDtbRegisteredGPIO *hwdtb_node_get_registered_gpio(HwDtbNode *node,
+                                                    const HwDtbResolvedGPIO *gpio);
+
 void hwdtb_str_append_tuple(GString *str, const GArray *tuple);
+
+guint hwdtb_resolved_gpio_hash(gconstpointer a);
+gboolean hwdtb_resolved_gpio_equal(gconstpointer a, gconstpointer b);
 
 /**
  * hwdtb_conn_format_get_spec_extended
