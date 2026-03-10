@@ -207,3 +207,22 @@ void hwdtb_quirk_pmc_sysmon_resolve_phandles(HwDtbNode *node, void *opaque)
         pmc_sysmon->ams_sat[i] = hwdtb_get_obj(link_node);
     }
 }
+
+/*
+ * -- Legacy --
+ * The ARM GIC model had a FDT_GENERIC_PROPS interface to hardcode some default
+ * values to the device. This callback restores this legacy behaviours without
+ * touching the device model source code.
+ */
+void hwdtb_legacy_arm_gic_default_prop_values(HwDtbNode *node, void *opaque)
+{
+    Object *obj = hwdtb_get_obj(node);
+
+    object_property_set_bool(obj, "has-security-extensions", true,
+                             &error_abort);
+    object_property_set_bool(obj, "has-virtualization-extensions", true,
+                             &error_abort);
+    object_property_set_int(obj, "num-cpu", node->hwdtb->num_cpu_found,
+                            &error_abort);
+    object_property_set_int(obj, "num-irq", 96, &error_abort);
+}

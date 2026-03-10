@@ -822,5 +822,6 @@ bool hwdtb_gpio_is_resolved(const HwDtbResolvedGPIO *gpio);
  */
 void hwdtb_legacy_armv8_timer_connect(HwDtbNode *node, void *opaque);
 void hwdtb_quirk_pmc_sysmon_resolve_phandles(HwDtbNode *node, void *opaque);
+void hwdtb_legacy_arm_gic_default_prop_values(HwDtbNode *node, void *opaque);
 
 #endif

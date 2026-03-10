@@ -12,6 +12,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/hwdtb.h"
+#include "qemu/units.h"
+#include "qemu/error-report.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
@@ -20,8 +22,18 @@
 #include "hw/boards.h"
 #include "hw/clock.h"
 #include "hw/sysbus.h"
+#include "hw/qdev-properties.h"
+#include "hw/char/serial-mm.h"
+#include "hw/block/flash.h"
 #include "hw/usb/hcd-dwc3.h"
 #include "hw/misc/xlnx-versal-pmc-sysmon.h"
+#include "hw/misc/a9scu.h"
+#include "hw/intc/arm_gic.h"
+#include "hw/intc/xlnx_scu_gic.h"
+#include "hw/i2c/xlnx-axi-iic.h"
+#include "hw/net/xlnx-zynqmp-can.h"
+#include "hw/timer/a9gtimer.h"
+#include "hw/timer/arm_mptimer.h"
 #include "error.h"
 #include "trace.h"
 
@@ -433,9 +445,179 @@ static Object *hwdtb_factory_pmc_sysmon(HwDtbNode *node)
     return hwdtb_factory_from_oc(node);
 }
 
+static Object *hwdtb_factory_arm_gic(HwDtbNode *node)
+{
+    hwdtb_node_register_callback_before(node, HWDTB_PASS_SET_PROPERTIES,
+                                        hwdtb_legacy_arm_gic_default_prop_values,
+                                        NULL);
+    return hwdtb_factory_from_oc(node);
+}
+
+/*
+ * -- Legacy --
+ * Warn about confliting CAN bus names, as used in previous documentation
+ * versions.
+ */
+static Object *hwdtb_factory_xlnx_zynqmp_can(HwDtbNode *node)
+{
+    Object *ret = hwdtb_factory_from_oc(node);
+    const GlobalProperty *prop;
+    const char *CONFLICTING_PROPS[] = { "canbus0", "canbus1" };
+    size_t i;
+
+    for (i = 0; i < ARRAY_SIZE(CONFLICTING_PROPS); i++) {
+        prop = qdev_find_global_prop(ret, CONFLICTING_PROPS[i]);
+
+        if (prop && !strcmp(prop->value, CONFLICTING_PROPS[i])) {
+            warn_report_once("CAN bus name `%s' conflicts with zynqmp-can `%s' "
+                             "property. QEMU will fail. Please change the bus "
+                             "name to avoid conflict.", CONFLICTING_PROPS[i],
+                             CONFLICTING_PROPS[i]);
+        }
+    }
+
+    return ret;
+}
+
+/*
+ * -- Legacy --
+ * This allows parsing of a Linux DTB ns16550 node. This is used by some old
+ * microblaze dtbs/hwdtbs.
+ */
+static Object *hwdtb_factory_ns16550(HwDtbNode *node)
+{
+    uint32_t offset, baudrate;
+    HwDtbRegTuple *first_tuple;
+    Object *obj;
+
+    first_tuple = hwdtb_node_reg_get_first(node);
+
+    /* Apply the reg-offset property value to the mapping address */
+    if ((hwdtb_node_get_prop_uint32(node, "reg-offset", &offset))
+        && first_tuple && first_tuple->entry[HWDTB_REG_ADDR].valid) {
+        first_tuple->entry[HWDTB_REG_ADDR].val += offset;
+    }
+
+    obj = object_new(TYPE_SERIAL_MM);
+
+    if (hwdtb_node_get_prop_uint32(node, "current-speed", &baudrate)) {
+        qdev_prop_set_uint32(DEVICE(obj), "baudbase", baudrate);
+    }
+
+    /* Hardcoded for Xilinx IPs */
+    qdev_prop_set_uint8(DEVICE(obj), "regshift", 2);
+
+    return obj;
+}
+
+/*
+ * -- Legacy --
+ * Handle "cfi-flash" nodes with some hardcoded values (such as the flash ID)
+ */
+static Object *hwdtb_factory_cfi_flash(HwDtbNode *node)
+{
+    HwDtbRegTuple *first_tuple;
+    uint32_t size, bank_width;
+    DeviceState *ret;
+    const uint32_t SECTOR_LEN = 64 * KiB;
+    const uint16_t FLASH_ID[] = { 0x89, 0x18, 0x0, 0x0 };
+    DriveInfo *dinfo;
+
+    first_tuple = hwdtb_node_reg_get_first(node);
+
+    if (!first_tuple) {
+        /* No size information, give up */
+        return hwdtb_factory_from_oc(node);
+    }
+
+    if (!first_tuple->entry[HWDTB_REG_SIZE].valid) {
+        /* No size information, give up */
+        return hwdtb_factory_from_oc(node);
+    }
+
+    size = first_tuple->entry[HWDTB_REG_SIZE].val;
+
+    if (!hwdtb_node_get_prop_uint32(node, "bank-width", &bank_width)) {
+        /* No bank width information, give up */
+        return hwdtb_factory_from_oc(node);
+    }
+
+    ret = qdev_new(TYPE_PFLASH_CFI01);
+
+    qdev_prop_set_uint32(ret, "num-blocks", size / SECTOR_LEN);
+    qdev_prop_set_uint64(ret, "sector-length", SECTOR_LEN);
+    qdev_prop_set_uint8(ret, "width", bank_width);
+    qdev_prop_set_bit(ret, "big-endian", false);
+    qdev_prop_set_uint16(ret, "id0", FLASH_ID[0]);
+    qdev_prop_set_uint16(ret, "id1", FLASH_ID[1]);
+    qdev_prop_set_uint16(ret, "id2", FLASH_ID[2]);
+    qdev_prop_set_uint16(ret, "id3", FLASH_ID[3]);
+    qdev_prop_set_string(ret, "name", node->path);
+
+    dinfo = drive_get_next(IF_PFLASH);
+    if (dinfo) {
+        qdev_prop_set_drive(ret, "drive", blk_by_legacy_dinfo(dinfo));
+    }
+
+    return OBJECT(ret);
+}
+
+/*
+ * -- Legacy --
+ * Zynq7000 support
+ */
+static void zynq_connect_cpu_reset(HwDtbNode *node, void *opaque)
+{
+    CPUState *cpu;
+    DeviceState *slcr = HWDTB_NODE_AS(node, DEVICE);
+    size_t i = 0;
+
+    CPU_FOREACH(cpu) {
+        qemu_irq reset = qdev_get_gpio_in_named(DEVICE(cpu), "reset", 0);
+
+        qdev_connect_gpio_out(slcr, i, reset);
+        i++;
+    }
+}
+
+/*
+ * -- Legacy --
+ * Zynq7000 support
+ */
+static Object *hwdtb_factory_zynq_slcr(HwDtbNode *node)
+{
+    hwdtb_node_register_callback(node, HWDTB_PASS_CONNECT_GPIO,
+                                 zynq_connect_cpu_reset, NULL);
+
+    return hwdtb_factory_from_oc(node);
+}
+
+static void zynq_set_num_cpu(HwDtbNode *node, void *opque)
+{
+    DeviceState *dev = HWDTB_NODE_AS(node, DEVICE);
+
+    qdev_prop_set_uint32(dev, "num-cpu", node->hwdtb->num_cpu_found);
+}
+
+/*
+ * -- Legacy --
+ * Zynq7000 support
+ */
+static Object *hwdtb_factory_zynq_set_num_cpu(HwDtbNode *node)
+{
+    hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                 zynq_set_num_cpu, NULL);
+
+    return hwdtb_factory_from_oc(node);
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "simple-bus", TYPE_MEMORY_REGION },
     { "qemu:memory-region", TYPE_MEMORY_REGION },
+    { "ns16550a", "ns16550" },
+    { "xlnx,axi-iic-2.0", TYPE_XILINX_AXI_IIC },
+    { "xlnx,xps-iic-2.00.a", TYPE_XILINX_AXI_IIC },
+    { "arm,cortex-a9-gic", TYPE_ARM_GIC },
 };
 
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
@@ -447,6 +629,15 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { "armv8-timer", hwdtb_factory_armv8_timer },
     { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
     { TYPE_PMC_SYSMON, hwdtb_factory_pmc_sysmon },
+    { TYPE_ARM_GIC, hwdtb_factory_arm_gic },
+    { TYPE_XLNX_SCU_GIC, hwdtb_factory_arm_gic },
+    { TYPE_XLNX_ZYNQMP_CAN, hwdtb_factory_xlnx_zynqmp_can },
+    { "ns16550", hwdtb_factory_ns16550 },
+    { "cfi-flash", hwdtb_factory_cfi_flash },
+    { "xilinx-zynq_slcr", hwdtb_factory_zynq_slcr },
+    { TYPE_A9_SCU, hwdtb_factory_zynq_set_num_cpu },
+    { TYPE_A9_GTIMER, hwdtb_factory_zynq_set_num_cpu },
+    { TYPE_ARM_MPTIMER, hwdtb_factory_zynq_set_num_cpu },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
