@@ -31,6 +31,7 @@ hwdtb_node_realize(const char *path) "%s"
 hwdtb_node_parent_ssi_target(const char *path, const char *parent, const char *bus, int cs) "%s: parent: %s, bus: %s, cs line: %d"
 hwdtb_node_parent_i2c_target(const char *path, const char *parent, const char *bus, int addr) "%s: parent: %s, bus: %s, address: 0x%x"
 hwdtb_node_parent_i3c_target(const char *path, const char *parent, const char *bus) "%s: parent: %s, bus: %s"
+hwdtb_node_parent_mdio_phy(const char *path, const char *parent, uint8_t reg) "%s: parent: %s, reg: 0x%" PRIx8
 
 hwdtb_node_memory_region_alias_sbd_region(const char *path, const char *sbd, size_t idx) "%s: alias of %s[%zu]"
 hwdtb_node_memory_region_map(const char *path, const char *parent, uint64_t addr) "%s: mapping on %s at 0x%" PRIx64

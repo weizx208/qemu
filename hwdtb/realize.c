@@ -376,6 +376,51 @@ static BusState *get_bus_for_i3c_target(HwDtbNode *node)
     return bus;
 }
 
+/*
+ * PHY nodes are parented to a TYPE_MDIO device. This device exposes a
+ * TYPE_MDIO_BUS bus named "mdio-bus".
+ *
+ * The PHY hwdtb reg property is also a QOM property on PHY devices, so it is
+ * already set at this point.
+ */
+static BusState *get_bus_for_phy(HwDtbNode *node)
+{
+    BusState *bus;
+    DeviceState *parent;
+    uint8_t reg;
+
+    if (!node->parent) {
+        return NULL;
+    }
+
+    parent = HWDTB_NODE_AS(node->parent, DEVICE);
+
+    if (parent == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent is not a device. "
+                      "Cannot query MDIO bus\n", node->path);
+        return NULL;
+    }
+
+    bus = qdev_get_child_bus(parent, "mdio-bus");
+
+    if (bus == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent has no MDIO bus named `mdio-bus'\n",
+                      node->path);
+        return NULL;
+    }
+
+    /*
+     * Retrieve the reg value by reading the device property directly. It has
+     * already been set during the property setting phase. If not specified in
+     * the hwdtb, we'll get the default value.
+     */
+    reg = object_property_get_uint(OBJECT(hwdtb_get_obj(node)), "reg",
+                                   &error_abort);
+
+    trace_hwdtb_node_parent_mdio_phy(node->path, node->parent->path, reg);
+    return bus;
+}
+
 static bool node_needs_bus(HwDtbNode *node, const char *bus_type)
 {
     DeviceClass *dc;
@@ -404,6 +449,10 @@ static BusState *hwdtb_get_bus_for_device(HwDtbNode *node)
 
     if (node_needs_bus(node, TYPE_I3C_BUS)) {
         return get_bus_for_i3c_target(node);
+    }
+
+    if (node_needs_bus(node, TYPE_MDIO_BUS)) {
+        return get_bus_for_phy(node);
     }
 
     if (node_needs_bus(node, TYPE_SYSTEM_BUS)) {
