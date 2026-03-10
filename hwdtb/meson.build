@@ -1,5 +1,6 @@
 system_ss.add(files([
   'parse.c',
+  'legacy-memory-node-probe.c',
   'resolve.c',
   'factory.c',
   'create.c',

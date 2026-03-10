@@ -15,6 +15,7 @@
 #include "qom/object.h"
 #include "qapi/error.h"
 #include "system/memory.h"
+#include "hw/boards.h"
 #include "hw/clock.h"
 #include "hw/sysbus.h"
 #include "hw/usb/hcd-dwc3.h"
@@ -274,6 +275,42 @@ static Object *hwdtb_factory_memory_region(HwDtbNode *node)
     return OBJECT(mr);
 }
 
+/*
+ * -- Legacy --
+ * Create additional RAM memory regions based on the value of -m command line
+ * argument.
+ */
+static Object *hwdtb_factory_memory_region_spec(HwDtbNode *node)
+{
+    HwDtb *hwdtb = node->hwdtb;
+    MachineState *machine = hwdtb->machine;
+    uint64_t node_size, max_size;
+    HwDtbRegTuple *tuple;
+
+    if (hwdtb->fulfilled_ram_amount >= machine->ram_size) {
+        /*
+         * We already have the required amount of RAM. Create a dummy container.
+         */
+        return hwdtb_factory_from_oc(node);
+    }
+
+    if (!hwdtb_node_reg_get_first_size(node, &node_size)) {
+        /*
+         * Legacy code has no support for the size property here. reg is
+         * required.
+         */
+        return hwdtb_factory_from_oc(node);
+    }
+
+    max_size = MIN(machine->ram_size - hwdtb->fulfilled_ram_amount, node_size);
+
+    tuple = hwdtb_node_reg_get_first(node);
+    tuple->entry[HWDTB_REG_SIZE].val = max_size;
+
+    hwdtb->fulfilled_ram_amount += max_size;
+    return hwdtb_factory_memory_region(node);
+}
+
 static Object *hwdtb_factory_fixed_clock(HwDtbNode *node)
 {
     uint64_t clock_freq;
@@ -330,6 +367,7 @@ static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
 
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { TYPE_MEMORY_REGION, hwdtb_factory_memory_region },
+    { "qemu:memory-region-spec", hwdtb_factory_memory_region_spec },
     { "fixed-clock", hwdtb_factory_fixed_clock },
     { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
 };

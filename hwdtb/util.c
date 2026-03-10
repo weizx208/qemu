@@ -627,6 +627,7 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     memory_region_transaction_begin();
 
     hwdtb_parse(hwdtb);
+    hwdtb_legacy_memory_node_probe(hwdtb);
     hwdtb_resolve(hwdtb);
 
     hwdtb_instantiate(hwdtb);

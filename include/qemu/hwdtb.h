@@ -311,6 +311,9 @@ typedef struct HwDtbPassCallback {
  *
  * @num_cpu_found number of CPU found. Used by Zynq7000 legacy code
  *
+ * @fulfilled_ram_amount total amount of memory created
+ * @first_mem_node first memory node found in the hwdtb
+ *
  * @callbacks registered callbacks for the various passes
  */
 struct HwDtb {
@@ -328,6 +331,9 @@ struct HwDtb {
     uint32_t reserved_serial_hd;
 
     size_t num_cpu_found;
+
+    uint64_t fulfilled_ram_amount;
+    HwDtbNode *first_mem_node;
 
     GArray *callbacks[HWDTB_NUM_PASSES];
 };
@@ -370,6 +376,7 @@ void hwdtb_free(HwDtb *hwdtb);
 
 /* Entry points of the various passes */
 void hwdtb_parse(HwDtb *hwdtb);
+void hwdtb_legacy_memory_node_probe(HwDtb *hwdtb);
 void hwdtb_resolve(HwDtb *hwdtb);
 void hwdtb_instantiate(HwDtb *hwdtb);
 void hwdtb_set_properties(HwDtb *hwdtb);
