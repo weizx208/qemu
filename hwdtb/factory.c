@@ -37,6 +37,14 @@ static Object *hwdtb_factory_from_oc(HwDtbNode *node)
     return object_new_with_class(node->oc);
 }
 
+static Object *hwdtb_factory_qemu_sysmem(HwDtbNode *node)
+{
+    Object *obj;
+
+    obj = hwdtb_create_proxy(OBJECT(get_system_memory()), 0);
+    return obj;
+}
+
 static uint64_t prop_or(HwDtbNode *node, const char *prop, uint64_t def_value)
 {
     uint64_t ret;
@@ -367,6 +375,7 @@ static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
 
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { TYPE_MEMORY_REGION, hwdtb_factory_memory_region },
+    { "qemu:system-memory", hwdtb_factory_qemu_sysmem },
     { "qemu:memory-region-spec", hwdtb_factory_memory_region_spec },
     { "fixed-clock", hwdtb_factory_fixed_clock },
     { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
