@@ -18,4 +18,5 @@ system_ss.add(files([
   'util.c',
   'proxy.c',
   'fdt-input-visitor.c',
+  'legacy-helpers.c',
 ]))

@@ -47,6 +47,33 @@ static Object *hwdtb_factory_qemu_sysmem(HwDtbNode *node)
     return obj;
 }
 
+/*
+ * -- Legacy --
+ * This node is inherited from Linux devicetrees and does not transpose well
+ * from an hardware perspective. In a Linux devicetree there is one timer node
+ * for all the CPU cores.
+ *
+ * In QEMU/real hardware:
+ *     - We have one timer instance per CPU
+ *     - The timer is actually embedded into the CPU object (thus the timer IRQs
+ *       are exposed by the CPU)
+ *     - In heterogeneous systems we can't know for sure what CPUs this
+ *       unique timer node is referring to.
+ *
+ * A hwdtb friendly way to describe this would simply be to connect the lines of
+ * each CPU timers back to the GIC explicitly.
+ */
+static Object *hwdtb_factory_armv8_timer(HwDtbNode *node)
+{
+    /*
+     * We don't have a corresponding device for this node. Create a dummy
+     * container, and register a callback to handle it after machine creation.
+     */
+    hwdtb_node_register_callback(node, HWDTB_PASS_END,
+                                 hwdtb_legacy_armv8_timer_connect, NULL);
+    return hwdtb_factory_from_oc(node);
+}
+
 static uint64_t prop_or(HwDtbNode *node, const char *prop, uint64_t def_value)
 {
     uint64_t ret;
@@ -409,6 +436,7 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { "qemu:memory-region-spec", hwdtb_factory_memory_region_spec },
     { "fixed-clock", hwdtb_factory_fixed_clock },
     { TYPE_QCRYPTO_SECRET, hwdtb_factory_secret },
+    { "armv8-timer", hwdtb_factory_armv8_timer },
     { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
 };
 

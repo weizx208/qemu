@@ -813,4 +813,13 @@ const char *hwdtb_conn_format_get_spec_extended(HwDtbConnectionKind kind);
 
 const char *hwdtb_gpio_get_resolution_str(const HwDtbResolvedGPIO *gpio);
 bool hwdtb_gpio_is_resolved(const HwDtbResolvedGPIO *gpio);
+
+/*
+ * -- Legacy --
+ * Specific handlers for legacy nodes
+ *
+ * Those are here for backward compatibility with existing hwdtbs.
+ */
+void hwdtb_legacy_armv8_timer_connect(HwDtbNode *node, void *opaque);
+
 #endif

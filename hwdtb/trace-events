@@ -39,3 +39,5 @@ hwdtb_node_legacy_gpio_deambiguous(const char *path, const char *name, size_t id
 hwdtb_node_legacy_gpio_reverse(const char *path, const char *ctrl_name, size_t ctrl_idx, const char *client_path, const char *client_name, size_t client_idx) "%s: [%s,%zu] <--reversed-- %s[%s,%zu]"
 
 hwdtb_node_connect_gpio(const char *path, const char *src_descr, const char *target, const char *target_descr) "%s: [%s] -> %s[%s]"
+
+hwdtb_node_legacy_armv8_timer_connect(const char *cpu, size_t irq_idx, const char *gic, size_t gic_idx) "%s[%zu] -> %s[%zu]"
