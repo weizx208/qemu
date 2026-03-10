@@ -352,6 +352,7 @@ void hwdtb_connect_clocks(HwDtb *hwdtb);
 void hwdtb_realize_devs(HwDtb *hwdtb);
 void hwdtb_legacy_mmap_iface(HwDtb *hwdtb);
 void hwdtb_mem_map_nodes(HwDtb *hwdtb);
+void hwdtb_gpio_legacy_resolve(HwDtb *hwdtb);
 void hwdtb_gpio_resolve(HwDtb *hwdtb);
 
 /*
@@ -748,6 +749,19 @@ uint64_t hwdtb_reg_tuple_val_or_prop_or(HwDtbNode *node, const char *prop,
     QSIMPLEQ_FOREACH_SAFE((conn_), &((node_)->connection[kind_]), link, next_)
 
 void hwdtb_str_append_tuple(GString *str, const GArray *tuple);
+
+/**
+ * hwdtb_conn_format_get_spec_extended
+ *
+ * Returns the property name of extended spec for the given connection @kind
+ * E.g., interrupts-extended for HWDTB_CON_INTERRUPT
+ *
+ * This function is used for legacy FDT_GENERIC_GPIO interface support and can
+ * be dropped once the former is removed.
+ *
+ * @return the spec-extended string associated with @kind.
+ */
+const char *hwdtb_conn_format_get_spec_extended(HwDtbConnectionKind kind);
 
 const char *hwdtb_gpio_get_resolution_str(const HwDtbResolvedGPIO *gpio);
 bool hwdtb_gpio_is_resolved(const HwDtbResolvedGPIO *gpio);

@@ -111,6 +111,11 @@ typedef struct HwDtbConnectionParseCtx {
     HwDtbNode *parent;
 } HwDtbConnectionParseCtx;
 
+const char *hwdtb_conn_format_get_spec_extended(HwDtbConnectionKind kind)
+{
+    return CONNECTION_FORMAT[kind].spec_extended;
+}
+
 static bool prop_data_try_consume_cell(const uint8_t **data, size_t *len,
                                        uint32_t *ret)
 {

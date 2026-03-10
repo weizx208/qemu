@@ -554,6 +554,7 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb_mem_map_nodes(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_MEM_MAP);
 
+    hwdtb_gpio_legacy_resolve(hwdtb);
     hwdtb_gpio_resolve(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_RESOLVE_GPIO);
 

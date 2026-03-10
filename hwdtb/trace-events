@@ -32,6 +32,7 @@ hwdtb_node_memory_region_alias_sbd_region(const char *path, const char *sbd, siz
 hwdtb_node_memory_region_map(const char *path, const char *parent, uint64_t addr) "%s: mapping on %s at 0x%" PRIx64
 hwdtb_node_sysbus_dev_map(const char *path, size_t idx, const char *parent, uint64_t addr) "%s: mapping region %zu on %s at 0x%" PRIx64
 
+hwdtb_node_gpio_resolve_legacy_map(const char *path, size_t old_idx, const char *dir, const char *name, size_t new_idx) "%s: %zu -> %s:%s[%zu]"
 hwdtb_node_gpio_resolve_legacy_intc(const char *path) "%s"
 hwdtb_node_gpio_resolve(const char *path, const char *dir, const char *name, size_t idx) "%s: %s:%s[%zu]"
 hwdtb_node_legacy_gpio_deambiguous(const char *path, const char *name, size_t idx, const char *new_dir) "%s: [%s, %zu] new direction: %s"

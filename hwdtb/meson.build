@@ -11,6 +11,7 @@ system_ss.add(files([
   'realize.c',
   'legacy-mmap-iface.c',
   'memory-map.c',
+  'gpio-legacy-resolve.c',
   'gpio-resolve.c',
   'util.c',
   'proxy.c',
