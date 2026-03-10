@@ -21,6 +21,7 @@
 #include "hw/clock.h"
 #include "hw/sysbus.h"
 #include "hw/usb/hcd-dwc3.h"
+#include "hw/misc/xlnx-versal-pmc-sysmon.h"
 #include "error.h"
 #include "trace.h"
 
@@ -425,6 +426,13 @@ static Object *hwdtb_factory_usb_dwc3(HwDtbNode *node)
     return hwdtb_factory_from_oc(node);
 }
 
+static Object *hwdtb_factory_pmc_sysmon(HwDtbNode *node)
+{
+    hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                 hwdtb_quirk_pmc_sysmon_resolve_phandles, NULL);
+    return hwdtb_factory_from_oc(node);
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "simple-bus", TYPE_MEMORY_REGION },
     { "qemu:memory-region", TYPE_MEMORY_REGION },
@@ -438,6 +446,7 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { TYPE_QCRYPTO_SECRET, hwdtb_factory_secret },
     { "armv8-timer", hwdtb_factory_armv8_timer },
     { TYPE_USB_DWC3, hwdtb_factory_usb_dwc3 },
+    { TYPE_PMC_SYSMON, hwdtb_factory_pmc_sysmon },
 };
 
 const char *hwdtb_compat_translate(const char *compat)

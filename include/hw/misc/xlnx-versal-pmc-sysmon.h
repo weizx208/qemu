@@ -3354,6 +3354,7 @@ typedef struct PMCSysMon {
     Object  **ams_sat;       /* An array, with NULL hole(s) possibile */
     uint32_t *ams_sat_ready; /* bit-array, indexed by CHANNEL_xxx macros */
     uint32_t  ams_sat_len;
+    uint32_t *ams_sat_phandle;
 
     Object *tamper_sink;
 

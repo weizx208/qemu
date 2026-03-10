@@ -6401,8 +6401,8 @@ static const Property pmc_sysmon_properties[] = {
     DEFINE_PROP_LINK("efuse", PMCSysMon, efuse, TYPE_OBJECT, Object *),
     DEFINE_PROP_LINK("ams-sat0", PMCSysMon, ams_sat0, TYPE_OBJECT, Object *),
     DEFINE_PROP_LINK("ams-sat1", PMCSysMon, ams_sat1, TYPE_OBJECT, Object *),
-    DEFINE_PROP_ARRAY("ams-sats", PMCSysMon, ams_sat_len, ams_sat,
-                      qdev_prop_link, Object *),
+    DEFINE_PROP_ARRAY("ams-sats", PMCSysMon, ams_sat_len, ams_sat_phandle,
+                      qdev_prop_uint32, uint32_t),
     DEFINE_PROP_LINK("tamper-sink", PMCSysMon, tamper_sink,
                      TYPE_OBJECT, Object *),
 };

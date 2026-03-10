@@ -821,5 +821,6 @@ bool hwdtb_gpio_is_resolved(const HwDtbResolvedGPIO *gpio);
  * Those are here for backward compatibility with existing hwdtbs.
  */
 void hwdtb_legacy_armv8_timer_connect(HwDtbNode *node, void *opaque);
+void hwdtb_quirk_pmc_sysmon_resolve_phandles(HwDtbNode *node, void *opaque);
 
 #endif

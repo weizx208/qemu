@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
 #include "hw/intc/arm_gic_common.h"
+#include "hw/misc/xlnx-versal-pmc-sysmon.h"
 #include "error.h"
 #include "trace.h"
 
@@ -177,5 +178,32 @@ void hwdtb_legacy_armv8_timer_connect(HwDtbNode *node, void *opaque)
 
             j++;
         }
+    }
+}
+
+/*
+ * The PMC Sysmon model was using a "array of links" property for the satellites
+ * in the legacy code. Current QEMU upstream does not support array of links
+ * properties. The property has been replaced with an array of uint32. It is
+ * filled during DTB parsing with the satellites handles. This callback resolves
+ * the handles and fills the ams_sat array with the corresponding objects.
+ */
+void hwdtb_quirk_pmc_sysmon_resolve_phandles(HwDtbNode *node, void *opaque)
+{
+    PMCSysMon *pmc_sysmon = PMC_SYSMON(hwdtb_get_obj(node));
+    size_t i;
+
+    pmc_sysmon->ams_sat = g_new0(Object *, pmc_sysmon->ams_sat_len);
+
+    for (i = 0; i < pmc_sysmon->ams_sat_len; i++) {
+        uint32_t phandle = pmc_sysmon->ams_sat_phandle[i];
+        HwDtbNode *link_node = hwdtb_get_node_by_phandle(node->hwdtb, phandle);
+
+        if (link_node == NULL) {
+            pmc_sysmon->ams_sat[i] = NULL;
+            continue;
+        }
+
+        pmc_sysmon->ams_sat[i] = hwdtb_get_obj(link_node);
     }
 }
