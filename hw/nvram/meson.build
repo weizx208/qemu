@@ -15,7 +15,8 @@ system_ss.add(when: 'CONFIG_XLNX_EFUSE_VERSAL', if_true: files(
                                                    'xlnx-pmx-efuse-ctrl.c',
                                                    'xlnx-pmx-efuse-mapping-pmx.c',
                                                    'xlnx-versal-efuse-cache.c',
-                                                   'xlnx-versal-efuse-ctrl.c'))
+                                                   'xlnx-versal-efuse-ctrl.c',
+                                                   'xlnx-efuse-mapping-xc2vp3202.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE_ZYNQMP', if_true: files(
                                                    'xlnx-zynqmp-efuse.c'))
 system_ss.add(when: 'CONFIG_XLNX_BBRAM', if_true: files('xlnx-bbram.c'))
