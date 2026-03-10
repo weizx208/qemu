@@ -87,14 +87,34 @@ HwDtbNode *hwdtb_find_node(HwDtb *hwdtb,
     return find_node_req(hwdtb->root, predicate, opaque);
 }
 
+static const char *skip_vendor_prefix(const char *prop_name)
+{
+    const char *start = strchr(prop_name, ',');
+
+    if (start == NULL) {
+        return prop_name;
+    }
+
+    return start + 1;
+}
+
+static bool is_linux_direct_boot(HwDtb *hwdtb)
+{
+    return object_property_get_bool(OBJECT(hwdtb->machine), "linux", NULL);
+}
+
 const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
                                                const char *prop_name,
                                                size_t *len)
 {
     int offset;
+    bool linux_direct_boot = is_linux_direct_boot(node->hwdtb);
+    const struct fdt_property *ret = NULL;
+
 
     fdt_for_each_property_offset(offset, node->hwdtb->fdt, node->offset) {
         const struct fdt_property *prop;
+        bool has_direct_lnx_prefix = false;
         const char *n;
         int l;
 
@@ -105,15 +125,44 @@ const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
 
         n = fdt_get_string(node->hwdtb->fdt, fdt32_ld(&prop->nameoff), NULL);
 
-        if (!strcmp(n, prop_name)) {
-            if (len) {
-                *len = l;
-            }
-            return prop;
+        /*
+         * -- Legacy --
+         * The vendor part in the property name is trimmed in the legacy code
+         */
+        n = skip_vendor_prefix(n);
+
+        /*
+         * -- Legacy --
+         * Support for direct-lnx- prefixed properties. When direct Linux boot
+         * is on, all properties starting with this prefix take priority over
+         * the ones without the prefix.
+         */
+        if (linux_direct_boot && strstart(n, "direct-lnx-", NULL)) {
+            n += strlen("direct-lnx-");
+            has_direct_lnx_prefix = true;
+        }
+
+        if (strcmp(n, prop_name)) {
+            continue;
+        }
+
+        /*
+         * We have a match. If in direct Linux boot mode, we must go through all
+         * the properties to check for a direct-lnx- property with higher
+         * priority.
+         */
+        if (len) {
+            *len = l;
+        }
+
+        ret = prop;
+
+        if (!linux_direct_boot || has_direct_lnx_prefix) {
+            break;
         }
     }
 
-    return NULL;
+    return ret;
 }
 
 bool hwdtb_node_has_prop(const HwDtbNode *node, const char *prop_name)
