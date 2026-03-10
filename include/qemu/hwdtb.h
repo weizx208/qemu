@@ -529,6 +529,22 @@ Object *hwdtb_get_obj(const HwDtbNode *node);
  */
 Object *hwdtb_get_parenting_obj(const HwDtbNode *node);
 
+/**
+ * hwdtb_find_node
+ *
+ * Try to find a node matching the @predicate function. The tree is pre-order
+ * traversed and the first node matching is returned.
+ *
+ * @hwdtb the HwDtb to look in
+ * @predicate the predicate function to call for each node
+ * @opaque the opaque value to pass to the @predicate function
+ *
+ * @return the first found node, or %NULL if no node matched.
+ */
+HwDtbNode *hwdtb_find_node(HwDtb *hwdtb,
+                           bool (*predicate)(HwDtbNode *node, void *opaque),
+                           void *opaque);
+
 /* Low-level FDT properties parsing functions */
 bool hwdtb_fdt_prop_parse_uint(const struct fdt_property *prop, size_t skip,
                                size_t max, uint64_t *ret, size_t *len);

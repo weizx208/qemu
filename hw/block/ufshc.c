@@ -1222,7 +1222,6 @@ static void ufshc_sysbus_realize(DeviceState *dev, Error **errp)
 
     object_property_set_link(OBJECT(s->ufsdev), "ufs-initiator",
                              OBJECT(&s->ufshc), NULL);
-    qdev_set_parent_bus(DEVICE(s->ufsdev), BUS(s->bus), NULL);
     object_property_set_link(OBJECT(&s->ufshc), "ufs-target",
                              OBJECT(s->ufsdev), NULL);
 

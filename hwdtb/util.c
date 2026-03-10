@@ -59,6 +59,34 @@ Object *hwdtb_get_parenting_obj(const HwDtbNode *node)
     }
 }
 
+static HwDtbNode *
+find_node_req(HwDtbNode *node, bool (*predicate)(HwDtbNode *node, void *opaque),
+              void *opaque)
+{
+    HwDtbNode *child;
+
+    if (predicate(node, opaque)) {
+        return node;
+    }
+
+    hwdtb_node_foreach_child(child, node) {
+        HwDtbNode *ret = find_node_req(child, predicate, opaque);
+
+        if (ret) {
+            return ret;
+        }
+    }
+
+    return NULL;
+}
+
+HwDtbNode *hwdtb_find_node(HwDtb *hwdtb,
+                           bool (*predicate)(HwDtbNode *node, void *opaque),
+                           void *opaque)
+{
+    return find_node_req(hwdtb->root, predicate, opaque);
+}
+
 const struct fdt_property *hwdtb_node_get_prop(const HwDtbNode *node,
                                                const char *prop_name,
                                                size_t *len)

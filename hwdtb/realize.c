@@ -421,6 +421,59 @@ static BusState *get_bus_for_phy(HwDtbNode *node)
     return bus;
 }
 
+static bool ufshc_parent_targeting_dev(HwDtbNode *node, void *opaque)
+{
+    HwDtbNode *ufs_dev = (HwDtbNode *) opaque;
+    uint32_t ufs_target, dev_phandle;
+
+    /* ufshc-sysbus is not correctly split into header/source files */
+    if (!object_dynamic_cast(hwdtb_get_obj(node), "ufshc-sysbus")) {
+        return false;
+    }
+
+    if (!hwdtb_node_get_prop_uint32(node, "ufs-target", &ufs_target)) {
+        return false;
+    }
+
+    if (!hwdtb_node_get_prop_uint32(ufs_dev, "phandle", &dev_phandle)) {
+        return false;
+    }
+
+    return ufs_target == dev_phandle;
+}
+
+/*
+ * -- Legacy --
+ * UFS devices need refactoring. We need a proper parenting in the DTB. For now
+ * all we have is a ufs-target link property on ufshc-sysbus devices pointing to
+ * ufs-dev.
+ *
+ * Previously the ufshc-sysbus device was parenting the ufs-dev on its bus in
+ * its realize function. This does not work because it introduces a realize
+ * dependency loop (ufs-dev cannot be parented to a bus before it is realized,
+ * but also cannot be realized without a bus).
+ *
+ * With the introduction of this code, the aforementioned parenting has been
+ * removed. The parenting is now done here. Look for a ufshc-sysbus device with
+ * a ufs-target pointing to this node. If found, return its internal bus.
+ */
+static BusState *find_ufshc_bus_for_ufs_dev(HwDtbNode *node)
+{
+    HwDtbNode *ufshc_parent;
+
+    ufshc_parent = hwdtb_find_node(node->hwdtb,
+                                   ufshc_parent_targeting_dev,
+                                   node);
+
+    if (ufshc_parent == NULL) {
+        hwdtb_report_err(node, "No ufshc-sysbus parent found. Cannot realize "
+                               "the device. This is a fatal error.");
+        return NULL;
+    }
+
+    return qdev_get_child_bus(HWDTB_NODE_AS(ufshc_parent, DEVICE), "ufs-bus.0");
+}
+
 static bool node_needs_bus(HwDtbNode *node, const char *bus_type)
 {
     DeviceClass *dc;
@@ -457,6 +510,10 @@ static BusState *hwdtb_get_bus_for_device(HwDtbNode *node)
 
     if (node_needs_bus(node, TYPE_SYSTEM_BUS)) {
         return sysbus_get_default();
+    }
+
+    if (node_needs_bus(node, TYPE_UFS_BUS)) {
+        return find_ufshc_bus_for_ufs_dev(node);
     }
 
     return NULL;
