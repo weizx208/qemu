@@ -26,6 +26,202 @@
 
 #include <libfdt.h>
 
+static void ssi_target_connect_cs_gpio(HwDtbNode *node, void *opaque)
+{
+    DeviceState *dev, *parent;
+    HwDtbRegTuple *tuple;
+    qemu_irq cs_gpio;
+    int cs_line, bus;
+    const char *cs_namespace = NULL;
+    g_autoptr(GString) out_descr = NULL;
+    g_autoptr(GString) in_descr = NULL;
+
+    dev = DEVICE(hwdtb_get_obj(node));
+    parent = DEVICE(hwdtb_get_obj(node->parent));
+
+    g_assert(hwdtb_node_has_gpio_input(node, SSI_GPIO_CS, 0));
+
+    tuple = hwdtb_node_reg_get_first(node);
+
+    if (tuple == NULL) {
+        bus = 0;
+    } else {
+        bus = hwdtb_reg_tuple_val_or(tuple, HWDTB_REG_BUS, 0);
+    }
+
+    cs_line = object_property_get_uint(OBJECT(dev), "cs", &error_abort);
+
+    if (!hwdtb_node_has_gpio_output(node->parent, cs_namespace, cs_line)) {
+        cs_namespace = "cs";
+    }
+
+    if (!hwdtb_node_has_gpio_output(node->parent, cs_namespace, cs_line)) {
+        hwdtb_report_err(node->parent,
+                         "No CS ouput pin found on SSI initiator");
+        return;
+    }
+
+    if (bus > 0) {
+        g_autoptr(GString) str = g_string_new("spi");
+        BusState *parent_bus;
+        int num_busses = bus;
+        int num_cs_lines = 0;
+
+        /*
+         * We don't have enough semantic to associate this slave on bus i to the
+         * corresponding CS line GPIO index j on the initiator. The specified
+         * index in the reg property can be either relative to the SPI bus
+         * (Linux DTBs) or absolute (current hwdtbs). Use the following
+         * heuristic:
+         *    - Try to lookup the number of SSI bus `b' this initiator exposes
+         *    - lookup the number of CS lines `l' it has
+         *    - Divide l by b to obtain the number of CS lines per bus.
+         *    - Apply the offset "CS lines per bus * bus index" to the CS line
+         *      specified in the reg property if the bus index is greater than
+         *      0 and the CS line lower than the number of CS lines per bus.
+         *
+         * This assumes a regular repartition of the lines across the busses.
+         */
+        g_string_append_printf(str, "%d", num_busses);
+        parent_bus = qdev_get_child_bus(parent, str->str);
+
+        while (parent_bus) {
+            num_busses++;
+
+            g_string_printf(str, "bus%d", num_busses);
+            parent_bus = qdev_get_child_bus(parent, str->str);
+        }
+
+        /* At this point we know for sure we have at least `bus + 1' busses */
+        g_assert(num_busses > bus);
+
+        while (hwdtb_node_has_gpio_output(node->parent, cs_namespace,
+                                          num_cs_lines)) {
+            num_cs_lines++;
+        }
+
+        if (cs_line < (num_cs_lines / num_busses)) {
+            cs_line += num_cs_lines / num_busses;
+        }
+    }
+
+    cs_gpio = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
+    qdev_connect_gpio_out_named(parent, cs_namespace, cs_line, cs_gpio);
+
+    out_descr = g_string_new("");
+    g_string_append_printf(out_descr, "%s[%d]", cs_namespace ?: "unnamed-gpio",
+                           cs_line);
+
+    in_descr = g_string_new(SSI_GPIO_CS);
+    g_string_append(in_descr, "[0]");
+
+    trace_hwdtb_node_connect_gpio(node->parent->path,
+                                  out_descr->str,
+                                  node->path,
+                                  in_descr->str);
+}
+
+/*
+ * SSI target devices must connect to an initiator (an SSI bus) when realized.
+ * They are described as follows in hwdtbs:
+ *
+ * ssi_initiator {
+ *      #address-cells = <1>;
+ *      #size-cells = <0>;
+ *      #bus-cells = <1>;
+ *      [...]
+ *
+ *      ssi_target {
+ *          [...]
+ *          reg = <1 2>;
+ *      };
+ * };
+ *
+ * The initiator is supposed to have a #bus-cells property (the sole use for the
+ * bus cell in reg properties). The first reg entry (address cell) on the target
+ * is the chip select line index value. The second (bus cell) is the bus index
+ * value on the initiator. This translates to bus "spix" with x the index
+ * value on the initiator.
+ *
+ * In this example, the target would connect to bus spi2 using CS pin 1.
+ *
+ * Note that there is two possible and opposing meanings for the CS line value:
+ *    - The one found in Linux DTBs, CS is relative to the bus
+ *    - The one found in "recent" hwdtbs (ZynqMP, Versal and later), CS is
+ *      absolute, so this is the index of the GPIO on the QEMU model of the
+ *      initiator.
+ * Supporting both is a nightmare. See the heuristic in
+ * ssi_target_connect_cs_gpio
+ *
+ * Also note that the hwdtb legacy behaviour is to fallback on bus "spi" if the
+ * bus "spix" is not found on the initiator.
+ */
+static BusState *get_bus_for_ssi_target(HwDtbNode *node)
+{
+    int cs = 0;
+    int bus_idx = 0;
+    g_autoptr(GString) bus_str = g_string_new("spi");
+    BusState *bus;
+    DeviceState *dev, *parent;
+    HwDtbRegTuple *reg;
+
+    if (!node->parent) {
+        return NULL;
+    }
+
+    reg = hwdtb_node_reg_get_first(node);
+
+    if (reg == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: missing reg property for SSI target. "
+                      "Defaulting to bus spi0, cs 0\n", node->path);
+    } else {
+        if (!reg->entry[HWDTB_REG_ADDR].valid) {
+            qemu_log_mask(LOG_FDT, "%s: missing reg address cell for SSI target. "
+                          "Defaulting to chip select line 0.\n", node->path);
+        } else {
+            cs = reg->entry[HWDTB_REG_ADDR].val;
+        }
+
+        if (!reg->entry[HWDTB_REG_BUS].valid) {
+            qemu_log_mask(LOG_FDT, "%s: missing reg bus cell for SSI target. "
+                          "Defaulting to bus spi0.\n", node->path);
+        } else {
+            bus_idx = reg->entry[HWDTB_REG_BUS].val;
+        }
+    }
+
+    dev = DEVICE(hwdtb_get_obj(node));
+    parent = HWDTB_NODE_AS(node->parent, DEVICE);
+
+    if (parent == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent is not a device. "
+                      "Cannot query SSI bus\n", node->path);
+        return NULL;
+    }
+
+    g_string_append_printf(bus_str, "%d", bus_idx);
+    bus = qdev_get_child_bus(parent, bus_str->str);
+
+    if (bus == NULL) {
+        /* fallback on bus "spi" */
+        bus = qdev_get_child_bus(parent, "spi");
+    }
+
+    if (bus == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent has no SSI bus. Tried %s and spi\n",
+                      node->path, bus_str->str);
+        return NULL;
+    }
+
+    trace_hwdtb_node_parent_ssi_target(node->path, node->parent->path,
+                                       bus->name, cs);
+    qdev_prop_set_uint8(dev, "cs", cs);
+
+    hwdtb_node_register_callback(node, HWDTB_PASS_CONNECT_GPIO,
+                                 ssi_target_connect_cs_gpio, NULL);
+    return bus;
+}
+
 static bool node_needs_bus(HwDtbNode *node, const char *bus_type)
 {
     DeviceClass *dc;
@@ -43,6 +239,10 @@ static bool node_needs_bus(HwDtbNode *node, const char *bus_type)
 static BusState *hwdtb_get_bus_for_device(HwDtbNode *node)
 {
     g_assert(hwdtb_get_obj(node));
+
+    if (HWDTB_NODE_AS(node, SSI_PERIPHERAL)) {
+        return get_bus_for_ssi_target(node);
+    }
 
     if (node_needs_bus(node, TYPE_SYSTEM_BUS)) {
         return sysbus_get_default();

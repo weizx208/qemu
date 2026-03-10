@@ -28,6 +28,8 @@ hwdtb_node_remote_port_dev_bind(const char *path, size_t slot, const char *paren
 hwdtb_node_auto_parent_cpu_to_cluster(const char *cpu, const char *cpu_type) "%s: auto cluster for type %s"
 hwdtb_node_realize_auto_cpu_cluster(const char *cpu_type, uint32_t cluster_id) "cpu type: %s, cluster id: %" PRIu32
 hwdtb_node_realize(const char *path) "%s"
+hwdtb_node_parent_ssi_target(const char *path, const char *parent, const char *bus, int cs) "%s: parent: %s, bus: %s, cs line: %d"
+
 hwdtb_node_memory_region_alias_sbd_region(const char *path, const char *sbd, size_t idx) "%s: alias of %s[%zu]"
 hwdtb_node_memory_region_map(const char *path, const char *parent, uint64_t addr) "%s: mapping on %s at 0x%" PRIx64
 hwdtb_node_sysbus_dev_map(const char *path, size_t idx, const char *parent, uint64_t addr) "%s: mapping region %zu on %s at 0x%" PRIx64
