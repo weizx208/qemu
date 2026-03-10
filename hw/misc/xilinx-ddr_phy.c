@@ -3797,6 +3797,8 @@ typedef struct DDR_PHY {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
+    bool kria_sc_ddr_phy;
+    uint32_t toggle_mask;
     uint32_t regs[DDR_PHY_R_MAX];
     RegisterInfo regs_info[DDR_PHY_R_MAX];
 } DDR_PHY;
@@ -3805,6 +3807,13 @@ typedef struct DDR_PHY {
     do { \
         if (val & R_PIR_ ## src ## _MASK) { \
             ARRAY_FIELD_DP32(s->regs, PGSR0, dest , 0x1);\
+        } \
+    } while (0)
+
+#define DDR_PIR_TOGGLE(val, src, dest) \
+    do { \
+        if (val & R_PIR_ ## src ## _MASK) { \
+            s->toggle_mask |= R_PGSR0_ ## dest ## _MASK; \
         } \
     } while (0)
 
@@ -3826,6 +3835,23 @@ static uint64_t ddr_phy_pir_pre_write(RegisterInfo *reg, uint64_t val)
     DDR_PIR_REACT(val, QSGATE, QSGDONE);
     DDR_PIR_REACT(val, VREF, VDONE);
 
+    if (s->kria_sc_ddr_phy) {
+        DDR_PIR_REACT(val, INIT, IDONE);
+        DDR_PIR_REACT(val, CTLDINIT, DIDONE);
+        DDR_PIR_REACT(val, DQS2DQ, DQS2DQDONE);
+
+        s->toggle_mask = 0;
+        DDR_PIR_TOGGLE(val, WLADJ, WLADONE);
+        DDR_PIR_TOGGLE(val, RDDSKW, RDDONE);
+        DDR_PIR_TOGGLE(val, WRDSKW, WDDONE);
+        DDR_PIR_TOGGLE(val, RDEYE, REDONE);
+        DDR_PIR_TOGGLE(val, WREYE, WEDONE);
+        DDR_PIR_TOGGLE(val, DQS2DQ, DQS2DQDONE);
+        if (s->toggle_mask) {
+            s->toggle_mask |= R_PGSR0_IDONE_MASK;
+        }
+    }
+
     return val;
 }
 
@@ -3836,7 +3862,11 @@ static uint64_t ddr_phy_pgsr0_post_read(RegisterInfo *reg, uint64_t val)
     /* Flip the bits stored in the register as some guests require the status
      * to change and we don't fully model the device.
      */
-    s->regs[R_PGSR0] ^= R_PGSR0_DIDONE_MASK;
+    if (s->kria_sc_ddr_phy) {
+        s->regs[R_PGSR0] ^= s->toggle_mask;
+    } else {
+        s->regs[R_PGSR0] ^= R_PGSR0_DIDONE_MASK;
+    }
 
     return val;
 }
@@ -5031,6 +5061,11 @@ static const VMStateDescription vmstate_ddr_phy = {
     }
 };
 
+static Property ddr_phy_properties[] = {
+    DEFINE_PROP_BOOL("kria-sc-ddr-phy", DDR_PHY, kria_sc_ddr_phy, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ddr_phy_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -5038,6 +5073,7 @@ static void ddr_phy_class_init(ObjectClass *klass, void *data)
     dc->reset = ddr_phy_reset;
     dc->realize = ddr_phy_realize;
     dc->vmsd = &vmstate_ddr_phy;
+    device_class_set_props(dc, ddr_phy_properties);
 }
 
 static const TypeInfo ddr_phy_info = {
