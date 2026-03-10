@@ -222,6 +222,160 @@ static BusState *get_bus_for_ssi_target(HwDtbNode *node)
     return bus;
 }
 
+/*
+ * i2c targets can be described using two different methods:
+ *
+ * First method: the target is a direct child of the initiator:
+ *
+ * initiator {
+ *     #address-cells = <1>;
+ *     #size-cells = <0>;
+ *     [...]
+ *
+ *     target {
+ *         reg = <0x52>;
+ *     };
+ * };
+ *
+ * In this example, the target will be mapped on bus "i2c" of the initiator at
+ * address 0x52.
+ *
+ * Second method: the target is under an intermediate empty node:
+ *
+ * initiator {
+ *     #address-cells = <1>;
+ *     #size-cells = <0>;
+ *     [...]
+ *
+ *     i2c@0 {
+ *         #address-cells = <1>;
+ *         #size-cells = <0>;
+ *         reg = <0>;
+ *
+ *         target {
+ *             reg = <0x52>;
+ *         };
+ *     };
+ * };
+ *
+ * This time the target is mapped on bus "i2c@0" of the initiator at address
+ * 0x52.
+ *
+ * Notes:
+ *    - The `reg = <0>;' property on the intermediate node seems redundant and
+ *      was unused by the legacy fdt_generic code. It is present in all existing
+ *      hwdtbs though.
+ *    - The legacy fdt_generic code had support only for intermediate nodes
+ *      named `i2c@0' to `i2c@7'.
+ */
+static BusState *get_bus_for_i2c_target(HwDtbNode *node)
+{
+    BusState *bus;
+    const char *bus_str;
+    HwDtbNode *parent_node = node;
+    DeviceState *parent_dev = NULL;
+    size_t i = 0;
+    uint8_t addr = 0;
+    HwDtbRegTuple *reg;
+
+    /*
+     * Try to find the parent device according to method 1 and 2. Go up in the
+     * hierarchy of at most two steps.
+     */
+    while ((parent_dev == NULL) && (i < 2)) {
+        if (!parent_node->parent) {
+            return NULL;
+        }
+
+        if (parent_node->parent && HWDTB_NODE_AS(parent_node->parent, DEVICE)) {
+            parent_dev = DEVICE(hwdtb_get_obj(parent_node->parent));
+        }
+
+        i++;
+        parent_node = parent_node->parent;
+    }
+
+    if (parent_dev == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent is not a device. "
+                      "Cannot query i2c bus\n", node->path);
+        return NULL;
+    }
+
+    reg = hwdtb_node_reg_get_first(node);
+
+    if (reg == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: missing reg property for i2c target. "
+                      "Defaulting to address 0\n", node->path);
+    } else {
+        if (!reg->entry[HWDTB_REG_ADDR].valid) {
+            qemu_log_mask(LOG_FDT, "%s: missing reg address cell for i2c target. "
+                          "Defaulting to address 0.\n", node->path);
+        } else {
+            addr = reg->entry[HWDTB_REG_ADDR].val;
+        }
+    }
+
+    switch (i) {
+    case 1:
+        /* method 1: bus name hardcoded to "i2c" */
+        bus_str = "i2c";
+        break;
+
+    case 2:
+        /* method 2: bus name is the intermediate node name */
+        bus_str = fdt_get_name(node->hwdtb->fdt, node->parent->offset, NULL);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    bus = qdev_get_child_bus(parent_dev, bus_str);
+
+    if (bus == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent has no i2c bus named %s\n",
+                      node->path, bus_str);
+        return NULL;
+    }
+
+    trace_hwdtb_node_parent_i2c_target(node->path, parent_node->path,
+                                bus->name, addr);
+    qdev_prop_set_uint8(DEVICE(hwdtb_get_obj(node)), "address", addr);
+
+    return bus;
+}
+
+static BusState *get_bus_for_i3c_target(HwDtbNode *node)
+{
+    BusState *bus;
+    HwDtbNode *parent_node = node->parent;
+    DeviceState *parent_dev = NULL;
+
+    if (parent_node == NULL) {
+        return NULL;
+    }
+
+    parent_dev = HWDTB_NODE_AS(parent_node, DEVICE);
+
+    if (parent_dev == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent is not a device. "
+                      "Cannot query i3c bus\n", node->path);
+        return NULL;
+    }
+
+    bus = qdev_get_child_bus(parent_dev, parent_dev->id);
+
+    if (bus == NULL) {
+        qemu_log_mask(LOG_FDT, "%s: parent has no i3c bus named %s\n",
+                      node->path, parent_dev->id);
+        return NULL;
+    }
+
+    trace_hwdtb_node_parent_i3c_target(node->path, parent_node->path,
+                                       bus->name);
+    return bus;
+}
+
 static bool node_needs_bus(HwDtbNode *node, const char *bus_type)
 {
     DeviceClass *dc;
@@ -242,6 +396,14 @@ static BusState *hwdtb_get_bus_for_device(HwDtbNode *node)
 
     if (HWDTB_NODE_AS(node, SSI_PERIPHERAL)) {
         return get_bus_for_ssi_target(node);
+    }
+
+    if (node_needs_bus(node, TYPE_I2C_BUS)) {
+        return get_bus_for_i2c_target(node);
+    }
+
+    if (node_needs_bus(node, TYPE_I3C_BUS)) {
+        return get_bus_for_i3c_target(node);
     }
 
     if (node_needs_bus(node, TYPE_SYSTEM_BUS)) {
