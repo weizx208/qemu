@@ -53,6 +53,12 @@ static void conn_resolve_client(HwDtbNode *node, HwDtbConnection *conn)
 
     if (hwdtb_node_has_gpio_output(node, name, idx)) {
         conn->gpio.sta = HWDTB_GPIO_OUTPUT;
+    } else if (hwdtb_node_has_gpio_input(node, name, idx)) {
+        /*
+         * -- Legacy --
+         * Reversed direction
+         */
+        conn->gpio.sta = HWDTB_GPIO_INPUT;
     } else {
         qemu_log_mask(LOG_FDT,
                       "%s: GPIO resolution failure: GPIO [%s, %zu] not found\n",
@@ -106,6 +112,12 @@ static void target_resolve(HwDtbConnection *conn, HwDtbConnectionTarget *target)
 
     if (hwdtb_node_has_gpio_input(target->target, NULL, idx)) {
         target->gpio.sta = HWDTB_GPIO_INPUT;
+    } else if (hwdtb_node_has_gpio_output(target->target, NULL, idx)) {
+        /*
+         * -- Legacy --
+         * Reversed direction
+         */
+        target->gpio.sta = HWDTB_GPIO_OUTPUT;
     } else {
         qemu_log_mask(LOG_FDT,
                       "%s: GPIO resolution failure: GPIO "
@@ -124,6 +136,64 @@ static void target_resolve(HwDtbConnection *conn, HwDtbConnectionTarget *target)
                                   target->gpio.idx);
 }
 
+/*
+ * -- Legacy --
+ * Since GPIO connections do not describe their direction, we can end up in
+ * ambiguous cases where a GPIO exists both as an input and an output on a given
+ * device.
+ *
+ * This function tries to resolve those cases by:
+ *    - finding connections resolved as in - in or out - out,
+ *    - trying to resolve them as in - out or out - in connections.
+ *
+ * Note that if a connection can both be resolved as in - out and out - in,
+ * there is not much we can do in term of guessing what the user wanted in the
+ * first place...
+ *
+ * This heuristic can go away once we deprecate those non-directionnal
+ * connections in hwdtbs.
+ */
+static void conn_legacy_deambiguous(HwDtbNode *node, HwDtbConnection *conn)
+{
+    HwDtbConnectionTarget *target;
+
+    if (conn->targets->len != 1) {
+        /*
+         * Don't bother with multiple targets connections. Those are limited to
+         * HWDTB_CON_INTERRUPT connections which don't have this direction
+         * resolution issue (they are always described in the out -> in
+         * direction in dtbs)
+         */
+        return;
+    }
+
+    target = &g_array_index(conn->targets, HwDtbConnectionTarget, 0);
+
+    if ((conn->gpio.sta == HWDTB_GPIO_OUTPUT) &&
+        (target->gpio.sta == HWDTB_GPIO_OUTPUT)) {
+        /* try with client as an input */
+        if (hwdtb_node_has_gpio_input(node, conn->gpio.name, conn->gpio.idx)) {
+            trace_hwdtb_node_legacy_gpio_deambiguous(
+                node->path, conn->gpio.name ?: "unnamed-gpio", conn->gpio.idx,
+                "input");
+            conn->gpio.sta = HWDTB_GPIO_INPUT;
+        }
+    }
+
+    if ((conn->gpio.sta == HWDTB_GPIO_INPUT) &&
+        (target->gpio.sta == HWDTB_GPIO_INPUT)) {
+        /* try with controller as an input */
+        if (hwdtb_node_has_gpio_output(target->target, target->gpio.name,
+                                       target->gpio.idx)) {
+            trace_hwdtb_node_legacy_gpio_deambiguous(
+                target->target->path, target->gpio.name ?: "unnamed-gpio",
+                target->gpio.idx, "output");
+            target->gpio.sta = HWDTB_GPIO_OUTPUT;
+        }
+    }
+
+}
+
 static void conn_resolve(HwDtbNode *node, HwDtbConnection *conn)
 {
     size_t i;
@@ -136,6 +206,8 @@ static void conn_resolve(HwDtbNode *node, HwDtbConnection *conn)
         target = &g_array_index(conn->targets, HwDtbConnectionTarget, i);
         target_resolve(conn, target);
     }
+
+    conn_legacy_deambiguous(node, conn);
 }
 
 static void node_conns_resolve(HwDtbNode *node, HwDtbConnectionKind kind)
