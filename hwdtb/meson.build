@@ -13,6 +13,7 @@ system_ss.add(files([
   'memory-map.c',
   'gpio-legacy-resolve.c',
   'gpio-resolve.c',
+  'gpio-connect.c',
   'util.c',
   'proxy.c',
   'fdt-input-visitor.c',

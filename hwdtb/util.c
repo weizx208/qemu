@@ -651,6 +651,9 @@ HwDtb *hwdtb_create_machine(MachineState *machine, void *fdt)
     hwdtb_gpio_register(hwdtb);
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_RESOLVE_GPIO);
 
+    hwdtb_connect_gpios(hwdtb);
+    hwdtb_call_callbacks(hwdtb, HWDTB_PASS_CONNECT_GPIO);
+
     hwdtb_call_callbacks(hwdtb, HWDTB_PASS_END);
 
     memory_region_transaction_commit();

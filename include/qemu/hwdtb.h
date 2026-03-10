@@ -277,6 +277,7 @@ typedef enum HwDtbPass {
     HWDTB_PASS_REALIZE,
     HWDTB_PASS_MEM_MAP,
     HWDTB_PASS_RESOLVE_GPIO,
+    HWDTB_PASS_CONNECT_GPIO,
     HWDTB_PASS_END,
 
     HWDTB_NUM_PASSES
@@ -384,6 +385,7 @@ void hwdtb_gpio_legacy_resolve(HwDtb *hwdtb);
 void hwdtb_gpio_resolve(HwDtb *hwdtb);
 void hwdtb_gpio_legacy_reverse(HwDtb *hwdtb);
 void hwdtb_gpio_register(HwDtb *hwdtb);
+void hwdtb_connect_gpios(HwDtb *hwdtb);
 
 /*
  * hwdtb_walk
