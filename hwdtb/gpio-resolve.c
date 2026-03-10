@@ -88,7 +88,16 @@ static void target_resolve(HwDtbConnection *conn, HwDtbConnectionTarget *target)
         return;
     }
 
-    if (target->tuple->len != 1) {
+    /*
+     * -- Legacy --
+     * #gpio-cells > 1 does not make much sense in the hwdtb usecase. However in
+     * some legacy dtbs, some gpio-controller nodes have a #gpio-cells = 2. The
+     * second element of the tuple is always 0 and is ignored by the legacy
+     * fdt_generic code.
+     *
+     * We want to get rid of those and only support #gpio-cells = <1>
+     */
+    if (target->tuple->len == 0) {
         target->gpio.sta = HWDTB_GPIO_RESOLUTION_FAILURE;
         return;
     }
