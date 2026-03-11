@@ -80,6 +80,7 @@ static void cpu_exec_pin_update(CPUState *cpu)
         if (async) {
             async_run_on_cpu(cpu, cpu_set_off, RUN_ON_CPU_NULL);
         } else {
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_EXITTB);
             cpu_interrupt(cpu, CPU_INTERRUPT_HALT);
         }
     } else {
