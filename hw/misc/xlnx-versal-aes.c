@@ -1418,8 +1418,6 @@ static const Property aes_properties[] = {
     DEFINE_PROP_STRING("puf-key-id",    Zynq3AES, puf_key_id),
     DEFINE_PROP_BOOL("integrated-endianness-swap", Zynq3AES, endianness_swap,
                      false),
-    DEFINE_PROP_LINK("asu-aes", pmxc_aes, asu, TYPE_PMXC_KEY_XFER_IF,
-                     PmxcKeyXferIf *),
 };
 
 static void aes_class_init(ObjectClass *klass, const void *data)
@@ -1437,16 +1435,24 @@ static void aes_class_init(ObjectClass *klass, const void *data)
     ssc->push = aes_stream_push;
 }
 
+static const Property pmxc_aes_properties[] = {
+    DEFINE_PROP_LINK("asu-aes", pmxc_aes, asu, TYPE_PMXC_KEY_XFER_IF,
+                     PmxcKeyXferIf *),
+};
+
 static void pmxc_aes_class_init(ObjectClass *klass, const void *data)
 {
     PmxcKeyXferIfClass *ktc = PMXC_KEY_XFER_IF_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, pmxc_aes_properties);
     ktc->asu_ready = pmxc_asu_state;
 }
 
 static void pmc_key_sink_class_init(ObjectClass *klass, const void *data)
 {
     ZynqMPAESKeySinkClass *c = ZYNQMP_AES_KEY_SINK_CLASS(klass);
+
     c->update = pmc_key_sink_update;
 }
 
