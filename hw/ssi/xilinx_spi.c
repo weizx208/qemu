@@ -348,7 +348,6 @@ static void xilinx_spi_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_irq(sbd, &s->irq);
     s->cs_lines = g_new0(qemu_irq, s->num_cs);
-    ssi_auto_connect_slaves(dev, s->cs_lines, s->spi);
     qdev_init_gpio_out(dev, s->cs_lines, s->num_cs);
 
     memory_region_init_io(&s->mmio, OBJECT(s),

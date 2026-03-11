@@ -1957,7 +1957,6 @@ static void axiqspi_realize(DeviceState *dev, Error **errp)
 
     s->spi_bus = ssi_create_bus(dev, "spi0");
     s->cs_lines = g_new0(qemu_irq, s->conf.num_cs);
-    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi_bus);
     qdev_init_gpio_out(dev, s->cs_lines, s->conf.num_cs);
 
     DB_PRINT("axiqspi: realized\n");
