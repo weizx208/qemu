@@ -320,6 +320,7 @@ static void xlx_iom_init(Object *obj)
         sysbus_init_mmio(sbd, &s->iomem[i]);
     }
     qdev_init_gpio_out(DEVICE(obj), &s->parent_irq, 1);
+    sysbus_init_irq(sbd, &s->parent_irq);
 }
 
 static int xilinx_iom_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
