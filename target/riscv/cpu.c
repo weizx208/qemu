@@ -1090,6 +1090,16 @@ static bool riscv_cpu_is_dynamic(Object *cpu_obj)
     return object_dynamic_cast(cpu_obj, TYPE_RISCV_DYNAMIC_CPU) != NULL;
 }
 
+#ifndef CONFIG_USER_ONLY
+static void rv32_microblaze_v_setup_default_time_src(Object *cpu_obj)
+{
+    CPURISCVState *env = &RISCV_CPU(cpu_obj)->env;
+    Object *timesrc = object_new("microblaze-v-timesrc");
+
+    riscv_cpu_set_time_src(env, RISCV_CPU_TIME_SRC_IF(timesrc));
+}
+#endif
+
 static void riscv_cpu_init(Object *obj)
 {
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(obj);
@@ -1145,6 +1155,12 @@ static void riscv_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     if (mcc->def->custom_csrs) {
         riscv_register_custom_csrs(cpu, mcc->def->custom_csrs);
+    }
+#endif
+
+#ifndef CONFIG_USER_ONLY
+    if (object_dynamic_cast(obj, TYPE_RISCV_CPU_MICROBLAZE_V)) {
+        rv32_microblaze_v_setup_default_time_src(obj);
     }
 #endif
 
