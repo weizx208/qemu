@@ -736,7 +736,7 @@ static void pmx_anlg_init(Object *obj)
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_out(DEVICE(obj), &s->irq_glitch_detected, 1);
+    sysbus_init_irq(sbd, &s->irq_glitch_detected);
     sysbus_init_irq(sbd, &s->irq_pmc_anlg_imr);
 }
 
