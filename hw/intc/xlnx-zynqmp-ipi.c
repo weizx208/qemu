@@ -357,7 +357,8 @@ static const FDTGenericGPIOSet ipi_client_gpios[] = {
             GPIO_FDT_TRIG_OUT(PL_1, 8),
             GPIO_FDT_TRIG_OUT(PL_2, 9),
             GPIO_FDT_TRIG_OUT(PL_3, 10),
-        }
+            { },
+        },
     },
     {
         .names = &fdt_generic_gpio_name_set_gpio,
@@ -373,6 +374,7 @@ static const FDTGenericGPIOSet ipi_client_gpios[] = {
             GPIO_FDT_OBS_OUT(PL_1, 8),
             GPIO_FDT_OBS_OUT(PL_2, 9),
             GPIO_FDT_OBS_OUT(PL_3, 10),
+            { },
         }
     },
     { },
