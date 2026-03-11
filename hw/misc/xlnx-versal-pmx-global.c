@@ -1838,10 +1838,7 @@ static void pmx_global_tamper_respond(PMX_GLOBAL *s, unsigned slot)
 
     /* Relay to external responder, if one is attached */
     irq = s->tamper_out[slot];
-    if (qemu_irq_is_connected(irq)) {
-        qemu_irq_pulse(irq);
-        return;
-    }
+    qemu_irq_pulse(irq);
 
     /* Otherwise, apply built-in responses */
     resp = pmx_global_tamper_response(s, slot);
