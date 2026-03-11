@@ -351,7 +351,7 @@ static int arm_gic_common_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
                                       Error **errp)
 {
     GICState *gs = ARM_GIC_COMMON(obj);
-    int cpu = 0;
+    int cpu = 0, match = 0;
     uint32_t idx;
 
     if (ncells != 3) {
@@ -380,10 +380,11 @@ static int arm_gic_common_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
             if (cells[2] & 1 << (cpu + 8)) {
                 *irqs = qdev_get_gpio_in(DEVICE(obj),
                                          gs->num_irq - 16 + idx + cpu * 32);
+                match++;
+                irqs++;
             }
-            irqs++;
         }
-        return cpu;
+        return match;
     default:
         error_setg(errp, "Invalid cell 0 value in interrupt binding: %d",
                    cells[0]);
