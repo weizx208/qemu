@@ -634,11 +634,24 @@ static void rv32_imafcu_nommu_cpu_init(Object *obj)
     cpu->cfg.pmp = true;
 }
 
+#ifndef CONFIG_USER_ONLY
+static void rv32_microblaze_v_setup_default_time_src(Object *cpu_obj)
+{
+    CPURISCVState *env = &RISCV_CPU(cpu_obj)->env;
+    Object *timesrc = object_new("microblaze-v-timesrc");
+
+    riscv_cpu_set_time_src(env, RISCV_CPU_TIME_SRC_IF(timesrc));
+}
+#endif
+
 static void rv32_microblaze_v_cpu_init(Object *obj)
 {
     RISCVCPU *cpu = RISCV_CPU(obj);
 
     rv32_base_cpu_init(obj);
+#ifndef CONFIG_USER_ONLY
+    rv32_microblaze_v_setup_default_time_src(obj);
+#endif
     cpu->cfg.mmu = false;
 }
 #endif
