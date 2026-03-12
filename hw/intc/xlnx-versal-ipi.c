@@ -2115,12 +2115,12 @@ static void x_update_irq(XlnxVersalIPI *s)
         { R_PMC_NOBUF_ISR, R_PMC_NOBUF_IMR, &s->irq_pmc_nobuf },
         { R_IPI6_ISR, R_IPI6_IMR, &s->irq_ipi[6] },
         { R_IPI_ISR, R_IPI_IMR, &s->irq_ipi_int },
-        { R_IPI_NOBUF1_ISR, R_PMC_NOBUF_IMR, &s->irq_ipi_nobuf[0] },
-        { R_IPI_NOBUF2_ISR, R_PMC_NOBUF_IMR, &s->irq_ipi_nobuf[1] },
-        { R_IPI_NOBUF3_ISR, R_PMC_NOBUF_IMR, &s->irq_ipi_nobuf[2] },
-        { R_IPI_NOBUF4_ISR, R_PMC_NOBUF_IMR, &s->irq_ipi_nobuf[3] },
-        { R_IPI_NOBUF5_ISR, R_PMC_NOBUF_IMR, &s->irq_ipi_nobuf[4] },
-        { R_IPI_NOBUF6_ISR, R_PMC_NOBUF_IMR, &s->irq_ipi_nobuf[5] },
+        { R_IPI_NOBUF1_ISR, R_IPI_NOBUF1_IMR, &s->irq_ipi_nobuf[0] },
+        { R_IPI_NOBUF2_ISR, R_IPI_NOBUF2_IMR, &s->irq_ipi_nobuf[1] },
+        { R_IPI_NOBUF3_ISR, R_IPI_NOBUF3_IMR, &s->irq_ipi_nobuf[2] },
+        { R_IPI_NOBUF4_ISR, R_IPI_NOBUF4_IMR, &s->irq_ipi_nobuf[3] },
+        { R_IPI_NOBUF5_ISR, R_IPI_NOBUF5_IMR, &s->irq_ipi_nobuf[4] },
+        { R_IPI_NOBUF6_ISR, R_IPI_NOBUF6_IMR, &s->irq_ipi_nobuf[5] },
     };
     int last_idx = s->cfg.num_master_ids / 2;
     int i;
