@@ -1335,6 +1335,17 @@ static void arm_cpu_set_idpfr0(Object *obj, Visitor *v, const char *name,
     SET_IDREG(isar, ID_PFR0, idpfr0);
 }
 
+static void arm_cpu_set_idpfr1(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+    uint32_t idpfr1;
+
+    visit_type_uint32(v, name, &idpfr1, errp);
+    SET_IDREG(isar, ID_PFR1, idpfr1);
+}
+
 static void arm_cpu_set_memattr_secure(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -1738,6 +1749,9 @@ static void arm_cpu_post_init(Object *obj)
                         NULL, NULL);
     object_property_add(obj, "idpfr0", "uint32_t",
                         NULL, arm_cpu_set_idpfr0,
+                        NULL, NULL);
+    object_property_add(obj, "idpfr1", "uint32_t",
+                        NULL, arm_cpu_set_idpfr1,
                         NULL, NULL);
 #endif
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);
