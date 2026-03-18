@@ -1313,6 +1313,17 @@ static const Property arm_cpu_reset_hivecs_property =
             DEFINE_PROP_BOOL("reset-hivecs", ARMCPU, reset_hivecs, false);
 
 #ifndef CONFIG_USER_ONLY
+static void arm_cpu_set_clidr(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+    uint32_t clidr;
+
+    visit_type_uint32(v, name, &clidr, errp);
+    SET_IDREG(isar, CLIDR, clidr);
+}
+
 static void arm_cpu_set_memattr_secure(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -1710,6 +1721,10 @@ static void arm_cpu_post_init(Object *obj)
                                      OBJ_PROP_LINK_STRONG);
         }
     }
+
+    object_property_add(obj, "clidr", "uint32_t",
+                        NULL, arm_cpu_set_clidr,
+                        NULL, NULL);
 #endif
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property);
 }
