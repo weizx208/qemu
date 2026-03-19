@@ -70,6 +70,34 @@ typedef enum XlnxEfuseBitIdx {
     XLNX_EFUSE_BIT_GLITCH_DET_EN,
 } XlnxEfuseBitIdx;
 
+typedef enum XlnxEfuseAccessCtrl {
+    XLNX_EFUSE_AC_NEVER = 0,
+    XLNX_EFUSE_AC_ALWAYS,
+    XLNX_EFUSE_AC_37F,
+    XLNX_EFUSE_AC_TBIT0,
+    XLNX_EFUSE_AC_DME,
+    XLNX_EFUSE_AC_DNA,
+    XLNX_EFUSE_AC_FACTORY,
+    XLNX_EFUSE_AC_RFSOC,
+    XLNX_EFUSE_AC_FACTORY_5EC,
+    XLNX_EFUSE_AC_FACTORY_ROW0,
+    XLNX_EFUSE_AC_TBIT0_58C,
+    XLNX_EFUSE_AC_TBIT0_58E,
+    XLNX_EFUSE_AC_TBIT0_58F,
+    XLNX_EFUSE_AC_TBIT0_5A8,
+    XLNX_EFUSE_AC_TBIT0_5AB,
+    XLNX_EFUSE_AC_TBIT0_5AD,
+    XLNX_EFUSE_AC_TBIT0_5AF,
+    XLNX_EFUSE_AC_TBIT0_5C8,
+    XLNX_EFUSE_AC_TBIT0_REVOKE,
+    XLNX_EFUSE_AC_TBIT1_5C8,
+} XlnxEfuseAccessCtrl;
+
+typedef enum XlnxEfuseAccessCtrlIdx {
+    XLNX_EFUSE_AC_WR_ONLY,
+    XLNX_EFUSE_AC_RD_ONLY,
+} XlnxEfuseAccessCtrlIdx;
+
 struct XlnxEfuseMapIfClass {
     InterfaceClass parent_class;
 

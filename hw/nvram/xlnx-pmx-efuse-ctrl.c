@@ -183,44 +183,31 @@ REG32(TEST_FUSE_CTRL, 0x100)
  * (a value of '5' is used to indicate a strip tile, i.e., 1 row
  *  with all 4 bytes from the same row).
  *
- * Efuse access-control is byte-wise, and is implemented using a
- * 2-level table lookup:
+ * Efuse access-control is byte-wise, and is implemented using a table lookup
+ * that uses efuse array's byte offset (the value specified in controller's
+ * EFUSE_PGM_ADDR or EFUSE_RD_ADDR register, and not the cache byte offset) to
+ * obtain the ID of its respective access-control checker (acc) function.
  *
- * a) Level 1 uses efuse array's byte offset (the value specified
- *    in controller's EFUSE_PGM_ADDR or EFUSE_RD_ADDR register, and
- *    not the cache byte offset) to obtain the ID of its respective
- *    access-control checker (acc) function.
+ * There are 2 tables:
+ * i)  One for read-only access, i.e., any bits within the byte cannot
+ *     be changed via EFUSE_PGM_ADDR register.
  *
- *    There are 2 level-1 tables:
- *    i)  One for read-only access, i.e., any bits within the byte cannot
- *        be changed via EFUSE_PGM_ADDR register.
+ * ii) One for write-only access, i.e., any bits within the byte cannot
+ *     be read via EFUSE_RD_ADDR register or its corresponding cache.
  *
- *    ii) One for write-only access, i.e., any bits within the byte cannot
- *        be read via EFUSE_RD_ADDR register or its corresponding cache.
- *
- *    If level-1 lookup returns an ID of 0, the requested access is
- *    always granted.
- *
- * b) Level 2 uses acc ID to find the entry address of the acc function,
- *    which returns True if access is denied.
+ * If lookup returns an ID of 0, the requested access is
+ * always granted.
  */
-typedef bool (*efuse_acv_t)(XlnxPmxEFuseCtrl *s);
-
 #include "xlnx-pmx-efuse-tile.c.inc"
 
 /* A table to determine if a given eFuse array's byte is write-only. */
 static const uint8_t pmx_efuse_ac_wr_only[] = {
-    EFUSE_ACL1_WR_ONLY
+    EFUSE_ACL_WR_ONLY
 };
 
 /* A table to determine if a given eFuse array's byte is read-only */
 static const uint8_t pmx_efuse_ac_rd_only[] = {
-    EFUSE_ACL1_RD_ONLY
-};
-
-/* A table to dispatch access control checker */
-static efuse_acv_t const pmx_efuse_ac_verifier[] = {
-    EFUSE_ACL2_FUNCS
+    EFUSE_ACL_RD_ONLY
 };
 
 static unsigned pmx_efuse_bits(XlnxEFuse *efuse)
@@ -231,7 +218,6 @@ static unsigned pmx_efuse_bits(XlnxEFuse *efuse)
 static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
                                 const uint8_t *ac_table, size_t ac_limit)
 {
-    efuse_acv_t verifier = NULL;
     uint8_t ac;
 
     /* Access request is granted if it is not under given access control */
@@ -240,16 +226,72 @@ static bool pmx_efuse_ac_locked(XlnxPmxEFuseCtrl *s, size_t baddr,
     }
 
     ac = ac_table[baddr];
-    assert(ac < ARRAY_SIZE(pmx_efuse_ac_verifier));
 
     switch (ac) {
-    case EFUSE_AC_NEVER:
+    case XLNX_EFUSE_AC_NEVER:
         return false;
-    case EFUSE_AC_ALWAYS:
+    case XLNX_EFUSE_AC_ALWAYS:
         return true;
+    case XLNX_EFUSE_AC_37F:
+        return xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_GLITCH_DET_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT);
+    case XLNX_EFUSE_AC_DME:
+        return s->ac_dme;
+    case XLNX_EFUSE_AC_DNA:
+        return s->ac_dna;
+    case XLNX_EFUSE_AC_FACTORY:
+        return s->ac_factory;
+    case XLNX_EFUSE_AC_RFSOC:
+        return s->ac_rfsoc;
+    case XLNX_EFUSE_AC_FACTORY_5EC:
+        return s->ac_factory
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_BOOT_ENV_WR_LK);
+    case XLNX_EFUSE_AC_FACTORY_ROW0:
+        return s->ac_factory || s->ac_row0;
+    case XLNX_EFUSE_AC_TBIT0_58C:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_UDS_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_58E:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK0_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_58F:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK1_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_5A8:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PPK2_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_5AB:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_AES_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_5AD:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_USER_KEY_0_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_5AF:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_USER_KEY_1_WR_LK);
+    case XLNX_EFUSE_AC_TBIT0_5C8:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PUF_SYN_LK);
+    case XLNX_EFUSE_AC_TBIT0_REVOKE:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT)
+            || ARRAY_FIELD_EX32(s->regs, EFUSE_PGM_LOCK, REVOCATION_ID_LOCK);
+    case XLNX_EFUSE_AC_TBIT1_5C8:
+        return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT)
+            || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_PUF_SYN_LK);
     default:
-        verifier = pmx_efuse_ac_verifier[ac];
-        return verifier && verifier(s);
+        g_assert_not_reached();
     }
 }
 
