@@ -831,7 +831,10 @@ static void efuse_key_crc_chk(XlnxPmxEFuseCtrl *s, uint32_t crc_a,
 static void efuse_aes_crc_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(reg->opaque);
-    bool dis = pmx_efuse_ac_5a9(s) || pmx_efuse_ac_5aa(s);
+    bool dis = xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_AES_CRC_LK_0)
+        || xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                  XLNX_EFUSE_BIT_AES_CRC_LK_1);
 
     efuse_key_crc_chk(s, val64,
                       R_STATUS_AES_CRC_DONE_MASK,
@@ -842,7 +845,8 @@ static void efuse_aes_crc_postw(RegisterInfo *reg, uint64_t val64)
 static void efuse_aes_u0_crc_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(reg->opaque);
-    bool dis = pmx_efuse_ac_5ac(s);
+    bool dis = xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_USER_KEY_0_CRC_LK_0);
 
     efuse_key_crc_chk(s, val64,
                       R_STATUS_AES_USER_KEY_0_CRC_DONE_MASK,
@@ -853,7 +857,8 @@ static void efuse_aes_u0_crc_postw(RegisterInfo *reg, uint64_t val64)
 static void efuse_aes_u1_crc_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(reg->opaque);
-    bool dis = pmx_efuse_ac_5ae(s);
+    bool dis = xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                      XLNX_EFUSE_BIT_USER_KEY_1_CRC_LK_0);
 
     efuse_key_crc_chk(s, val64,
                       R_STATUS_AES_USER_KEY_1_CRC_DONE_MASK,
@@ -1024,7 +1029,8 @@ static bool pmx_efuse_get_aes_dis(Object *efuse, Error **errp)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(efuse->parent);
 
-    return pmx_efuse_ac_588(s);
+    return xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                  XLNX_EFUSE_BIT_AES_DIS);
 }
 
 static XlnxEFusePufData *pmx_efuse_get_puf(DeviceState *dev,
@@ -1045,7 +1051,8 @@ static XlnxEFusePufData *pmx_efuse_get_puf(DeviceState *dev,
     }
 
     pd = g_malloc0(offsetof(XlnxEFusePufData, pufsyn) + pd_max);
-    pd->puf_dis = pmx_efuse_ac_5ca(s);
+    pd->puf_dis = xlnx_efuse_map_get_bit(s->mapping, s->efuse,
+                                         XLNX_EFUSE_BIT_PUF_DIS);
     pd->pufsyn_len = pd_max;
     pmx_efuse_tile_get_le32(s, puf_tiles, len,
                             pd->pufsyn, pd_max);
@@ -1059,7 +1066,6 @@ static bool pmx_efuse_get_sysmon(DeviceState *dev,
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(dev);
     const XlnxPmxEfuseTile *pmx_efuse_u8_sysmon_rd64;
     size_t len;
-    unsigned gd_en_bit = 23 * 32 + 29;
     uint8_t rd64[sizeof(uint64_t)];
 
     assert(data);
@@ -1074,7 +1080,10 @@ static bool pmx_efuse_get_sysmon(DeviceState *dev,
                           rd64, sizeof(rd64));
     data->rdata_low = ldl_le_p(rd64);
     data->rdata_high = ldl_le_p(rd64 + 4);
-    data->glitch_monitor_en = xlnx_efuse_get_bit(s->efuse, gd_en_bit);
+    data->glitch_monitor_en =
+        xlnx_efuse_map_get_bit(s->mapping,
+                               s->efuse,
+                               XLNX_EFUSE_BIT_GLITCH_DET_EN);
 
     return true;
 }

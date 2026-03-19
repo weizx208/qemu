@@ -50,12 +50,34 @@ typedef enum XlnxEfuseMapIdx {
     XLNX_EFUSE_MAP_PUF,
 } XlnxEfuseMapIdx;
 
+typedef enum XlnxEfuseBitIdx {
+    XLNX_EFUSE_BIT_GLITCH_DET_WR_LK,
+    XLNX_EFUSE_BIT_AES_DIS,
+    XLNX_EFUSE_BIT_UDS_WR_LK,
+    XLNX_EFUSE_BIT_PPK0_WR_LK,
+    XLNX_EFUSE_BIT_PPK1_WR_LK,
+    XLNX_EFUSE_BIT_PPK2_WR_LK,
+    XLNX_EFUSE_BIT_AES_CRC_LK_0,
+    XLNX_EFUSE_BIT_AES_CRC_LK_1,
+    XLNX_EFUSE_BIT_AES_WR_LK,
+    XLNX_EFUSE_BIT_USER_KEY_0_CRC_LK_0,
+    XLNX_EFUSE_BIT_USER_KEY_0_WR_LK,
+    XLNX_EFUSE_BIT_USER_KEY_1_CRC_LK_0,
+    XLNX_EFUSE_BIT_USER_KEY_1_WR_LK,
+    XLNX_EFUSE_BIT_PUF_SYN_LK,
+    XLNX_EFUSE_BIT_PUF_DIS,
+    XLNX_EFUSE_BIT_BOOT_ENV_WR_LK,
+    XLNX_EFUSE_BIT_GLITCH_DET_EN,
+} XlnxEfuseBitIdx;
+
 struct XlnxEfuseMapIfClass {
     InterfaceClass parent_class;
 
     const XlnxPmxEfuseTile * (*get_mapping)(XlnxEfuseMapIf *iface,
                                             XlnxEfuseMapIdx idx,
                                             size_t *len);
+    size_t (*get_bit_idx)(XlnxEfuseMapIf *iface,
+                          XlnxEfuseBitIdx idx);
 };
 
 static inline const XlnxPmxEfuseTile *
@@ -68,6 +90,22 @@ xlnx_efuse_map_get(XlnxEfuseMapIf *iface,
     return c->get_mapping(iface, idx, len);
 }
 
+static inline size_t xlnx_efuse_map_get_bit_idx(XlnxEfuseMapIf *iface,
+                                                XlnxEfuseBitIdx idx)
+{
+    XlnxEfuseMapIfClass *c = XLNX_EFUSE_MAP_IF_GET_CLASS(iface);
+
+    return c->get_bit_idx(iface, idx);
+}
+
+static inline bool xlnx_efuse_map_get_bit(XlnxEfuseMapIf *iface,
+                                          XlnxEFuse *efuse,
+                                          XlnxEfuseBitIdx idx)
+{
+    size_t b_idx = xlnx_efuse_map_get_bit_idx(iface, idx);
+
+    return xlnx_efuse_get_bit(efuse, b_idx);
+}
 
 typedef struct XlnxPmxEFuseCtrl {
     SysBusDevice parent_obj;

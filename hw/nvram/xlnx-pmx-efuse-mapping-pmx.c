@@ -111,11 +111,71 @@ static const XlnxPmxEfuseTile *pmx_efuse_mapping_pmx_get(XlnxEfuseMapIf *iface,
     }
 }
 
+static size_t pmx_efuse_mapping_pmx_get_bit_idx(XlnxEfuseMapIf *iface,
+                                                XlnxEfuseBitIdx bit)
+{
+    switch (bit) {
+    case XLNX_EFUSE_BIT_GLITCH_DET_WR_LK:
+        return 0x37f;
+
+    case XLNX_EFUSE_BIT_AES_DIS:
+        return 0x588;
+
+    case XLNX_EFUSE_BIT_UDS_WR_LK:
+        return 0x58c;
+
+    case XLNX_EFUSE_BIT_PPK0_WR_LK:
+        return 0x58e;
+
+    case XLNX_EFUSE_BIT_PPK1_WR_LK:
+        return 0x58f;
+
+    case XLNX_EFUSE_BIT_PPK2_WR_LK:
+        return 0x5a8;
+
+    case XLNX_EFUSE_BIT_AES_CRC_LK_0:
+        return 0x5a9;
+
+    case XLNX_EFUSE_BIT_AES_CRC_LK_1:
+        return 0x5aa;
+
+    case XLNX_EFUSE_BIT_AES_WR_LK:
+        return 0x5ab;
+
+    case XLNX_EFUSE_BIT_USER_KEY_0_CRC_LK_0:
+        return 0x5ac;
+
+    case XLNX_EFUSE_BIT_USER_KEY_0_WR_LK:
+        return 0x5ad;
+
+    case XLNX_EFUSE_BIT_USER_KEY_1_CRC_LK_0:
+        return 0x5ae;
+
+    case XLNX_EFUSE_BIT_USER_KEY_1_WR_LK:
+        return 0x5af;
+
+    case XLNX_EFUSE_BIT_PUF_SYN_LK:
+        return 0x5c8;
+
+    case XLNX_EFUSE_BIT_PUF_DIS:
+        return 0x5ca;
+
+    case XLNX_EFUSE_BIT_BOOT_ENV_WR_LK:
+        return 0x5ec;
+
+    case XLNX_EFUSE_BIT_GLITCH_DET_EN:
+        return 0x2fd;
+    }
+
+    return 0;
+}
+
 static void pmx_efuse_mapping_pmx_class_init(ObjectClass *c, void *data)
 {
     XlnxEfuseMapIfClass *xpefmic = XLNX_EFUSE_MAP_IF_CLASS(c);
 
     xpefmic->get_mapping = pmx_efuse_mapping_pmx_get;
+    xpefmic->get_bit_idx = pmx_efuse_mapping_pmx_get_bit_idx;
 }
 
 static const TypeInfo pmx_efuse_mapping_pmx_info = {
