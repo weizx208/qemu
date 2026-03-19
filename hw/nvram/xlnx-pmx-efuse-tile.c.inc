@@ -2,7 +2,7 @@
  * Tool-generated fuse tile coordinates of AMD/Xilinx PMX eFuse
  * logical entities.
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright Advanced Micro Devices, Inc.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -3752,182 +3752,182 @@ enum {
     EFUSE_AC_TBIT1_5C8,
 };
 
-static bool pmx_efuse_ac_37f(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_37f(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x37f); /* GLITCH_DET_WR_LK */
 }
 
-static bool pmx_efuse_ac_588(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_588(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x588); /* AES_DIS */
 }
 
-static bool pmx_efuse_ac_58c(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_58c(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x58c); /* UDS_WR_LK */
 }
 
-static bool pmx_efuse_ac_58e(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_58e(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x58e); /* PPK0_WR_LK */
 }
 
-static bool pmx_efuse_ac_58f(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_58f(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x58f); /* PPK1_WR_LK */
 }
 
-static bool pmx_efuse_ac_5a8(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5a8(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5a8); /* PPK2_WR_LK */
 }
 
-static bool pmx_efuse_ac_5a9(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5a9(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5a9); /* AES_CRC_LK_0 */
 }
 
-static bool pmx_efuse_ac_5aa(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5aa(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5aa); /* AES_CRC_LK_1 */
 }
 
-static bool pmx_efuse_ac_5ab(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5ab(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5ab); /* AES_WR_LK */
 }
 
-static bool pmx_efuse_ac_5ac(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5ac(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5ac); /* USER_KEY_0_CRC_LK_0 */
 }
 
-static bool pmx_efuse_ac_5ad(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5ad(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5ad); /* USER_KEY_0_WR_LK */
 }
 
-static bool pmx_efuse_ac_5ae(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5ae(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5ae); /* USER_KEY_1_CRC_LK_0 */
 }
 
-static bool pmx_efuse_ac_5af(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5af(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5af); /* USER_KEY_1_WR_LK */
 }
 
-static bool pmx_efuse_ac_5c8(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5c8(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5c8); /* PUF_SYN_LK */
 }
 
-static bool pmx_efuse_ac_5ca(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5ca(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5ca); /* PUF_DIS */
 }
 
-static bool pmx_efuse_ac_5ec(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_5ec(XlnxPmxEFuseCtrl *s)
 {
     return xlnx_efuse_get_bit(s->efuse, 0x5ec); /* BOOT_ENV_WR_LK */
 }
 
-static bool pmx_efuse_ac_tbit1(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit1(XlnxPmxEFuseCtrl *s)
 {
     return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_1_TBIT);
 }
 
-static bool pmx_efuse_ac_tbit0(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0(XlnxPmxEFuseCtrl *s)
 {
     return !ARRAY_FIELD_EX32(s->regs, STATUS, EFUSE_0_TBIT);
 }
 
-static bool pmx_efuse_ac_revoke(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_revoke(XlnxPmxEFuseCtrl *s)
 {
     return !!ARRAY_FIELD_EX32(s->regs, EFUSE_PGM_LOCK, REVOCATION_ID_LOCK);
 }
 
-static bool pmx_efuse_ac_dme(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_dme(XlnxPmxEFuseCtrl *s)
 {
     return s->ac_dme;
 }
 
-static bool pmx_efuse_ac_dna(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_dna(XlnxPmxEFuseCtrl *s)
 {
     return s->ac_dna;
 }
 
-static bool pmx_efuse_ac_factory(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_factory(XlnxPmxEFuseCtrl *s)
 {
     return s->ac_factory;
 }
 
-static bool pmx_efuse_ac_rfsoc(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_rfsoc(XlnxPmxEFuseCtrl *s)
 {
     return s->ac_rfsoc;
 }
 
-static bool pmx_efuse_ac_row0(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_row0(XlnxPmxEFuseCtrl *s)
 {
     return s->ac_row0;
 }
 
-static bool pmx_efuse_ac_factory_5ec(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_factory_5ec(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_factory(s) || pmx_efuse_ac_5ec(s);
 }
 
-static bool pmx_efuse_ac_factory_row0(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_factory_row0(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_factory(s) || pmx_efuse_ac_row0(s);
 }
 
-static bool pmx_efuse_ac_tbit0_58c(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_58c(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_58c(s);
 }
 
-static bool pmx_efuse_ac_tbit0_58e(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_58e(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_58e(s);
 }
 
-static bool pmx_efuse_ac_tbit0_58f(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_58f(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_58f(s);
 }
 
-static bool pmx_efuse_ac_tbit0_5a8(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_5a8(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_5a8(s);
 }
 
-static bool pmx_efuse_ac_tbit0_5ab(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_5ab(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_5ab(s);
 }
 
-static bool pmx_efuse_ac_tbit0_5ad(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_5ad(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_5ad(s);
 }
 
-static bool pmx_efuse_ac_tbit0_5af(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_5af(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_5af(s);
 }
 
-static bool pmx_efuse_ac_tbit0_5c8(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_5c8(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_5c8(s);
 }
 
-static bool pmx_efuse_ac_tbit0_revoke(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit0_revoke(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit0(s) || pmx_efuse_ac_revoke(s);
 }
 
-static bool pmx_efuse_ac_tbit1_5c8(XlnxPmxEFuseCtrl *s)
+static bool __attribute__((unused)) pmx_efuse_ac_tbit1_5c8(XlnxPmxEFuseCtrl *s)
 {
     return pmx_efuse_ac_tbit1(s) || pmx_efuse_ac_5c8(s);
 }
