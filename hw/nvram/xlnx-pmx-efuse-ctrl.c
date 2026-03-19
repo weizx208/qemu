@@ -315,19 +315,15 @@ static bool pmx_efuse_ac_writable(XlnxPmxEFuseCtrl *s, unsigned bit)
 
 static bool pmx_efuse_tile_is_u32(const XlnxPmxEfuseTile *tile, size_t tcnt)
 {
-    XlnxPmxEfuseTile *upper = pmx_efuse_u32 + (ARRAY_SIZE(pmx_efuse_u32) - 1);
-    XlnxPmxEfuseTile *lower = pmx_efuse_u32;
-    const XlnxPmxEfuseTile *last  = tile + tcnt - 1;
+    size_t i;
 
-    g_assert(tcnt > 0);
-
-    if (lower <= tile && last <= upper) {
-        return true;
+    for (i = 0; i < tcnt; i++) {
+        if (tile[i].len != 4) {
+            return false;
+        }
     }
 
-    /* Partial overlap is a bug */
-    g_assert(tile > upper || last < lower);
-    return false;
+    return true;
 }
 
 static uint32_t pmx_efuse_tile_read_mask(const XlnxPmxEfuseTile *tile,
