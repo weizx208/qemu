@@ -198,17 +198,6 @@ REG32(TEST_FUSE_CTRL, 0x100)
  * If lookup returns an ID of 0, the requested access is
  * always granted.
  */
-#include "xlnx-pmx-efuse-tile.c.inc"
-
-/* A table to determine if a given eFuse array's byte is write-only. */
-static const uint8_t pmx_efuse_ac_wr_only[] = {
-    EFUSE_ACL_WR_ONLY
-};
-
-/* A table to determine if a given eFuse array's byte is read-only */
-static const uint8_t pmx_efuse_ac_rd_only[] = {
-    EFUSE_ACL_RD_ONLY
-};
 
 static unsigned pmx_efuse_bits(XlnxEFuse *efuse)
 {
@@ -299,16 +288,27 @@ static uint8_t pmx_efuse_ac_rd_mask(XlnxPmxEFuseCtrl *s,
                                     size_t row, unsigned byte_idx)
 {
     bool wr_only;
+    const uint8_t *pmx_efuse_ac_wr_only;
+    size_t len;
 
+    pmx_efuse_ac_wr_only = xlnx_efuse_map_get_ac(s->mapping,
+                                                 XLNX_EFUSE_AC_WR_ONLY,
+                                                 &len);
     wr_only = pmx_efuse_ac_locked(s, (row * 4 + byte_idx),
                                   pmx_efuse_ac_wr_only,
-                                  sizeof(pmx_efuse_ac_wr_only));
+                                  len);
     return wr_only ? 0 : 255;
 }
 
 static bool pmx_efuse_ac_writable(XlnxPmxEFuseCtrl *s, unsigned bit)
 {
     bool rd_only;
+    const uint8_t *pmx_efuse_ac_rd_only;
+    size_t len;
+
+    pmx_efuse_ac_rd_only = xlnx_efuse_map_get_ac(s->mapping,
+                                                 XLNX_EFUSE_AC_RD_ONLY,
+                                                 &len);
 
     /* Global write-disable */
     if (!ARRAY_FIELD_EX32(s->regs, CFG, PGM_EN)) {
@@ -318,7 +318,7 @@ static bool pmx_efuse_ac_writable(XlnxPmxEFuseCtrl *s, unsigned bit)
     /* Fine-grain write-access control */
     rd_only = pmx_efuse_ac_locked(s, (bit / 8),
                                   pmx_efuse_ac_rd_only,
-                                  sizeof(pmx_efuse_ac_rd_only));
+                                  len);
     return !rd_only;
 }
 

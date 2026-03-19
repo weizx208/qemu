@@ -104,6 +104,9 @@ struct XlnxEfuseMapIfClass {
     const XlnxPmxEfuseTile * (*get_mapping)(XlnxEfuseMapIf *iface,
                                             XlnxEfuseMapIdx idx,
                                             size_t *len);
+    const uint8_t * (*get_ac_mapping)(XlnxEfuseMapIf *iface,
+                                      XlnxEfuseAccessCtrlIdx idx,
+                                      size_t *len);
     size_t (*get_bit_idx)(XlnxEfuseMapIf *iface,
                           XlnxEfuseBitIdx idx);
 };
@@ -116,6 +119,15 @@ xlnx_efuse_map_get(XlnxEfuseMapIf *iface,
     XlnxEfuseMapIfClass *c = XLNX_EFUSE_MAP_IF_GET_CLASS(iface);
 
     return c->get_mapping(iface, idx, len);
+}
+
+static inline const uint8_t *xlnx_efuse_map_get_ac(XlnxEfuseMapIf *iface,
+                                                   XlnxEfuseAccessCtrlIdx idx,
+                                                   size_t *len)
+{
+    XlnxEfuseMapIfClass *c = XLNX_EFUSE_MAP_IF_GET_CLASS(iface);
+
+    return c->get_ac_mapping(iface, idx, len);
 }
 
 static inline size_t xlnx_efuse_map_get_bit_idx(XlnxEfuseMapIf *iface,

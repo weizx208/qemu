@@ -73,6 +73,14 @@ static const XlnxPmxEfuseTile pmx_efuse_puf[] = {
     EFUSE_U32_TILES_PUF
 };
 
+static const uint8_t pmx_efuse_ac_wr_only[] = {
+    EFUSE_ACL_WR_ONLY
+};
+
+static const uint8_t pmx_efuse_ac_rd_only[] = {
+    EFUSE_ACL_RD_ONLY
+};
+
 static const XlnxPmxEfuseTile *pmx_efuse_mapping_pmx_get(XlnxEfuseMapIf *iface,
                                                          XlnxEfuseMapIdx idx,
                                                          size_t *len)
@@ -109,6 +117,25 @@ static const XlnxPmxEfuseTile *pmx_efuse_mapping_pmx_get(XlnxEfuseMapIf *iface,
     default:
         return NULL;
     }
+}
+
+static const uint8_t *pmx_efuse_mapping_pmx_get_ac(XlnxEfuseMapIf *iface,
+                                                   XlnxEfuseAccessCtrlIdx idx,
+                                                   size_t *len)
+{
+    switch (idx) {
+    case XLNX_EFUSE_AC_RD_ONLY:
+        *len = ARRAY_SIZE(pmx_efuse_ac_rd_only);
+        return pmx_efuse_ac_rd_only;
+
+    case XLNX_EFUSE_AC_WR_ONLY:
+        *len = ARRAY_SIZE(pmx_efuse_ac_wr_only);
+        return pmx_efuse_ac_wr_only;
+
+    default:
+        return NULL;
+    }
+
 }
 
 static size_t pmx_efuse_mapping_pmx_get_bit_idx(XlnxEfuseMapIf *iface,
@@ -175,6 +202,7 @@ static void pmx_efuse_mapping_pmx_class_init(ObjectClass *c, void *data)
     XlnxEfuseMapIfClass *xpefmic = XLNX_EFUSE_MAP_IF_CLASS(c);
 
     xpefmic->get_mapping = pmx_efuse_mapping_pmx_get;
+    xpefmic->get_ac_mapping = pmx_efuse_mapping_pmx_get_ac;
     xpefmic->get_bit_idx = pmx_efuse_mapping_pmx_get_bit_idx;
 }
 
