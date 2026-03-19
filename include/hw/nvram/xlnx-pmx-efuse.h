@@ -77,6 +77,7 @@ typedef struct XlnxPmxEFuseCtrl {
     ZynqMPAESKeySink *aes_key_sink;
     ZynqMPAESKeySink *usr_key0_sink;
     ZynqMPAESKeySink *usr_key1_sink;
+    XlnxEfuseMapIf *mapping;
 
     bool ac_dme;
     bool ac_dna;
