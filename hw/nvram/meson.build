@@ -13,6 +13,7 @@ system_ss.add(when: 'CONFIG_XLNX_EFUSE', if_true: files('xlnx-efuse.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE_VERSAL', if_true: files(
                                                    'xlnx-pmx-efuse-cache.c',
                                                    'xlnx-pmx-efuse-ctrl.c',
+                                                   'xlnx-pmx-efuse-mapping-pmx.c',
                                                    'xlnx-versal-efuse-cache.c',
                                                    'xlnx-versal-efuse-ctrl.c'))
 system_ss.add(when: 'CONFIG_XLNX_EFUSE_ZYNQMP', if_true: files(

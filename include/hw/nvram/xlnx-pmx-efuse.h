@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright Advanced Micro Devices, Inc.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -18,9 +18,55 @@
 
 #define TYPE_XLNX_PMX_EFUSE_CTRL  "xlnx.pmx_efuse_ctrl"
 #define TYPE_XLNX_PMX_EFUSE_CACHE "xlnx.pmx_efuse_cache"
+#define TYPE_XLNX_EFUSE_MAP_IF "xlnx.efuse-map-if"
+#define TYPE_XLNX_EFUSE_MAP_PMX "xlnx.efuse-map-pmx"
+
 
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxPmxEFuseCtrl,  XLNX_PMX_EFUSE_CTRL);
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxPmxEFuseCache, XLNX_PMX_EFUSE_CACHE);
+
+
+typedef struct XlnxEfuseMapIfClass XlnxEfuseMapIfClass;
+typedef struct XlnxEfuseMapIf XlnxEfuseMapIf;
+DECLARE_CLASS_CHECKERS(XlnxEfuseMapIfClass, XLNX_EFUSE_MAP_IF,
+                       TYPE_XLNX_EFUSE_MAP_IF)
+#define XLNX_EFUSE_MAP_IF(obj) \
+    INTERFACE_CHECK(XlnxEfuseMapIf, (obj), \
+                    TYPE_XLNX_EFUSE_MAP_IF)
+
+typedef struct XlnxPmxEfuseTile {
+    size_t row;        /* index into fuse[] u32 array */
+    size_t byte_lane;  /* [1..4] -> byte column [0..3], 5 -> entire 32 bits row */
+    size_t len;
+} XlnxPmxEfuseTile;
+
+typedef enum XlnxEfuseMapIdx {
+    XLNX_EFUSE_MAP_REG_EXPOSED, /* reg exposed eFuses through efuse cache */
+    XLNX_EFUSE_MAP_AES_KEY,
+    XLNX_EFUSE_MAP_USER0_KEY,
+    XLNX_EFUSE_MAP_USER1_KEY,
+    XLNX_EFUSE_MAP_UDS,
+    XLNX_EFUSE_MAP_SYSMON,
+} XlnxEfuseMapIdx;
+
+struct XlnxEfuseMapIfClass {
+    InterfaceClass parent_class;
+
+    const XlnxPmxEfuseTile * (*get_mapping)(XlnxEfuseMapIf *iface,
+                                            XlnxEfuseMapIdx idx,
+                                            size_t *len);
+};
+
+static inline const XlnxPmxEfuseTile *
+xlnx_efuse_map_get(XlnxEfuseMapIf *iface,
+                   XlnxEfuseMapIdx idx,
+                   size_t *len)
+{
+    XlnxEfuseMapIfClass *c = XLNX_EFUSE_MAP_IF_GET_CLASS(iface);
+
+    return c->get_mapping(iface, idx, len);
+}
+
 
 typedef struct XlnxPmxEFuseCtrl {
     SysBusDevice parent_obj;

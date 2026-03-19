@@ -2,7 +2,7 @@
  * QEMU model of the Xilinx PMX_EFUSE_CTRL
  *
  * Copyright (c) 2021 Xilinx Inc.
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright Advanced Micro Devices, Inc.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -204,11 +204,6 @@ REG32(TEST_FUSE_CTRL, 0x100)
  * b) Level 2 uses acc ID to find the entry address of the acc function,
  *    which returns True if access is denied.
  */
-typedef const struct XlnxPmxEfuseTile {
-    uint16_t row:12;       /* 0-based index into fuse[] u32 array */
-    uint16_t byte_lane:4;  /* 1-based byte-lane of u8 (5:u32) lsb */
-} XlnxPmxEfuseTile;
-
 typedef bool (*efuse_acv_t)(XlnxPmxEFuseCtrl *s);
 
 #include "xlnx-pmx-efuse-tile.c.inc"
@@ -318,11 +313,11 @@ static bool pmx_efuse_ac_writable(XlnxPmxEFuseCtrl *s, unsigned bit)
     return !rd_only;
 }
 
-static bool pmx_efuse_tile_is_u32(XlnxPmxEfuseTile *tile, size_t tcnt)
+static bool pmx_efuse_tile_is_u32(const XlnxPmxEfuseTile *tile, size_t tcnt)
 {
     XlnxPmxEfuseTile *upper = pmx_efuse_u32 + (ARRAY_SIZE(pmx_efuse_u32) - 1);
     XlnxPmxEfuseTile *lower = pmx_efuse_u32;
-    XlnxPmxEfuseTile *last  = tile + tcnt - 1;
+    const XlnxPmxEfuseTile *last  = tile + tcnt - 1;
 
     g_assert(tcnt > 0);
 
@@ -335,7 +330,7 @@ static bool pmx_efuse_tile_is_u32(XlnxPmxEfuseTile *tile, size_t tcnt)
     return false;
 }
 
-static uint32_t pmx_efuse_tile_read_mask(XlnxPmxEfuseTile *tile,
+static uint32_t pmx_efuse_tile_read_mask(const XlnxPmxEfuseTile *tile,
                                          XlnxPmxEFuseCtrl *s)
 {
     uint32_t mask = 0;
@@ -364,7 +359,7 @@ static uint32_t pmx_efuse_tile_read_mask(XlnxPmxEfuseTile *tile,
     }
 }
 
-static uint32_t pmx_efuse_tile_get_u32(XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
+static uint32_t pmx_efuse_tile_get_u32(const XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
 {
     unsigned lsb_lane = 8 * (tile->byte_lane - 1);
     unsigned rn, r0 = tile->row;
@@ -392,7 +387,7 @@ static uint32_t pmx_efuse_tile_get_u32(XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
     return u32;
 }
 
-static void pmx_efuse_tile_get_le32(XlnxPmxEfuseTile *tile, size_t tile_cnt,
+static void pmx_efuse_tile_get_le32(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
                                     void *d, size_t len, XlnxEFuse *efuse)
 {
     unsigned i, bcnt;
@@ -436,7 +431,7 @@ static void pmx_efuse_tile_get_le32(XlnxPmxEfuseTile *tile, size_t tile_cnt,
     }
 }
 
-static uint32_t pmx_efuse_tile_get_u8(XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
+static uint32_t pmx_efuse_tile_get_u8(const XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
 {
     unsigned lsb_lane = 8 * (tile->byte_lane - 1);
     uint32_t row_word = efuse->fuse32[tile->row];
@@ -447,7 +442,7 @@ static uint32_t pmx_efuse_tile_get_u8(XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
     return 255 & (row_word >> lsb_lane);
 }
 
-static void pmx_efuse_tile_get_be(XlnxPmxEfuseTile *tile, size_t tile_cnt,
+static void pmx_efuse_tile_get_be(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
                                   void *d, size_t len, XlnxEFuse *efuse)
 {
     uint8_t *u8 = d;
@@ -464,7 +459,7 @@ static void pmx_efuse_tile_get_be(XlnxPmxEfuseTile *tile, size_t tile_cnt,
     }
 }
 
-static void pmx_efuse_tile_get_le(XlnxPmxEfuseTile *tile, size_t tile_cnt,
+static void pmx_efuse_tile_get_le(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
                                   void *d, size_t len, XlnxEFuse *efuse)
 {
     uint8_t *u8 = d;
@@ -484,7 +479,7 @@ static void pmx_efuse_tile_get_le(XlnxPmxEfuseTile *tile, size_t tile_cnt,
 static uint32_t pmx_efuse_get_u32(DeviceState *dev, uint32_t bit, bool *denied)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(dev);
-    XlnxPmxEfuseTile *tile = NULL;
+    const XlnxPmxEfuseTile *tile = NULL;
     unsigned slot = bit / 32;
     uint32_t mask;
     bool denied_local;
@@ -1159,6 +1154,12 @@ static void pmx_efuse_ctrl_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, efuse_ctrl_props);
 }
 
+static const TypeInfo pmx_efuse_mapping_if_info = {
+    .name = TYPE_XLNX_EFUSE_MAP_IF,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(XlnxEfuseMapIfClass),
+};
+
 static const TypeInfo pmx_efuse_ctrl_info = {
     .name          = TYPE_XLNX_PMX_EFUSE_CTRL,
     .parent        = TYPE_SYS_BUS_DEVICE,
@@ -1169,6 +1170,7 @@ static const TypeInfo pmx_efuse_ctrl_info = {
 
 static void pmx_efuse_ctrl_register_types(void)
 {
+    type_register_static(&pmx_efuse_mapping_if_info);
     type_register_static(&pmx_efuse_ctrl_info);
 }
 
