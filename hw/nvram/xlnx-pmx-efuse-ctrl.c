@@ -208,39 +208,6 @@ typedef bool (*efuse_acv_t)(XlnxPmxEFuseCtrl *s);
 
 #include "xlnx-pmx-efuse-tile.c.inc"
 
-/* Bits readable as 32-bit words through the pmx-efuse-cache */
-static XlnxPmxEfuseTile pmx_efuse_u32[] = {
-    EFUSE_U32_TILES,
-};
-
-/*
- * Uncached 64-bit sysmon data u8 tiles (i.e., each tile has only 8 bits).
- */
-static XlnxPmxEfuseTile pmx_efuse_u8_sysmon_rd64[] = {
-    EFUSE_U8_TILES_SYSMON_RD64,
-};
-
-/*
- * Write-only u8 arrays.
- *
- * pmx-efuse-ctrl can, and only can, report their calculated CRC.
- */
-static XlnxPmxEfuseTile pmx_efuse_u8_aes_key[] = {
-    EFUSE_U8_TILES_AES_KEY
-};
-
-static XlnxPmxEfuseTile pmx_efuse_u8_user0_key[] = {
-    EFUSE_U8_TILES_USER0_KEY
-};
-
-static XlnxPmxEfuseTile pmx_efuse_u8_user1_key[] = {
-    EFUSE_U8_TILES_USER1_KEY
-};
-
-static XlnxPmxEfuseTile pmx_efuse_u8_uds[] = {
-    EFUSE_U8_TILES_UDS
-};
-
 /* A table to determine if a given eFuse array's byte is write-only. */
 static const uint8_t pmx_efuse_ac_wr_only[] = {
     EFUSE_ACL1_WR_ONLY
@@ -355,7 +322,8 @@ static uint32_t pmx_efuse_tile_read_mask(const XlnxPmxEfuseTile *tile,
     }
 }
 
-static uint32_t pmx_efuse_tile_get_u32(const XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
+static uint32_t pmx_efuse_tile_get_u32(XlnxPmxEFuseCtrl *s,
+                                       const XlnxPmxEfuseTile *tile)
 {
     unsigned lsb_lane = 8 * (tile->byte_lane - 1);
     unsigned rn, r0 = tile->row;
@@ -367,7 +335,7 @@ static uint32_t pmx_efuse_tile_get_u32(const XlnxPmxEfuseTile *tile, XlnxEFuse *
     case 1 ... 4:
         break;
     default:
-        return efuse->fuse32[r0];
+        return s->efuse->fuse32[r0];
     }
 
     /* For now, only supports u32 tiles */
@@ -375,7 +343,7 @@ static uint32_t pmx_efuse_tile_get_u32(const XlnxPmxEfuseTile *tile, XlnxEFuse *
 
     /* Retrieve the 4x8bit tile */
     for (u32 = 0, rn = 4; rn-- > 0;) {
-        uint8_t u8 = efuse->fuse32[r0 + rn] >> lsb_lane;
+        uint8_t u8 = s->efuse->fuse32[r0 + rn] >> lsb_lane;
 
         u32 = (u32 << 8) | u8;
     }
@@ -383,8 +351,10 @@ static uint32_t pmx_efuse_tile_get_u32(const XlnxPmxEfuseTile *tile, XlnxEFuse *
     return u32;
 }
 
-static void pmx_efuse_tile_get_le32(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
-                                    void *d, size_t len, XlnxEFuse *efuse)
+static void pmx_efuse_tile_get_le32(XlnxPmxEFuseCtrl *s,
+                                    const XlnxPmxEfuseTile *tile,
+                                    size_t tile_cnt,
+                                    void *d, size_t len)
 {
     unsigned i, bcnt;
     uint32_t v32;
@@ -392,7 +362,7 @@ static void pmx_efuse_tile_get_le32(const XlnxPmxEfuseTile *tile, size_t tile_cn
     g_assert(tile && tile_cnt);
 
     for (i = 0, bcnt = 0; bcnt < ROUND_DOWN(len, 4); ) {
-        v32 = pmx_efuse_tile_get_u32(&tile[i], efuse);
+        v32 = pmx_efuse_tile_get_u32(s, &tile[i]);
         stl_le_p(d + bcnt, v32);
         bcnt += 4;
 
@@ -410,7 +380,7 @@ static void pmx_efuse_tile_get_le32(const XlnxPmxEfuseTile *tile, size_t tile_cn
 
     /* Copy only 1, 2, or 3 least-significant bytes. */
     g_assert(i < tile_cnt);
-    v32 = pmx_efuse_tile_get_u32(&tile[i], efuse);
+    v32 = pmx_efuse_tile_get_u32(s, &tile[i]);
 
     switch (len - bcnt) {
     case 1:
@@ -427,10 +397,11 @@ static void pmx_efuse_tile_get_le32(const XlnxPmxEfuseTile *tile, size_t tile_cn
     }
 }
 
-static uint32_t pmx_efuse_tile_get_u8(const XlnxPmxEfuseTile *tile, XlnxEFuse *efuse)
+static uint32_t pmx_efuse_tile_get_u8(XlnxPmxEFuseCtrl *s,
+                                      const XlnxPmxEfuseTile *tile)
 {
     unsigned lsb_lane = 8 * (tile->byte_lane - 1);
-    uint32_t row_word = efuse->fuse32[tile->row];
+    uint32_t row_word = s->efuse->fuse32[tile->row];
 
     /* For now, does not support u32 tiles */
     g_assert(!pmx_efuse_tile_is_u32(tile, 1));
@@ -438,15 +409,16 @@ static uint32_t pmx_efuse_tile_get_u8(const XlnxPmxEfuseTile *tile, XlnxEFuse *e
     return 255 & (row_word >> lsb_lane);
 }
 
-static void pmx_efuse_tile_get_be(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
-                                  void *d, size_t len, XlnxEFuse *efuse)
+static void pmx_efuse_tile_get_be(XlnxPmxEFuseCtrl *s,
+                                  const XlnxPmxEfuseTile *tile, size_t tile_cnt,
+                                  void *d, size_t len)
 {
     uint8_t *u8 = d;
     unsigned i, bcnt = MIN(tile_cnt, len);
 
     /* Truncate on least-significant part of efuse source */
     for (i = 0; i < bcnt; i++) {
-        u8[i] = pmx_efuse_tile_get_u8(&tile[tile_cnt - i - 1], efuse);
+        u8[i] = pmx_efuse_tile_get_u8(s, &tile[tile_cnt - i - 1]);
     }
 
     /* 0-pad on least-significant excess */
@@ -455,15 +427,17 @@ static void pmx_efuse_tile_get_be(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
     }
 }
 
-static void pmx_efuse_tile_get_le(const XlnxPmxEfuseTile *tile, size_t tile_cnt,
-                                  void *d, size_t len, XlnxEFuse *efuse)
+static void pmx_efuse_tile_get_le(XlnxPmxEFuseCtrl *s,
+                                  const XlnxPmxEfuseTile *tile,
+                                  size_t tile_cnt,
+                                  void *d, size_t len)
 {
     uint8_t *u8 = d;
     unsigned i, bcnt = MIN(tile_cnt, len);
 
     /* Truncate on most-significant part of efuse source */
     for (i = 0; i < bcnt; i++) {
-        u8[i] = pmx_efuse_tile_get_u8(&tile[i], efuse);
+        u8[i] = pmx_efuse_tile_get_u8(s, &tile[i]);
     }
 
     /* 0-pad on most-significant excess */
@@ -476,15 +450,20 @@ static uint32_t pmx_efuse_get_u32(DeviceState *dev, uint32_t bit, bool *denied)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(dev);
     const XlnxPmxEfuseTile *tile = NULL;
+    const XlnxPmxEfuseTile *pmx_efuse_u32;
     unsigned slot = bit / 32;
     uint32_t mask;
     bool denied_local;
+    size_t len;
 
+    pmx_efuse_u32 = xlnx_efuse_map_get(s->mapping,
+                                       XLNX_EFUSE_MAP_REG_EXPOSED,
+                                       &len);
     if (!denied) {
         denied = &denied_local;
     }
 
-    if (slot > ARRAY_SIZE(pmx_efuse_u32)) {
+    if (slot > len) {
         goto denied;
     }
 
@@ -495,7 +474,7 @@ static uint32_t pmx_efuse_get_u32(DeviceState *dev, uint32_t bit, bool *denied)
     }
 
     *denied = false;
-    return mask & pmx_efuse_tile_get_u32(tile, s->efuse);
+    return mask & pmx_efuse_tile_get_u32(s, tile);
 
  denied:
     /* Silient if passing status back to caller */
@@ -509,21 +488,28 @@ static uint32_t pmx_efuse_get_u32(DeviceState *dev, uint32_t bit, bool *denied)
     return 0;
 }
 
-static bool pmx_efuse_in_dme_mode(XlnxEFuse *efuse)
+static bool pmx_efuse_in_dme_mode(XlnxPmxEFuseCtrl *s)
 {
+    const XlnxPmxEfuseTile *pmx_efuse_u32;
+    const XlnxPmxEfuseTile *tile;
+    size_t len;
+    unsigned int u32;
     enum {
         DME_FIPS_CACHE_ADDR = 0x234,
     };
 
-    XlnxPmxEfuseTile *tile = &pmx_efuse_u32[DME_FIPS_CACHE_ADDR / 4];
-    unsigned u32 = pmx_efuse_tile_get_u32(tile, efuse);
+    pmx_efuse_u32 = xlnx_efuse_map_get(s->mapping,
+                                       XLNX_EFUSE_MAP_REG_EXPOSED,
+                                       &len);
+    tile = &pmx_efuse_u32[DME_FIPS_CACHE_ADDR / 4];
+    u32 = pmx_efuse_tile_get_u32(s, tile);
 
     return !!(u32 & 0xF);
 }
 
 static void pmx_efuse_ac_dme_sync(XlnxPmxEFuseCtrl *s)
 {
-    s->ac_dme = pmx_efuse_in_dme_mode(s->efuse);
+    s->ac_dme = pmx_efuse_in_dme_mode(s);
 }
 
 static void efuse_imr_update_irq(XlnxPmxEFuseCtrl *s)
@@ -560,51 +546,86 @@ static uint64_t efuse_idr_prew(RegisterInfo *reg, uint64_t val64)
 
 static void efuse_extract_aes_key_be(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_be(pmx_efuse_u8_aes_key,
-                          ARRAY_SIZE(pmx_efuse_u8_aes_key),
-                          d, (256 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_AES_KEY,
+                             &len);
+
+    pmx_efuse_tile_get_be(s, map, len, d, (256 / 8));
 }
 
 static void efuse_extract_user_key_0_be(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_be(pmx_efuse_u8_user0_key,
-                          ARRAY_SIZE(pmx_efuse_u8_user0_key),
-                          d, (256 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_USER0_KEY,
+                             &len);
+
+    pmx_efuse_tile_get_be(s, map, len, d, (256 / 8));
 }
 
 static void efuse_extract_user_key_1_be(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_be(pmx_efuse_u8_user1_key,
-                          ARRAY_SIZE(pmx_efuse_u8_user1_key),
-                          d, (256 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_USER1_KEY,
+                             &len);
+
+    pmx_efuse_tile_get_be(s, map, len, d, (256 / 8));
 }
 
 static void efuse_extract_aes_key(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_le(pmx_efuse_u8_aes_key,
-                          ARRAY_SIZE(pmx_efuse_u8_aes_key),
-                          d, (256 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_AES_KEY,
+                             &len);
+
+    pmx_efuse_tile_get_le(s, map, len, d, (256 / 8));
 }
 
 static void efuse_extract_user_key_0(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_le(pmx_efuse_u8_user0_key,
-                          ARRAY_SIZE(pmx_efuse_u8_user0_key),
-                          d, (256 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_USER0_KEY,
+                             &len);
+
+    pmx_efuse_tile_get_le(s, map, len, d, (256 / 8));
 }
 
 static void efuse_extract_user_key_1(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_le(pmx_efuse_u8_user1_key,
-                          ARRAY_SIZE(pmx_efuse_u8_user1_key),
-                          d, (256 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_USER1_KEY,
+                             &len);
+
+    pmx_efuse_tile_get_le(s, map, len, d, (256 / 8));
 }
 
 static void efuse_extract_dice_uds(XlnxPmxEFuseCtrl *s, uint32_t *d)
 {
-    pmx_efuse_tile_get_le(pmx_efuse_u8_uds,
-                          ARRAY_SIZE(pmx_efuse_u8_uds),
-                          d, (384 / 8), s->efuse);
+    const XlnxPmxEfuseTile *map;
+    size_t len;
+
+    map = xlnx_efuse_map_get(s->mapping,
+                             XLNX_EFUSE_MAP_UDS,
+                             &len);
+
+    pmx_efuse_tile_get_le(s, map, len, d, (384 / 8));
 }
 
 static bool bit_in_tbit_range(uint32_t bit)
@@ -1010,11 +1031,15 @@ static XlnxEFusePufData *pmx_efuse_get_puf(DeviceState *dev,
                                            uint16_t pufsyn_max)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(dev);
-    unsigned pd_r0 = 0x300 / 4;
-    unsigned pd_nr = 128 / 4;
-    uint16_t pd_max = 127 * 4;
+    uint16_t pd_max;
     XlnxEFusePufData *pd;
+    const XlnxPmxEfuseTile *puf_tiles;
+    size_t len;
 
+    puf_tiles = xlnx_efuse_map_get(s->mapping,
+                                   XLNX_EFUSE_MAP_PUF,
+                                   &len);
+    pd_max = (len - 1) * 4;
     if (pd_max > pufsyn_max && pufsyn_max) {
         pd_max = pufsyn_max;
     }
@@ -1022,8 +1047,8 @@ static XlnxEFusePufData *pmx_efuse_get_puf(DeviceState *dev,
     pd = g_malloc0(offsetof(XlnxEFusePufData, pufsyn) + pd_max);
     pd->puf_dis = pmx_efuse_ac_5ca(s);
     pd->pufsyn_len = pd_max;
-    pmx_efuse_tile_get_le32(&pmx_efuse_u32[pd_r0], pd_nr,
-                            pd->pufsyn, pd_max, s->efuse);
+    pmx_efuse_tile_get_le32(s, puf_tiles, len,
+                            pd->pufsyn, pd_max);
 
     return pd;
 }
@@ -1032,16 +1057,21 @@ static bool pmx_efuse_get_sysmon(DeviceState *dev,
                                  XlnxEFuseSysmonData *data)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(dev);
+    const XlnxPmxEfuseTile *pmx_efuse_u8_sysmon_rd64;
+    size_t len;
     unsigned gd_en_bit = 23 * 32 + 29;
     uint8_t rd64[sizeof(uint64_t)];
 
     assert(data);
     memset(data, 0, sizeof(*data));
 
+    pmx_efuse_u8_sysmon_rd64 = xlnx_efuse_map_get(s->mapping,
+                                                  XLNX_EFUSE_MAP_SYSMON,
+                                                  &len);
     /* Fetch data with access-control bypassed */
-    pmx_efuse_tile_get_le(pmx_efuse_u8_sysmon_rd64,
-                          ARRAY_SIZE(pmx_efuse_u8_sysmon_rd64),
-                          rd64, sizeof(rd64), s->efuse);
+    pmx_efuse_tile_get_le(s, pmx_efuse_u8_sysmon_rd64,
+                          len,
+                          rd64, sizeof(rd64));
     data->rdata_low = ldl_le_p(rd64);
     data->rdata_high = ldl_le_p(rd64 + 4);
     data->glitch_monitor_en = xlnx_efuse_get_bit(s->efuse, gd_en_bit);
@@ -1069,6 +1099,10 @@ static void pmx_efuse_ctrl_realize(DeviceState *dev, Error **errp)
 
     if (!s->usr_key1_sink) {
         warn_report("%s: eFuse USR_KEY1 key sink not connected", prefix);
+    }
+
+    if (!s->mapping) {
+        s->mapping = XLNX_EFUSE_MAP_IF(object_new(TYPE_XLNX_EFUSE_MAP_PMX));
     }
 
     /* Bind method(s) */
@@ -1135,6 +1169,8 @@ static const Property efuse_ctrl_props[] = {
     DEFINE_PROP_LINK("zynqmp-aes-key-sink-efuses-user1",
                      XlnxPmxEFuseCtrl, usr_key1_sink,
                      TYPE_ZYNQMP_AES_KEY_SINK, ZynqMPAESKeySink *),
+    DEFINE_PROP_LINK("mapping", XlnxPmxEFuseCtrl, mapping,
+                     TYPE_XLNX_EFUSE_MAP_IF, XlnxEfuseMapIf *),
 
 };
 
