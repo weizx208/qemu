@@ -458,7 +458,7 @@ static const MemoryRegionOps xppu_ap_ops = {
     .write_with_attrs = xppu_ap_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4,
     },
 };
