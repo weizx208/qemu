@@ -1314,6 +1314,33 @@ exit:
     trace_sdcard_rpmb_write_block(req, lduw_be_p(&sd->rpmb.result.result));
 }
 
+static void sd_erase_fast(SDState *sd, uint64_t start, uint64_t len)
+{
+    g_autofree uint8_t *erase_buf = NULL;
+    const size_t ERASE_STEP = 10 * MiB;
+    QEMUIOVector qiov;
+    size_t i;
+
+    if (!sd->blk) {
+        return;
+    }
+
+    erase_buf = g_malloc(ERASE_STEP);
+    memset(erase_buf, 0xff, ERASE_STEP);
+
+    qemu_iovec_init(&qiov, DIV_ROUND_UP(len, ERASE_STEP));
+
+    for (i = 0; i < len; i += ERASE_STEP) {
+        size_t l;
+
+        l = MIN(ERASE_STEP, len - i);
+        qemu_iovec_add(&qiov, erase_buf, l);
+    }
+
+    blk_pwritev(sd->blk, start, len, &qiov, 0);
+    qemu_iovec_destroy(&qiov);
+}
+
 static void sd_erase(SDState *sd)
 {
     uint64_t erase_start = sd->erase_start;
@@ -1350,10 +1377,13 @@ static void sd_erase(SDState *sd)
     sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
-    memset(sd->data, 0xff, erase_len);
-    for (erase_addr = erase_start; erase_addr <= erase_end;
-         erase_addr += erase_len) {
-        if (sdsc) {
+    if (!sdsc) {
+        sd_erase_fast(sd, erase_start, (erase_end - erase_start) + erase_len);
+    } else {
+        memset(sd->data, 0xff, erase_len);
+
+        for (erase_addr = erase_start; erase_addr <= erase_end;
+             erase_addr += erase_len) {
             /* Only SDSC cards support write protect groups */
             wpnum = sd_addr_to_wpnum(erase_addr);
             assert(wpnum < sd->wp_group_bits);
@@ -1361,8 +1391,9 @@ static void sd_erase(SDState *sd)
                 sd->card_status |= WP_ERASE_SKIP;
                 continue;
             }
+
+            sd_blk_write(sd, erase_addr, erase_len);
         }
-        sd_blk_write(sd, erase_addr, erase_len);
     }
 }
 
