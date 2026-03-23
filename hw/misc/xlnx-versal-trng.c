@@ -188,6 +188,14 @@ static uint64_t trng_ier_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
+static void trng_soft_reset(TRNG *s)
+{
+    register_reset(&s->regs_info[R_STATUS]);
+    s->count = 0;
+
+    trng_imr_update_irq(s);
+}
+
 static void trng_reset(DeviceState *dev)
 {
     TRNG *s = XILINX_TRNG(dev);
@@ -285,7 +293,7 @@ static void trng_ctrl_postw(RegisterInfo *reg, uint64_t val64)
     bool rst = FIELD_EX32(val64, CTRL, PRNGSRST);
 
     if (rst) {
-        trng_reset(DEVICE(s));
+        trng_soft_reset(s);
         return;
     }
 
