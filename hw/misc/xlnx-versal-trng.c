@@ -196,14 +196,21 @@ static void trng_soft_reset(TRNG *s)
     trng_imr_update_irq(s);
 }
 
-static void trng_reset(DeviceState *dev)
+static void trng_reset_enter(Object *obj, ResetType type)
 {
-    TRNG *s = XILINX_TRNG(dev);
+    TRNG *s = XILINX_TRNG(obj);
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
         register_reset(&s->regs_info[i]);
     }
+
+    s->count = 0;
+}
+
+static void trng_reset_hold(Object *obj)
+{
+    TRNG *s = XILINX_TRNG(obj);
 
     trng_imr_update_irq(s);
 }
@@ -522,8 +529,10 @@ static void trng_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     TRNGClass *tc = XILINX_TRNG_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    dc->reset = trng_reset;
+    rc->phases.enter = trng_reset_enter;
+    rc->phases.hold = trng_reset_hold;
     dc->realize = trng_realize;
     dc->vmsd = &vmstate_trng;
     tc->trng_offset = 0;
