@@ -92,6 +92,8 @@ typedef struct XlnxPsxcLpxSlcr {
 
     qemu_irq eam_err[4];
     uint32_t eam_regs[EAM_REG_MAX];
+    uint32_t num_apu_per_cluster;
+    uint32_t num_apu_cluster;
     uint32_t num_rpu;
     bool linux_boot;
 } XlnxPsxcLpxSlcr;
