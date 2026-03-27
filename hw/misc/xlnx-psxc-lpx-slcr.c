@@ -5243,6 +5243,8 @@ REG32(APU_GICD_P_CHAN_OUT, 0x00050508)
 #define APU_GICD_P_CHAN_OUT_RESET_VAL 0x0
 
 REG32(WAKEUP0_IRQ_STATUS, 0x00050600)
+    FIELD(WAKEUP0_IRQ_STATUS, APU0_CORE3_CORESIGHT, 30, 1)
+    FIELD(WAKEUP0_IRQ_STATUS, APU0_CORE2_CORESIGHT, 29, 1)
     FIELD(WAKEUP0_IRQ_STATUS, RSVD1, 28, 1)
     FIELD(WAKEUP0_IRQ_STATUS, RSVD0, 27, 1)
     FIELD(WAKEUP0_IRQ_STATUS, FPD_DBG, 26, 1)
@@ -5275,6 +5277,8 @@ REG32(WAKEUP0_IRQ_STATUS, 0x00050600)
 #define WAKEUP0_IRQ_STATUS_RESET_VAL 0x0
 
 REG32(WAKEUP0_IRQ_MASK, 0x00050604)
+    FIELD(WAKEUP0_IRQ_MASK, APU0_CORE3_CORESIGHT, 30, 1)
+    FIELD(WAKEUP0_IRQ_MASK, APU0_CORE2_CORESIGHT, 29, 1)
     FIELD(WAKEUP0_IRQ_MASK, RSVD1, 28, 1)
     FIELD(WAKEUP0_IRQ_MASK, RSVD0, 27, 1)
     FIELD(WAKEUP0_IRQ_MASK, FPD_DBG, 26, 1)
@@ -5307,6 +5311,8 @@ REG32(WAKEUP0_IRQ_MASK, 0x00050604)
 #define WAKEUP0_IRQ_MASK_RESET_VAL 0x1fffffff
 
 REG32(WAKEUP0_IRQ_EN, 0x00050608)
+    FIELD(WAKEUP0_IRQ_EN, APU0_CORE3_CORESIGHT, 30, 1)
+    FIELD(WAKEUP0_IRQ_EN, APU0_CORE2_CORESIGHT, 29, 1)
     FIELD(WAKEUP0_IRQ_EN, RSVD1, 28, 1)
     FIELD(WAKEUP0_IRQ_EN, RSVD0, 27, 1)
     FIELD(WAKEUP0_IRQ_EN, FPD_DBG, 26, 1)
@@ -5339,6 +5345,8 @@ REG32(WAKEUP0_IRQ_EN, 0x00050608)
 #define WAKEUP0_IRQ_EN_RESET_VAL 0x0
 
 REG32(WAKEUP0_IRQ_DIS, 0x0005060c)
+    FIELD(WAKEUP0_IRQ_DIS, APU0_CORE3_CORESIGHT, 30, 1)
+    FIELD(WAKEUP0_IRQ_DIS, APU0_CORE2_CORESIGHT, 29, 1)
     FIELD(WAKEUP0_IRQ_DIS, RSVD1, 28, 1)
     FIELD(WAKEUP0_IRQ_DIS, RSVD0, 27, 1)
     FIELD(WAKEUP0_IRQ_DIS, FPD_DBG, 26, 1)
@@ -5371,6 +5379,8 @@ REG32(WAKEUP0_IRQ_DIS, 0x0005060c)
 #define WAKEUP0_IRQ_DIS_RESET_VAL 0x0
 
 REG32(WAKEUP0_IRQ_TRIG, 0x00050610)
+    FIELD(WAKEUP0_IRQ_TRIG, APU0_CORE3_CORESIGHT, 30, 1)
+    FIELD(WAKEUP0_IRQ_TRIG, APU0_CORE2_CORESIGHT, 29, 1)
     FIELD(WAKEUP0_IRQ_TRIG, RSVD1, 28, 1)
     FIELD(WAKEUP0_IRQ_TRIG, RSVD0, 27, 1)
     FIELD(WAKEUP0_IRQ_TRIG, FPD_DBG, 26, 1)
@@ -6061,6 +6071,62 @@ REG32(SCAN_CLEAR_LOCK, 0x00050920)
     FIELD(SCAN_CLEAR_LOCK, LOCK, 0, 1)
 #define SCAN_CLEAR_LOCK_WRITE_MASK 0x00000001
 #define SCAN_CLEAR_LOCK_RESET_VAL 0x0
+
+REG32(APU0_CORE2_PWR_CNTRL_REG0, 0x00051000)
+    FIELD(APU0_CORE2_PWR_CNTRL_REG0, POWERUP_REQ, 0, 1)
+#define APU0_CORE2_PWR_CNTRL_REG0_WRITE_MASK 0x00000001
+
+REG32(APU0_CORE2_PWR_CNTRL_REG1, 0x00051004)
+    FIELD(APU0_CORE2_PWR_CNTRL_REG1, PGE1_DELAY, 16, 16)
+    FIELD(APU0_CORE2_PWR_CNTRL_REG1, PGE2_DELAY, 0, 16)
+#define APU0_CORE2_PWR_CNTRL_REG1_WRITE_MASK 0xffffffff
+
+REG32(APU0_CORE2_PWR_CNTRL_REG2, 0x00051008)
+    FIELD(APU0_CORE2_PWR_CNTRL_REG2, PGE3_DELAY, 16, 16)
+    FIELD(APU0_CORE2_PWR_CNTRL_REG2, ISO_DELAY, 0, 16)
+#define APU0_CORE2_PWR_CNTRL_REG2_WRITE_MASK 0xffffffff
+
+REG32(APU0_CORE2_PWR_CNTRL_STS, 0x0005100c)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, ISLAND_PWRUP_ERR, 12, 1)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, PWRUP_ACK_REG, 11, 1)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, RESET_GATE, 10, 1)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, CLOCK_EN, 9, 1)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, ISOLATION, 8, 1)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, PGE, 4, 4)
+    FIELD(APU0_CORE2_PWR_CNTRL_STS, PRDY, 0, 4)
+#define APU0_CORE2_PWR_CNTRL_STS_RESET_VAL 0x9ff
+
+REG32(APU0_CORE2_PWR_CNTRL_WPROT, 0x00051010)
+    FIELD(APU0_CORE2_PWR_CNTRL_WPROT, WPROT, 0, 1)
+#define APU0_CORE2_PWR_CNTRL_WPROT_WRITE_MASK 0x00000001
+
+REG32(APU0_CORE3_PWR_CNTRL_REG0, 0x00051020)
+    FIELD(APU0_CORE3_PWR_CNTRL_REG0, POWERUP_REQ, 0, 1)
+#define APU0_CORE3_PWR_CNTRL_REG0_WRITE_MASK 0x00000001
+
+REG32(APU0_CORE3_PWR_CNTRL_REG1, 0x00051024)
+    FIELD(APU0_CORE3_PWR_CNTRL_REG1, PGE1_DELAY, 16, 16)
+    FIELD(APU0_CORE3_PWR_CNTRL_REG1, PGE2_DELAY, 0, 16)
+#define APU0_CORE3_PWR_CNTRL_REG1_WRITE_MASK 0xffffffff
+
+REG32(APU0_CORE3_PWR_CNTRL_REG2, 0x00051028)
+    FIELD(APU0_CORE3_PWR_CNTRL_REG2, PGE3_DELAY, 16, 16)
+    FIELD(APU0_CORE3_PWR_CNTRL_REG2, ISO_DELAY, 0, 16)
+#define APU0_CORE3_PWR_CNTRL_REG2_WRITE_MASK 0xffffffff
+
+REG32(APU0_CORE3_PWR_CNTRL_STS, 0x0005102c)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, ISLAND_PWRUP_ERR, 12, 1)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, PWRUP_ACK_REG, 11, 1)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, RESET_GATE, 10, 1)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, CLOCK_EN, 9, 1)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, ISOLATION, 8, 1)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, PGE, 4, 4)
+    FIELD(APU0_CORE3_PWR_CNTRL_STS, PRDY, 0, 4)
+#define APU0_CORE3_PWR_CNTRL_STS_RESET_VAL 0x9ff
+
+REG32(APU0_CORE3_PWR_CNTRL_WPROT, 0x00051030)
+    FIELD(APU0_CORE3_PWR_CNTRL_WPROT, WPROT, 0, 1)
+#define APU0_CORE3_PWR_CNTRL_WPROT_WRITE_MASK 0x00000001
 
 REG32(REQ_SWRST_STATUS, 0x00060000)
     FIELD(REQ_SWRST_STATUS, RSVD1, 31, 1)
@@ -7215,12 +7281,12 @@ static void update_rpu_pcil_pchan_irq(XlnxPsxcLpxSlcr *s, size_t idx)
     }
 }
 
-static void update_core_pwr(const XlnxPsxcLpxSlcr *s, size_t idx)
+static void update_core_pwr(const XlnxPsxcLpxSlcr *s,
+                            XlnxPsxcLpxSlcrCorePowerCtrl *pwr_ctrl)
 {
-    const XlnxPsxcLpxSlcrCorePowerCtrl *pwr_ctrl = &s->core_pwr[idx];
     bool pwr = FIELD_EX32(pwr_ctrl->reg0,
                           APU0_CORE0_PWR_CNTRL_REG0, POWERUP_REQ);
-
+    size_t idx = pwr_ctrl - &s->core_pwr[0];
     trace_xlnx_psxc_lpx_slcr_update_core_power(idx, pwr);
     qemu_set_irq(pwr_ctrl->pwr, pwr);
 }
@@ -7302,27 +7368,102 @@ static void apu_core_pchan_poweroff_handler(void *opaque, int n, int level)
     update_pwr_reset_irq(s);
 }
 
-static uint32_t core_pwr_ctrl_read(const XlnxPsxcLpxSlcr *s, hwaddr offset)
+static XlnxPsxcLpxSlcrCorePowerCtrl *
+core_pwr_ctrl_resolve(XlnxPsxcLpxSlcr *s, hwaddr base, hwaddr *offset)
 {
     const size_t stride = A_APU0_CORE1_PWR_CNTRL_REG0
         - A_APU0_CORE0_PWR_CNTRL_REG0;
-    size_t core_idx;
-    size_t reg;
+    size_t abs_core_idx, cluster_idx, core_idx;
+
+    *offset -= base;
+    abs_core_idx = *offset / stride;
+    *offset = *offset % stride;
+    *offset += A_APU0_CORE0_PWR_CNTRL_REG0;
+
+    switch (base) {
+    case A_APU0_CORE0_PWR_CNTRL_REG0:
+        if (abs_core_idx < 8) {
+            /*
+             * APUs. In this register map section, we have maximum 2 cores
+             * per cluster and 4 clusters.
+             */
+            cluster_idx = abs_core_idx / 2;
+            core_idx = abs_core_idx % 2;
+
+            if (cluster_idx >= s->num_apu_cluster ||
+                core_idx >= s->num_apu_per_cluster) {
+                return NULL;
+            }
+        } else {
+            /*
+             * RPUs. Max 2 cores per clusters, 5 clusters. The first RPU
+             * registers starts after the last APU one, so we have an
+             * abs_core_idx offset of 8 here.
+             */
+            cluster_idx = (abs_core_idx - 8) / 2;
+            core_idx = (abs_core_idx - 8) % 2;
+
+            if ((abs_core_idx - 8) >= s->num_rpu) {
+                return NULL;
+            }
+        }
+        break;
+
+    case A_APU0_CORE2_PWR_CNTRL_REG0:
+        /*
+         * Special case for APU cluster 0, core 2 and 3. Those two have a
+         * dedicated register map section.
+         *
+         * Note: we reuse s->core_pwr[2] and [3] for those two cores.
+         * They are normally used for cluster 1 core 0 and 1, but as of
+         * today, PSXC configuration are:
+         *     - either 2 cores per cluster, more than 1 cluster
+         *     - or 4 cores per cluster, one cluster.
+         * The g_assert below will catch potential specification changes
+         * that would invalidate this invariant.
+         */
+        abs_core_idx += 2;
+        cluster_idx = 0;
+        core_idx = abs_core_idx;
+
+        if (cluster_idx >= s->num_apu_cluster ||
+            core_idx >= s->num_apu_per_cluster) {
+            return NULL;
+        }
+
+        g_assert(s->num_apu_cluster == 1);
+        break;
+
+    default:
+        return NULL;
+    }
+
+    g_assert(abs_core_idx < ARRAY_SIZE(s->core_pwr));
+    return &s->core_pwr[abs_core_idx];
+}
+
+static uint32_t core_pwr_ctrl_read(const XlnxPsxcLpxSlcr *s, hwaddr offset,
+                                   hwaddr base)
+{
     const XlnxPsxcLpxSlcrCorePowerCtrl *pwr_ctrl;
     uint32_t ret;
     bool powered_up;
+    hwaddr abs_offset = offset;
 
-    core_idx = offset / stride;
-    reg = offset % stride;
-    reg += A_APU0_CORE0_PWR_CNTRL_REG0;
+    pwr_ctrl = core_pwr_ctrl_resolve((XlnxPsxcLpxSlcr *)s, base, &offset);
 
-    g_assert(core_idx < ARRAY_SIZE(s->core_pwr));
-    pwr_ctrl = &s->core_pwr[core_idx];
+    if (pwr_ctrl == NULL) {
+        qemu_log_mask(LOG_GUEST_ERROR, TYPE_XILINX_PSXC_LPX_SLCR
+            ": access to core power control "
+            "register for non-existent core at offset 0x%" HWADDR_PRIx "\n",
+            abs_offset);
+        return 0;
+    }
 
     powered_up = FIELD_EX32(pwr_ctrl->reg0,
                             APU0_CORE0_PWR_CNTRL_REG0, POWERUP_REQ);
 
-    switch (reg) {
+    switch (offset) {
     case A_APU0_CORE0_PWR_CNTRL_REG0:
         ret = pwr_ctrl->reg0;
         break;
@@ -7366,29 +7507,30 @@ static uint32_t core_pwr_ctrl_read(const XlnxPsxcLpxSlcr *s, hwaddr offset)
     return ret;
 }
 
-static void core_pwr_ctrl_write(XlnxPsxcLpxSlcr *s, hwaddr offset, uint32_t val)
+static void core_pwr_ctrl_write(XlnxPsxcLpxSlcr *s, hwaddr offset,
+                                uint32_t val, hwaddr base)
 {
-    const size_t stride = A_APU0_CORE1_PWR_CNTRL_REG0
-        - A_APU0_CORE0_PWR_CNTRL_REG0;
-    size_t core_idx;
-    size_t reg;
     XlnxPsxcLpxSlcrCorePowerCtrl *pwr_ctrl;
+    hwaddr abs_offset = offset;
 
-    core_idx = offset / stride;
-    reg = offset % stride;
-    reg += A_APU0_CORE0_PWR_CNTRL_REG0;
+    pwr_ctrl = core_pwr_ctrl_resolve(s, base, &offset);
 
-    g_assert(core_idx < ARRAY_SIZE(s->core_pwr));
-    pwr_ctrl = &s->core_pwr[core_idx];
-
-    if ((reg != A_APU0_CORE0_PWR_CNTRL_WPROT) && pwr_ctrl->wprot) {
+    if (pwr_ctrl == NULL) {
+        qemu_log_mask(LOG_GUEST_ERROR, TYPE_XILINX_PSXC_LPX_SLCR
+            ": access to core power control "
+            "register for non-existent core at offset 0x%" HWADDR_PRIx "\n",
+            abs_offset);
         return;
     }
 
-    switch (reg) {
+    if ((offset != A_APU0_CORE0_PWR_CNTRL_WPROT) && pwr_ctrl->wprot) {
+        return;
+    }
+
+    switch (offset) {
     case A_APU0_CORE0_PWR_CNTRL_REG0:
         pwr_ctrl->reg0 = val & APU0_CORE0_PWR_CNTRL_REG0_WRITE_MASK;
-        update_core_pwr(s, core_idx);
+        update_core_pwr(s, pwr_ctrl);
         break;
 
     case A_APU0_CORE0_PWR_CNTRL_REG1:
@@ -7734,9 +7876,12 @@ static uint64_t psxc_lpx_slcr_read(void *opaque, hwaddr offset,
                                  offset - A_REQ_PWRDWN1_STATUS);
         break;
 
-
     case A_APU0_CORE0_PWR_CNTRL_REG0 ... A_RPU4_CORE1_PWR_CNTRL_WPROT:
-        ret = core_pwr_ctrl_read(s, offset - A_APU0_CORE0_PWR_CNTRL_REG0);
+        ret = core_pwr_ctrl_read(s, offset, A_APU0_CORE0_PWR_CNTRL_REG0);
+        break;
+
+    case A_APU0_CORE2_PWR_CNTRL_REG0 ... A_APU0_CORE3_PWR_CNTRL_WPROT:
+        ret = core_pwr_ctrl_read(s, offset, A_APU0_CORE2_PWR_CNTRL_REG0);
         break;
 
     case A_RPU_PCIL_A0_ISR ... A_RPU_PCIL_E1_PA:
@@ -7853,7 +7998,11 @@ static void psxc_lpx_slcr_write(void *opaque, hwaddr offset,
         break;
 
     case A_APU0_CORE0_PWR_CNTRL_REG0 ... A_RPU4_CORE1_PWR_CNTRL_WPROT:
-        core_pwr_ctrl_write(s, offset - A_APU0_CORE0_PWR_CNTRL_REG0, value);
+        core_pwr_ctrl_write(s, offset, value, A_APU0_CORE0_PWR_CNTRL_REG0);
+        break;
+
+    case A_APU0_CORE2_PWR_CNTRL_REG0 ... A_APU0_CORE3_PWR_CNTRL_WPROT:
+        core_pwr_ctrl_write(s, offset, value, A_APU0_CORE2_PWR_CNTRL_REG0);
         break;
 
     case A_RPU_PCIL_A0_ISR ... A_RPU_PCIL_E1_PA:
@@ -7979,7 +8128,8 @@ static void psxc_lpx_slcr_reset_hold(Object *obj, ResetType type)
     update_rpu_pcil_wfi_irq(s);
 
     for (i = 0; i < ARRAY_SIZE(s->core_pwr); i++) {
-        update_core_pwr(s, i);
+        XlnxPsxcLpxSlcrCorePowerCtrl *pwr_ctrl = &s->core_pwr[i];
+        update_core_pwr(s, pwr_ctrl);
     }
 }
 
