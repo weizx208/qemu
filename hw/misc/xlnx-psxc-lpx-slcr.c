@@ -36,6 +36,9 @@
 #include "hw/misc/xlnx-psxc-lpx-slcr.h"
 #include "trace.h"
 
+#define LPX_SLCR_MAX_APU_CLUSTER    4
+#define LPX_SLCR_MAX_APU_CORE_PER_CLUSTER 4
+
 REG32(WPROT0, 0x00000000)
     FIELD(WPROT0, ACTIVE, 0, 1)
 #define WPROT0_WRITE_MASK 0x00000001
@@ -8006,6 +8009,20 @@ static void psxc_lpx_slcr_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     size_t i;
 
+    if (s->num_apu_per_cluster > LPX_SLCR_MAX_APU_CORE_PER_CLUSTER) {
+        error_setg(errp, TYPE_XILINX_PSXC_LPX_SLCR
+                   ": requested %u number of APUs per cluster exceeds maximum %u",
+                   s->num_apu_per_cluster, LPX_SLCR_MAX_APU_CORE_PER_CLUSTER);
+        return;
+    }
+
+    if (s->num_apu_cluster > LPX_SLCR_MAX_APU_CLUSTER) {
+        error_setg(errp, TYPE_XILINX_PSXC_LPX_SLCR
+                   ": requested %u number of APU clusters exceeds maximum %u",
+                   s->num_apu_cluster, LPX_SLCR_MAX_APU_CLUSTER);
+        return;
+    }
+
     if (s->num_rpu > ARRAY_SIZE(s->rpu_pcil_pchan)) {
         error_setg(errp, TYPE_XILINX_PSXC_LPX_SLCR
                    ": Invalid number of RPUs %" PRIu32, s->num_rpu);
@@ -8141,6 +8158,10 @@ static const VMStateDescription vmstate_psxc_lpx_slcr = {
 };
 
 static Property psxc_lpx_slcr_properties[] = {
+    DEFINE_PROP_UINT32("num-apu-per-cluster", XlnxPsxcLpxSlcr,
+                       num_apu_per_cluster, LPX_SLCR_MAX_APU_CORE_PER_CLUSTER),
+    DEFINE_PROP_UINT32("num-apu-cluster", XlnxPsxcLpxSlcr, num_apu_cluster,
+                       LPX_SLCR_MAX_APU_CLUSTER),
     DEFINE_PROP_UINT32("num-rpu", XlnxPsxcLpxSlcr, num_rpu, 10),
     DEFINE_PROP_LINK("core-0", XlnxPsxcLpxSlcr, rpu_pcil_pchan[0].iface,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
