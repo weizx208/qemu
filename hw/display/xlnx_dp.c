@@ -618,6 +618,17 @@ static inline bool xlnx_dp_global_alpha_enabled(XlnxDPState *s)
            ((s->vblend_registers[V_BLEND_SET_GLOBAL_ALPHA_REG] & 0x01) != 0));
 }
 
+static DisplaySurface *xlnx_dp_create_surface(uint16_t width,
+                                              uint16_t height,
+                                              pixman_format_code_t fmt)
+{
+    return qemu_create_displaysurface_from(width,
+                                           height,
+                                           fmt,
+                                           width * PIXMAN_FORMAT_BPP(fmt) / 8,
+                                           NULL);
+}
+
 static void xlnx_dp_recreate_surface(XlnxDPState *s)
 {
     /*
@@ -644,18 +655,13 @@ static void xlnx_dp_recreate_surface(XlnxDPState *s)
             qemu_free_displaysurface(s->g_plane.surface);
         }
 
-        s->g_plane.surface
-                = qemu_create_displaysurface_from(width, height,
-                                                  s->g_plane.format, 0, NULL);
-        s->v_plane.surface
-                = qemu_create_displaysurface_from(width, height,
-                                                  s->v_plane.format, 0, NULL);
+        s->g_plane.surface = xlnx_dp_create_surface(width, height,
+                                                    s->g_plane.format);
+        s->v_plane.surface = xlnx_dp_create_surface(width, height,
+                                                    s->v_plane.format);
         if (xlnx_dp_global_alpha_enabled(s)) {
-            s->bout_plane.surface =
-                            qemu_create_displaysurface_from(width,
-                                                            height,
-                                                            s->g_plane.format,
-                                                            0, NULL);
+            s->bout_plane.surface = xlnx_dp_create_surface(width, height,
+                                                           s->g_plane.format);
             dpy_gfx_replace_surface(s->console, s->bout_plane.surface);
         } else {
             s->bout_plane.surface = NULL;
