@@ -1406,6 +1406,11 @@ typedef struct PMX_GLOBAL {
 
 PPU1_UPDATE_CTRL(PMX_GLOBAL)
 
+static bool is_pmxc_global(PMX_GLOBAL * s)
+{
+    return object_dynamic_cast(OBJECT(s), TYPE_XILINX_PMXC_GLOBAL) != NULL;
+}
+
 static void pmc_ppu1_gpi_update_irq(PMX_GLOBAL *s)
 {
     bool pending = s->regs[R_PMC_PPU1_GPI] & ~s->regs[R_PMC_PPU1_GPI_MASK];
@@ -1939,6 +1944,77 @@ static void shadowed_mstr_pwr_regs(RegisterInfo *reg, uint64_t val64)
     s->regs_from_0x5800[shadow_offset] = s->regs_from_0x10000[offset];
 }
 
+static void pmx_global_err_irq_update(PMX_GLOBAL *s)
+{
+    /* TODO */
+}
+
+static void err_status_postw(RegisterInfo *reg, uint64_t val64)
+{
+    PMX_GLOBAL *s = XILINX_PMX_GLOBAL(reg->opaque);
+
+    pmx_global_err_irq_update(s);
+}
+
+/*
+ * PMX has less errors in ERR3 than PMXC. The register API description is done
+ * for PMXC. The PMX case is handled in the register side-effect callbacks.
+ */
+static const uint32_t PMX_ERR3_MASK = 0x00003fff;
+
+static uint64_t err_trig_prew(RegisterInfo *reg, uint64_t val64)
+{
+    PMX_GLOBAL *s = XILINX_PMX_GLOBAL(reg->opaque);
+    size_t offset;
+
+    if (!is_pmxc_global(s) && reg->access->addr == A_PMC_ERR3_TRIG) {
+        val64 &= PMX_ERR3_MASK;
+    }
+
+    offset = (reg->access->addr - A_PMC_ERR1_TRIG) / sizeof(uint32_t);
+
+    s->regs_err_mgmt[R_PMC_ERR1_STATUS + offset] |= val64;
+    pmx_global_err_irq_update(s);
+
+    return 0;
+}
+
+static uint64_t err_enable_prew(RegisterInfo *reg, uint64_t val64)
+{
+    PMX_GLOBAL *s = XILINX_PMX_GLOBAL(reg->opaque);
+    size_t mask_reg;
+
+    if (!is_pmxc_global(s) && reg->access->addr >= A_PMC_ERR_OUT3_EN) {
+        val64 &= PMX_ERR3_MASK;
+    }
+
+    mask_reg = reg->access->addr - (A_PMC_ERR_OUT1_EN - A_PMC_ERR_OUT1_MASK);
+    mask_reg /= sizeof(uint32_t);
+    s->regs_err_mgmt[mask_reg] &= ~val64;
+
+    pmx_global_err_irq_update(s);
+
+    return 0;
+}
+
+static uint64_t err_disable_prew(RegisterInfo *reg, uint64_t val64)
+{
+    PMX_GLOBAL *s = XILINX_PMX_GLOBAL(reg->opaque);
+    size_t mask_reg;
+
+    if (!is_pmxc_global(s) && reg->access->addr >= A_PMC_ERR_OUT3_DIS) {
+        val64 &= PMX_ERR3_MASK;
+    }
+
+    mask_reg = reg->access->addr - (A_PMC_ERR_OUT1_DIS - A_PMC_ERR_OUT1_MASK);
+    mask_reg /= sizeof(uint32_t);
+    s->regs_err_mgmt[mask_reg] |= val64;
+
+    pmx_global_err_irq_update(s);
+
+    return 0;
+}
+
 static const RegisterAccessInfo pmxc_rom_validation_info[] = {
     { .name = "PMXC_ROM_VALIDATION_DIGEST_0",
         .addr = A_PMXC_ROM_VALIDATION_DIGEST_0,
@@ -2051,79 +2127,106 @@ static const RegisterAccessInfo pmxc_global_from_0x10000[] = {
 
 static const RegisterAccessInfo err_mgmt_regs_info[] = {
     {   .name = "PMC_ERR1_STATUS", .addr = A_PMC_ERR1_STATUS,
-        .w1c = 0xffffffff,
+        .w1c = 0xffffffff, .post_write = err_status_postw,
     },{ .name = "PMC_ERR1_TRIG", .addr = A_PMC_ERR1_TRIG,
+        .pre_write = err_trig_prew,
     },{ .name = "PMC_ERR_OUT1_MASK", .addr = A_PMC_ERR_OUT1_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_ERR_OUT1_EN", .addr = A_PMC_ERR_OUT1_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_ERR_OUT1_DIS", .addr = A_PMC_ERR_OUT1_DIS,
+        .pre_write = err_disable_prew,
     },{ .name = "PMC_POR1_MASK", .addr = A_PMC_POR1_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_POR1_EN", .addr = A_PMC_POR1_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_POR1_DIS", .addr = A_PMC_POR1_DIS,
+        .pre_write = err_disable_prew,
     },{ .name = "PMC_IRQ1_MASK", .addr = A_PMC_IRQ1_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_IRQ1_EN", .addr = A_PMC_IRQ1_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_IRQ1_DIS", .addr = A_PMC_IRQ1_DIS,
+        .pre_write = err_disable_prew,
     },{ .name = "PMC_SRST1_MASK", .addr = A_PMC_SRST1_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_SRST1_EN", .addr = A_PMC_SRST1_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_SRST1_DIS", .addr = A_PMC_SRST1_DIS,
+        .pre_write = err_disable_prew,
     },
 
     {   .name = "PMC_ERR2_STATUS", .addr = A_PMC_ERR2_STATUS,
-        .w1c = 0xffffffff,
+        .w1c = 0xffffffff, .post_write = err_status_postw,
     },{ .name = "PMC_ERR2_TRIG", .addr = A_PMC_ERR2_TRIG,
+        .pre_write = err_trig_prew,
     },{ .name = "PMC_ERR_OUT2_MASK", .addr = A_PMC_ERR_OUT2_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_ERR_OUT2_EN", .addr = A_PMC_ERR_OUT2_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_ERR_OUT2_DIS", .addr = A_PMC_ERR_OUT2_DIS,
+        .pre_write = err_disable_prew,
     },{ .name = "PMC_POR2_MASK", .addr = A_PMC_POR2_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_POR2_EN", .addr = A_PMC_POR2_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_POR2_DIS", .addr = A_PMC_POR2_DIS,
+        .pre_write = err_disable_prew,
     },{ .name = "PMC_IRQ2_MASK", .addr = A_PMC_IRQ2_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_IRQ2_EN", .addr = A_PMC_IRQ2_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_IRQ2_DIS", .addr = A_PMC_IRQ2_DIS,
+        .pre_write = err_disable_prew,
     },{ .name = "PMC_SRST2_MASK", .addr = A_PMC_SRST2_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
     },{ .name = "PMC_SRST2_EN", .addr = A_PMC_SRST2_EN,
+        .pre_write = err_enable_prew,
     },{ .name = "PMC_SRST2_DIS", .addr = A_PMC_SRST2_DIS,
+        .pre_write = err_disable_prew,
     },
 
     {   .name = "PMC_ERR3_STATUS", .addr = A_PMC_ERR3_STATUS,
-        .w1c = 0x07ffffff,
+        .w1c = 0x07ffffff, .post_write = err_status_postw,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_ERR3_TRIG", .addr = A_PMC_ERR3_TRIG,
+        .pre_write = err_trig_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_ERR_OUT3_MASK", .addr = A_PMC_ERR_OUT3_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_ERR_OUT3_EN", .addr = A_PMC_ERR_OUT3_EN,
+        .pre_write = err_enable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_ERR_OUT3_DIS", .addr = A_PMC_ERR_OUT3_DIS,
+        .pre_write = err_disable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_POR3_MASK", .addr = A_PMC_POR3_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_POR3_EN", .addr = A_PMC_POR3_EN,
+        .pre_write = err_enable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_POR3_DIS", .addr = A_PMC_POR3_DIS,
+        .pre_write = err_disable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_IRQ3_MASK", .addr = A_PMC_IRQ3_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_IRQ3_EN", .addr = A_PMC_IRQ3_EN,
+        .pre_write = err_enable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_IRQ3_DIS", .addr = A_PMC_IRQ3_DIS,
+        .pre_write = err_disable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_SRST3_MASK", .addr = A_PMC_SRST3_MASK,
         .reset = 0xffffffff, .ro = 0xffffffff,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_SRST3_EN", .addr = A_PMC_SRST3_EN,
+        .pre_write = err_enable_prew,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_SRST3_DIS", .addr = A_PMC_SRST3_DIS,
+        .pre_write = err_disable_prew,
         .rsvd = 0xfe000000,
     },
 
@@ -3055,6 +3158,7 @@ static void pmx_global_reset_hold(Object *obj, ResetType type)
     pmc_global_imr_update_irq(s);
     pmc_pl_irq_update_irq(s);
     req_iso_int_update_irq(s);
+    pmx_global_err_irq_update(s);
 }
 
 static const MemoryRegionOps pmx_global_ops = {
