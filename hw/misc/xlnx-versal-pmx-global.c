@@ -3100,8 +3100,8 @@ static void pmxc_global_init(Object *obj)
                      &pmx_global_ops,
                      XILINX_PMX_GLOBAL_ERR_DEBUG,
                      (R_PMXC_ROM_VALIDATION_STATUS + 1) * 4);
-    memory_region_add_subregion_overlap(&s->iomem, A_ROM_VALIDATION_STATUS,
-                    &reg_array->mem, 2);
+    memory_region_add_subregion(&s->iomem, A_ROM_VALIDATION_STATUS,
+                                &reg_array->mem);
 
     reg_array = register_init_block32(DEVICE(obj), pmxc_global_from_0x5800,
                                       ARRAY_SIZE(pmxc_global_from_0x5800),
@@ -3110,8 +3110,7 @@ static void pmxc_global_init(Object *obj)
                                       &pmx_global_ops,
                                       XILINX_PMX_GLOBAL_ERR_DEBUG,
                                       A_PMC_AUX_RT_PWR_STATE_0 + 4);
-    memory_region_add_subregion_overlap(&s->iomem, 0x5800,
-                                        &reg_array->mem, 2);
+    memory_region_add_subregion(&s->iomem, 0x5800, &reg_array->mem);
 
     reg_array = register_init_block32(DEVICE(obj), pmxc_global_from_0x10000,
                                       ARRAY_SIZE(pmxc_global_from_0x10000),
