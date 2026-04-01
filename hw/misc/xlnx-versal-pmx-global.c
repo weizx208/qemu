@@ -1384,6 +1384,7 @@ typedef struct PMX_GLOBAL {
     qemu_irq tamper_out[R_TAMPER_RESP_MAX];
     qemu_irq ppu1_wakeup;
     qemu_irq ppu1_rst;
+    qemu_irq err_irq;
 
     Object *bbram;
     Object *efuse;
@@ -1945,7 +1946,45 @@ static void shadowed_mstr_pwr_regs(RegisterInfo *reg, uint64_t val64)
 
 static void pmx_global_err_irq_update(PMX_GLOBAL *s)
 {
-    /* TODO */
+    enum { ERR_OUT, ERR_POR, ERR_IRQ, ERR_SRST };
+    static const size_t OUTPUT_MAP[] = {
+        [ERR_OUT] = R_PMC_ERR_OUT1_MASK,
+        [ERR_POR] = R_PMC_POR1_MASK,
+        [ERR_IRQ] = R_PMC_IRQ1_MASK,
+        [ERR_SRST] = R_PMC_SRST1_MASK
+    };
+    bool pending[4];
+    size_t i;
+
+    /*
+     * Compute the four possible pending outputs:
+     *    - OUT: (physical pad?) output pin. Not implemented
+     *    - POR: Power On Reset. Not implemented
+     *    - IRQ: IRQ to PPU1
+     *    - SRST: System Reset. Not implemented
+     */
+    for (i = 0; i < ARRAY_SIZE(OUTPUT_MAP); i++) {
+        size_t mask_off = OUTPUT_MAP[i];
+        const size_t err2_stride = R_PMC_ERR_OUT2_MASK - R_PMC_ERR_OUT1_MASK;
+        /* irregular stride for err3 */
+        static const size_t err3_stride[] = {
+            R_PMC_ERR_OUT3_MASK - R_PMC_ERR_OUT1_MASK,
+            R_PMC_POR3_MASK - R_PMC_POR1_MASK,
+            R_PMC_IRQ3_MASK - R_PMC_IRQ1_MASK,
+            R_PMC_SRST3_MASK - R_PMC_SRST1_MASK
+        };
+
+        pending[i] = s->regs_err_mgmt[R_PMC_ERR1_STATUS]
+            & ~s->regs_err_mgmt[mask_off];
+        pending[i] =
+            pending[i] || (s->regs_err_mgmt[R_PMC_ERR2_STATUS] &
+                           ~s->regs_err_mgmt[mask_off + err2_stride]);
+        pending[i] =
+            pending[i] || (s->regs_err_mgmt[R_PMC_ERR3_STATUS] &
+                           ~s->regs_err_mgmt[mask_off + err3_stride[i]]);
+    }
+
+    qemu_set_irq(s->err_irq, pending[ERR_IRQ]);
 }
 
 static void err_status_postw(RegisterInfo *reg, uint64_t val64)
@@ -3269,6 +3308,7 @@ static void pmx_global_init(Object *obj)
     for (n = 0; n < ARRAY_SIZE(s->tamper_out); n++) {
         sysbus_init_irq(sbd, &s->tamper_out[n]);
     }
+    sysbus_init_irq(sbd, &s->err_irq);
 
     /* Out signals.  */
     qdev_init_gpio_out_named(DEVICE(obj), &s->ppu1_rst, "ppu1_rst", 1);
@@ -3336,7 +3376,7 @@ static const FDTGenericGPIOSet pmx_global_gpios[] = {
       .names = &fdt_generic_gpio_name_set_interrupts,
       .gpios = (FDTGenericGPIOConnection[]) {
         { .name = SYSBUS_DEVICE_GPIO_IRQ,
-          .fdt_index = 0, .range = 8 + R_TAMPER_RESP_MAX },
+          .fdt_index = 0, .range = 9 + R_TAMPER_RESP_MAX },
         { },
       },
     },
