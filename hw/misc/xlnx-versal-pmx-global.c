@@ -3224,6 +3224,15 @@ static void pmc_global_isr_set_puf_acc_error(void *opaque, int n, int level)
     pmc_global_imr_update_irq(s);
 }
 
+static void pmx_err_management_eam_bits(void *opaque, int n, int level)
+{
+    PMX_GLOBAL *s = XILINX_PMX_GLOBAL(opaque);
+
+    s->regs_err_mgmt[R_PMC_ERR3_STATUS] |=
+           level << (n - 1 + R_PMC_ERR3_STATUS_PSX_EAM_E0_SHIFT);
+
+    pmx_global_err_irq_update(s);
+}
 
 static void pmx_global_realize(DeviceState *dev, Error **errp)
 {
@@ -3318,6 +3327,7 @@ static void pmx_global_init(Object *obj)
 
     /* In signals. */
     qdev_init_gpio_in(DEVICE(obj), pmc_global_isr_set_puf_acc_error, 1);
+    qdev_init_gpio_in(DEVICE(obj), pmx_err_management_eam_bits, 4);
 }
 
 static void pmx_global_prop_tamper_event_set(Object *obj, Visitor *v,
