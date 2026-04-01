@@ -1378,9 +1378,9 @@ typedef struct PMX_GLOBAL {
     qemu_irq irq_wakeup_irq;
     qemu_irq irq_req_swrst_int;
     qemu_irq irq_req_pwrup_int;
-    qemu_irq irq_pmc_global_imr;
     qemu_irq irq_pmc_pl_irq;
     qemu_irq irq_req_iso_int;
+    qemu_irq dummy_irq; /* backward compatibility */
 
     qemu_irq tamper_out[R_TAMPER_RESP_MAX];
     qemu_irq ppu1_wakeup;
@@ -1626,7 +1626,8 @@ static uint64_t req_pwrup_trig_prew(RegisterInfo *reg, uint64_t val64)
 static void pmc_global_imr_update_irq(PMX_GLOBAL *s)
 {
     bool pending = s->regs[R_PMC_GLOBAL_ISR] & ~s->regs[R_PMC_GLOBAL_IMR];
-    qemu_set_irq(s->irq_pmc_global_imr, pending);
+
+    ARRAY_FIELD_DP32(s->regs_err_mgmt, PMC_ERR2_STATUS, PMC_APB, pending);
 }
 
 static void pmc_global_isr_postw(RegisterInfo *reg, uint64_t val64)
@@ -3305,7 +3306,8 @@ static void pmx_global_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_req_pwrdwn_int);
     sysbus_init_irq(sbd, &s->irq_pmc_pl_irq);
     sysbus_init_irq(sbd, &s->irq_pmc_ppu1_gpi);
-    sysbus_init_irq(sbd, &s->irq_pmc_global_imr);
+    /* For backward compatibility with previous IRQ indexing on the device */
+    sysbus_init_irq(sbd, &s->dummy_irq);
     for (n = 0; n < ARRAY_SIZE(s->tamper_out); n++) {
         sysbus_init_irq(sbd, &s->tamper_out[n]);
     }
@@ -3314,8 +3316,6 @@ static void pmx_global_init(Object *obj)
     /* Out signals.  */
     qdev_init_gpio_out_named(DEVICE(obj), &s->ppu1_rst, "ppu1_rst", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->ppu1_wakeup, "ppu1_wakeup", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->irq_pmc_global_imr,
-                             "pmc_global_err", 1);
 
     /* In signals. */
     qdev_init_gpio_in(DEVICE(obj), pmc_global_isr_set_puf_acc_error, 1);
