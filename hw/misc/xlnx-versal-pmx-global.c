@@ -1988,6 +1988,15 @@ static void pmx_global_err_irq_update(PMX_GLOBAL *s)
     qemu_set_irq(s->err_irq, pending[ERR_IRQ]);
 }
 
+static uint64_t err_status_prew(RegisterInfo *reg, uint64_t val64)
+{
+    PMX_GLOBAL *s = XILINX_PMX_GLOBAL(reg->opaque);
+
+    return s->regs_err_mgmt[R_ERROR_MANAGEMENT_POR_LOCK]
+        ? s->regs_err_mgmt[reg->access->addr / sizeof(uint32_t)]
+        : val64;
+}
+
 static void err_status_postw(RegisterInfo *reg, uint64_t val64)
 {
     PMX_GLOBAL *s = XILINX_PMX_GLOBAL(reg->opaque);
@@ -2166,7 +2175,8 @@ static const RegisterAccessInfo pmxc_global_from_0x10000[] = {
 
 static const RegisterAccessInfo err_mgmt_regs_info[] = {
     {   .name = "PMC_ERR1_STATUS", .addr = A_PMC_ERR1_STATUS,
-        .w1c = 0xffffffff, .post_write = err_status_postw,
+        .w1c = 0xffffffff, .pre_write = err_status_prew,
+        .post_write = err_status_postw,
     },{ .name = "PMC_ERR1_TRIG", .addr = A_PMC_ERR1_TRIG,
         .pre_write = err_trig_prew,
     },{ .name = "PMC_ERR_OUT1_MASK", .addr = A_PMC_ERR_OUT1_MASK,
@@ -2196,7 +2206,8 @@ static const RegisterAccessInfo err_mgmt_regs_info[] = {
     },
 
     {   .name = "PMC_ERR2_STATUS", .addr = A_PMC_ERR2_STATUS,
-        .w1c = 0xffffffff, .post_write = err_status_postw,
+        .w1c = 0xffffffff, .pre_write = err_status_prew,
+        .post_write = err_status_postw,
     },{ .name = "PMC_ERR2_TRIG", .addr = A_PMC_ERR2_TRIG,
         .pre_write = err_trig_prew,
     },{ .name = "PMC_ERR_OUT2_MASK", .addr = A_PMC_ERR_OUT2_MASK,
@@ -2226,7 +2237,8 @@ static const RegisterAccessInfo err_mgmt_regs_info[] = {
     },
 
     {   .name = "PMC_ERR3_STATUS", .addr = A_PMC_ERR3_STATUS,
-        .w1c = 0x07ffffff, .post_write = err_status_postw,
+        .w1c = 0x07ffffff, .pre_write = err_status_prew,
+        .post_write = err_status_postw,
         .rsvd = 0xfe000000,
     },{ .name = "PMC_ERR3_TRIG", .addr = A_PMC_ERR3_TRIG,
         .pre_write = err_trig_prew,
