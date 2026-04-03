@@ -149,6 +149,7 @@ typedef struct WWDT {
     QEMUTimer *sst_timer;
     qemu_irq wwdt_reset_pending;
     qemu_irq wwdt_irq;
+    bool wwdt_timer_reentrency_guard;
 
     /* Both WWDT and GWDT */
     qemu_irq wwdt_reset;
@@ -437,13 +438,18 @@ static uint32_t wwdt_reload_val(WWDT *s)
     }
 }
 
-static uint64_t wwdt_next_trigger(WWDT *s)
+static void wwdt_rearm(WWDT *s)
 {
-    uint64_t next = muldiv64(1000000000,
-                             wwdt_reload_val(s),
-                             s->pclk);
+    uint32_t reload_val = wwdt_reload_val(s);
+    uint64_t next;
 
-    return next + qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (!s->wwdt_timer_reentrency_guard && (reload_val == 0)) {
+        s->wwdt_timer->cb(s);
+        return;
+    }
+
+    next = muldiv64(1000000000, reload_val, s->pclk);
+    timer_mod(s->wwdt_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + next);
 }
 
 static void wwdt_qa_gen_token(WWDT *s)
@@ -490,7 +496,7 @@ static void wwdt_qa_timer_start(WWDT *s)
     ARRAY_FIELD_DP32(s->regs, ENABLE_AND_STATUS_REG, ACNT, 3);
 
     DB_PRINT_L(0, "Starting first window timer\n");
-    timer_mod(s->wwdt_timer, wwdt_next_trigger(s));
+    wwdt_rearm(s);
 }
 
 static void wwdt_qa_time_elapsed(WWDT *s)
@@ -520,7 +526,7 @@ static void wwdt_qa_time_elapsed(WWDT *s)
             s->window_2 = true;
 
             wwdt_irq_timer_start(s);
-            timer_mod(s->wwdt_timer, wwdt_next_trigger(s));
+            wwdt_rearm(s);
         }
     }
 }
@@ -543,7 +549,7 @@ static void wwdt_basic_time_elapsed(WWDT *s)
         wwdt_irq_timer_start(s);
     }
 
-    timer_mod(s->wwdt_timer, wwdt_next_trigger(s));
+    wwdt_rearm(s);
 }
 
 static void wwdt_time_elapsed(void *opaque)
@@ -551,12 +557,16 @@ static void wwdt_time_elapsed(void *opaque)
     WWDT *s = XLNX_WWDT(opaque);
     bool is_basic = !ARRAY_FIELD_EX32(s->regs, FUNCTION_CONTROL_REG, WM);
 
+    s->wwdt_timer_reentrency_guard = true;
+
     DB_PRINT_L(0, "Time elapsed\n");
     if (is_basic) {
         wwdt_basic_time_elapsed(s);
     } else {
         wwdt_qa_time_elapsed(s);
     }
+
+    s->wwdt_timer_reentrency_guard = false;
 }
 
 static bool wwdt_basic_en(WWDT *s)
@@ -575,7 +585,7 @@ static bool wwdt_basic_en(WWDT *s)
         ARRAY_FIELD_DP32(s->regs, ENABLE_AND_STATUS_REG, LBE,
                          LBE_BASIC_NO_BAD_EVENT_MASK);
         DB_PRINT_L(0, "Starting first window timer\n");
-        timer_mod(s->wwdt_timer, wwdt_next_trigger(s));
+        wwdt_rearm(s);
         s->wen = true;
         success = true;
     }
@@ -715,7 +725,7 @@ static void wwdt_basic_do_kick(WWDT *s)
 {
     DB_PRINT_L(0, "WDT kicked in second window\nRestarting in first window\n");
     wwdt_good_event(s);
-    timer_mod(s->wwdt_timer, wwdt_next_trigger(s));
+    wwdt_rearm(s);
     s->window_2 = false;
     ARRAY_FIELD_DP32(s->regs, ENABLE_AND_STATUS_REG, WSW, 0);
 }
