@@ -245,20 +245,6 @@ static void gwdt_cntrl_status_reg_postw(RegisterInfo *reg, uint64_t val64)
     }
 }
 
-static void gwdt_warm_reset_reg_postw(RegisterInfo *reg, uint64_t val64)
-{
-    WWDT *s = XLNX_WWDT(reg->opaque);
-
-    register_reset(&s->regs_info[R_GWDT_REFRESH_REG]);
-    register_reset(&s->regs_info[R_GWDT_CNTRL_STATUS_REG]);
-    register_reset(&s->regs_info[R_GWDT_OFFSET_REG]);
-    register_reset(&s->regs_info[R_GWDT_COMPARE_VALUE_REG0]);
-    register_reset(&s->regs_info[R_GWDT_COMPARE_VALUE_REG1]);
-    /* Read as 0 */
-    s->regs[R_GWDT_WARM_RESET_REG] = 0;
-    gwdt_update_irq(s);
-}
-
 static void wwdt_update_irq(WWDT *s)
 {
     bool irq;
@@ -269,6 +255,37 @@ static void wwdt_update_irq(WWDT *s)
     irq = ARRAY_FIELD_EX32(s->regs, ENABLE_AND_STATUS_REG, WRP);
     irq &= !ARRAY_FIELD_EX32(s->regs, INTERRUPT_MASK_REG, WRPM);
     qemu_set_irq(s->wwdt_reset_pending, irq);
+}
+
+static void gwdt_warm_reset_reg_postw(RegisterInfo *reg, uint64_t val64)
+{
+    WWDT *s = XLNX_WWDT(reg->opaque);
+    size_t i;
+
+    if (!val64) {
+        return;
+    }
+
+    timer_del(s->wwdt_timer);
+    s->wen = false;
+    s->window_2 = false;
+    s->wwdt_qa_running = false;
+
+    for (i = 0; i < ARRAY_SIZE(s->regs_info); i++) {
+        if (i == R_GWDT_CNTRL_STATUS_REG) {
+            continue;
+        }
+
+        if (i == R_GWDT_WARM_RESET_REG) {
+            s->regs[R_GWDT_WARM_RESET_REG] = 0;
+            continue;
+        }
+
+        register_reset(&s->regs_info[i]);
+    }
+
+    gwdt_update_irq(s);
+    wwdt_update_irq(s);
 }
 
 static void wwdt_do_reset(WWDT *s)
