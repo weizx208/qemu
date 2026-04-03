@@ -572,10 +572,11 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
 /* Xilinx: Checks qdev reset GPIO level */
 static bool memory_owner_is_in_reset(MemoryRegion *mr)
 {
-    if (object_dynamic_cast(mr->owner, TYPE_DEVICE)) {
-        return DEVICE(mr->owner)->reset_level;
+    if (mr->dev) {
+        return mr->dev->reset_level;
+    } else {
+        return false;
     }
-    return false;
 }
 
 static MemTxResult access_with_adjusted_size(hwaddr addr,
@@ -613,7 +614,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
      * We allow the access to avoid breaking compatibility with flows that do
      * not bring devices out of reset.
      */
-    if (memory_owner_is_in_reset(mr)) {
+    if (qemu_loglevel_mask(LOG_GUEST_ERROR) && memory_owner_is_in_reset(mr)) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Accessing 0x%" HWADDR_PRIx" when "
                       "held in reset.\n",
                       object_get_canonical_path(OBJECT(mr->owner)), addr);
