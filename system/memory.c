@@ -39,6 +39,7 @@
 #include "memory-internal.h"
 
 #include "hw/qdev-core.h"
+#include "hw/register.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -572,11 +573,25 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
 /* Xilinx: Checks qdev reset GPIO level */
 static bool memory_owner_is_in_reset(MemoryRegion *mr)
 {
+    RegisterInfoArray *r_array;
+
     if (mr->dev) {
         return mr->dev->reset_level;
-    } else {
-        return false;
     }
+
+    r_array = (RegisterInfoArray *)object_dynamic_cast(mr->owner,
+                                                       TYPE_REGISTER_ARRAY);
+    if (r_array && r_array->r[0]) {
+        DeviceState *dev;
+
+        dev = (DeviceState *)object_dynamic_cast(r_array->r[0]->opaque,
+                                                 TYPE_DEVICE);
+        if (dev) {
+            return dev->reset_level;
+        }
+    }
+
+    return false;
 }
 
 static MemTxResult access_with_adjusted_size(hwaddr addr,
