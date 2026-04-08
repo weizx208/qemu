@@ -338,7 +338,6 @@ static void aarch64_a78_initfn(Object *obj)
 
     /* Xilinx: Overrides since some of the new stuff does not work.  */
     t = GET_IDREG(isar, ID_AA64PFR0);
-    t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
     t = FIELD_DP64(t, ID_AA64PFR0, FP, 1);
     t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 1);
     SET_IDREG(isar, ID_AA64PFR0, t);
