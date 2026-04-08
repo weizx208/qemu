@@ -38,6 +38,7 @@
 
 #include "qapi/error.h"
 #include "sdhci-internal.h"
+#include "sdmmc-internal.h"
 #include "hw/sd/zynqmp-sdhci.h"
 
 #ifndef ZYNQMP_SDHCI_ERR_DEBUG
@@ -98,9 +99,6 @@ static void zynqmp_sdhci_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_uint8(dev, "sd-spec-version", 3);
     qdev_prop_set_uint64(dev, "capareg", 0x280737ec6481);
     qdev_prop_set_uint8(dev, "uhs", UHS_I);
-    carddev_sd = qdev_new(TYPE_SD_CARD);
-    object_property_add_child(OBJECT(dev), "sd-card",
-                              OBJECT(carddev_sd));
 
     /*
      * drive_index is used to attach a card in SD mode.
@@ -119,23 +117,24 @@ static void zynqmp_sdhci_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (di_sd) {
-        qdev_prop_set_drive(carddev_sd, "drive", blk_by_legacy_dinfo(di_sd));
-        object_property_set_bool(OBJECT(carddev_sd), "mmc", false, &error_fatal);
-    }
-
     if (di_mmc) {
-        qdev_prop_set_uint8(carddev_sd, "spec_version", SD_PHY_SPECv3_01_VERS);
+        carddev_sd = qdev_new(TYPE_EMMC);
         qdev_prop_set_drive(carddev_sd, "drive", blk_by_legacy_dinfo(di_mmc));
-        object_property_set_bool(OBJECT(carddev_sd), "mmc", true, &error_fatal);
         s->is_mmc = true;
+    } else {
+        carddev_sd = qdev_new(TYPE_SD_CARD);
+        if (di_sd) {
+            qdev_prop_set_drive(carddev_sd, "drive", blk_by_legacy_dinfo(di_sd));
+        }
     }
 
+    object_property_add_child(OBJECT(dev), "sd-card",
+                              OBJECT(carddev_sd));
     qdev_realize(carddev_sd,
-                           qdev_get_child_bus(DEVICE(dev), "sd-bus"),
-                           &error_abort);
+                 qdev_get_child_bus(DEVICE(dev), "sd-bus"),
+                 &error_abort);
     qdev_init_gpio_in_named(dev, zynqmp_sdhci_slottype_handler, "SLOTTYPE", 1);
-    s->card = SD_CARD(carddev_sd);
+    s->card = SDMMC_COMMON(carddev_sd);
 
     dc_parent->realize(dev, errp);
 }
