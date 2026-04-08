@@ -94,7 +94,7 @@ enum {
     SDESC_CTRL_EOF = (1 << 26),
     SDESC_CTRL_SOF = (1 << 27),
 
-    SDESC_CTRL_LEN_MASK = (1 << 23) - 1
+    SDESC_CTRL_LEN_MASK = (1 << 26) - 1
 };
 
 enum {
@@ -335,6 +335,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
         }
 
         /* Update the descriptor.  */
+        txlen = s->desc.control & SDESC_CTRL_LEN_MASK;
         s->desc.status = txlen | SDESC_STATUS_COMPLETE;
         stream_desc_store(s, s->regs[R_CURDESC]);
 
@@ -381,6 +382,7 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
         pos += rxlen;
 
         /* Update the descriptor.  */
+        s->desc.status = rxlen;
         if (eop) {
             stream_complete(s);
             memcpy(s->desc.app, s->app, sizeof(s->desc.app));
