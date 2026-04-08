@@ -944,6 +944,8 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* HACK.  */
+    return;
     /*
      * We only allow default PCIe Root Complex(pcie.0) or pxb-pcie based extra
      * root complexes to be associated with SMMU.
