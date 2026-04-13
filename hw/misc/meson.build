@@ -305,7 +305,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal2-asu-global-pmc.c',
   'xlnx-versal2-asu-local.c',
   'xlnx-versal2-asu-ecdsa-rsa.c',
-  'xlnx-versal-asu-trng.c'
+  'xlnx-versal-asu-trng.c',
+  'amd-rv-ram-ecc-ctrl.c'
 ))
 
 system_ss.add(when: 'CONFIG_TZ_MPC', if_true: files('tz-mpc.c'))
