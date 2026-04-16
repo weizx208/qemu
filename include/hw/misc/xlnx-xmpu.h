@@ -110,8 +110,13 @@ typedef struct XMPURegion {
     union {
         uint32_t u32;
         struct {
+#if HOST_BIG_ENDIAN
             uint16_t mask;
             uint16_t id;
+#else
+            uint16_t id;
+            uint16_t mask;
+#endif
         };
     } master;
     struct {
