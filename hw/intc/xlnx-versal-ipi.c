@@ -2499,8 +2499,8 @@ static bool ipi_valid_access(XlnxVersalIPI *s, hwaddr addr,
                         break;
                     }
 
-                    /* TZ miss-match?  */
-                    if (attrs.secure != secure) {
+                    /* Secure master can access secure and non-secure areas */
+                    if (!attrs.secure && secure) {
                         /* Keep looking.  */
                         agent_area_access_err_tz = true;
                         break;
