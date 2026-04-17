@@ -7240,18 +7240,25 @@ static inline bool irq_is_pending(XlnxPsxcLpxSlcrIrq *irq)
 
 static void update_pwr_reset_irq(XlnxPsxcLpxSlcr *s)
 {
-    bool sta;
+    if (irq_is_pending(&s->power_dwn_irq)) {
+        s->pmc_irq_pwr_mb.status |= R_PMC_IRQ_PWR_MB_IRQ_PWR_CTRL_REQ_MASK;
+    }
+    if (irq_is_pending(&s->wakeup0_irq) || irq_is_pending(&s->wakeup1_irq)) {
+        s->pmc_irq_pwr_mb.status |= R_PMC_IRQ_PWR_MB_IRQ_WAKEUP_REQ_MASK;
+    }
+    if (irq_is_pending(&s->req_pwrup0_irq) ||
+        irq_is_pending(&s->req_pwrup1_irq)) {
+        s->pmc_irq_pwr_mb.status |= R_PMC_IRQ_PWR_MB_IRQ_PWR_UP_REQ_MASK;
+    }
+    if (irq_is_pending(&s->req_pwrdwn0_irq) ||
+        irq_is_pending(&s->req_pwrdwn1_irq)) {
+        s->pmc_irq_pwr_mb.status |= R_PMC_IRQ_PWR_MB_IRQ_PWR_DWN_REQ_MASK;
+    }
+    if (irq_is_pending(&s->pwr_rst_irq)) {
+        s->pmc_irq_pwr_mb.status |= R_PMC_IRQ_PWR_MB_IRQ_PWR_CTRL_REQ_MASK;
+    }
 
-    sta = irq_is_pending(&s->wakeup0_irq)
-        || irq_is_pending(&s->wakeup1_irq)
-        || irq_is_pending(&s->power_dwn_irq)
-        || irq_is_pending(&s->pwr_rst_irq)
-        || irq_is_pending(&s->req_pwrup0_irq)
-        || irq_is_pending(&s->req_pwrup1_irq)
-        || irq_is_pending(&s->req_pwrdwn0_irq)
-        || irq_is_pending(&s->req_pwrdwn1_irq);
-
-    qemu_set_irq(s->pwr_reset_irq, sta);
+    qemu_set_irq(s->pwr_reset_irq, irq_is_pending(&s->pmc_irq_pwr_mb));
 }
 
 static void update_rpu_pcil_wfi_irq(XlnxPsxcLpxSlcr *s)
@@ -7876,6 +7883,11 @@ static uint64_t psxc_lpx_slcr_read(void *opaque, hwaddr offset,
                                  offset - A_REQ_PWRDWN1_STATUS);
         break;
 
+    case A_PMC_IRQ_PWR_MB_IRQ ... A_PMC_IRQ_PWR_MB_IRQ_TRIG:
+        ret = pwr_reset_irq_read(s, &s->pmc_irq_pwr_mb,
+                                 offset - A_PMC_IRQ_PWR_MB_IRQ);
+        break;
+
     case A_APU0_CORE0_PWR_CNTRL_REG0 ... A_RPU4_CORE1_PWR_CNTRL_WPROT:
         ret = core_pwr_ctrl_read(s, offset, A_APU0_CORE0_PWR_CNTRL_REG0);
         break;
@@ -7997,6 +8009,11 @@ static void psxc_lpx_slcr_write(void *opaque, hwaddr offset,
                             offset - A_REQ_PWRDWN1_STATUS, value);
         break;
 
+    case A_PMC_IRQ_PWR_MB_IRQ ... A_PMC_IRQ_PWR_MB_IRQ_TRIG:
+        pwr_reset_irq_write(s, &s->pmc_irq_pwr_mb,
+                            offset - A_PMC_IRQ_PWR_MB_IRQ, value);
+        break;
+
     case A_APU0_CORE0_PWR_CNTRL_REG0 ... A_RPU4_CORE1_PWR_CNTRL_WPROT:
         core_pwr_ctrl_write(s, offset, value, A_APU0_CORE0_PWR_CNTRL_REG0);
         break;
@@ -8104,6 +8121,8 @@ static void psxc_lpx_slcr_reset_enter(Object *obj, ResetType type)
     s->req_pwrdwn1_irq.mask = REQ_PWRDWN0_INT_MASK_RESET_VAL;
     s->rpu_pcil_wfi_irq.status = RPU_PCIL_PSM_STANDBY_RESET_VAL;
     s->rpu_pcil_wfi_irq.mask = RPU_PCIL_PSM_IMR_RESET_VAL;
+    s->pmc_irq_pwr_mb.status = PMC_IRQ_PWR_MB_IRQ_RESET_VAL;
+    s->pmc_irq_pwr_mb.mask = PMC_IRQ_PWR_MB_IRQ_MASK_RESET_VAL;
     s->mem_clear_done_pass = MEM_CLEAR_DONE_RESET_VAL;
     s->scan_clear_done_pass = SCAN_CLEAR_DONE_RESET_VAL;
 
@@ -8312,6 +8331,8 @@ static const VMStateDescription vmstate_psxc_lpx_slcr = {
         VMSTATE_STRUCT(req_pwrdwn1_irq, XlnxPsxcLpxSlcr, 1,
                        vmstate_irq, XlnxPsxcLpxSlcrIrq),
         VMSTATE_STRUCT(rpu_pcil_wfi_irq, XlnxPsxcLpxSlcr, 1,
+                       vmstate_irq, XlnxPsxcLpxSlcrIrq),
+        VMSTATE_STRUCT(pmc_irq_pwr_mb, XlnxPsxcLpxSlcr, 1,
                        vmstate_irq, XlnxPsxcLpxSlcrIrq),
         VMSTATE_STRUCT_ARRAY(rpu_pcil_pchan, XlnxPsxcLpxSlcr, 10, 1,
                              vmstate_rpu_pchannel, XlnxPsxcLpxSlcrRpuPChannel),

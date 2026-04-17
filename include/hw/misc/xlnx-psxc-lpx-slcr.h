@@ -70,6 +70,7 @@ typedef struct XlnxPsxcLpxSlcr {
     qemu_irq gem_pwr[2];
 
     qemu_irq pwr_reset_irq;
+    XlnxPsxcLpxSlcrIrq pmc_irq_pwr_mb;
 
     XlnxPsxcLpxSlcrCorePowerCtrl core_pwr[18];
     XlnxPsxcLpxSlcrRpuPChannel rpu_pcil_pchan[10];
