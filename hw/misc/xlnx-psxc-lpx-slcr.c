@@ -7484,9 +7484,11 @@ static uint32_t core_pwr_ctrl_read(const XlnxPsxcLpxSlcr *s, hwaddr offset,
         break;
 
     case A_APU0_CORE0_PWR_CNTRL_STS:
-        /* always advertize power good */
-        ret = FIELD_DP32(0, APU0_CORE0_PWR_CNTRL_STS, PRDY, 0xf);
-        ret = FIELD_DP32(ret, APU0_CORE0_PWR_CNTRL_STS, PGE, 0xf);
+        /* Advertise power good only when powered up */
+        ret = FIELD_DP32(0, APU0_CORE0_PWR_CNTRL_STS, PRDY,
+                         powered_up ? 0xf : 0x0);
+        ret = FIELD_DP32(ret, APU0_CORE0_PWR_CNTRL_STS, PGE,
+                         powered_up ? 0xf : 0x0);
 
         /* 0: isolation enabled */
         ret = FIELD_DP32(ret, APU0_CORE0_PWR_CNTRL_STS, ISOLATION, powered_up);
