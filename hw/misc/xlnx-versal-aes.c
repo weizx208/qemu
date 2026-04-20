@@ -1176,29 +1176,17 @@ static void aes_stream_dst_push(Zynq3AES *s, uint8_t *outbuf, int outlen,
         return;
     }
 
-    /* GCM-tag is the only allowed residual */
-    if (pushed < len) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: DST channel dropping %zd b of data.\n",
-                      s->prefix, (len - pushed));
-        return;
-    }
-
-    outlen -= pushed;
-    if (outlen > limit) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Excessive GCM-tag data dropped: %d - %d\n",
-                      s->prefix, outlen, limit);
-        outlen = limit;
-    }
-
     /*
      * Capture the GCM-tag (or whatever left) for residual push.
-     *
-     * Receiving the gcm-tag is optional; thus, it is important
-     * to discard the residual by reset or a new start-message.
+     * The tag is always the last 'limit' bytes of outbuf.
+     * Any preceding bytes (e.g. AAD echo in GMAC mode) are not
+     * real output data and must be skipped.
      */
-    memcpy(s->gcm_tag, (outbuf + pushed), outlen);
+    if (outlen < limit) {
+        limit = outlen;
+    }
+    memcpy(s->gcm_tag, (outbuf + outlen - limit), limit);
+    outlen = limit;
     s->gcm_len = outlen;
     s->gcm_pos = 0;
     s->gcm_push_eop = eop;
