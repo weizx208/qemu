@@ -1168,6 +1168,10 @@ struct ArchCPU {
 
     /* Generic timer counter frequency, in Hz */
     uint64_t gt_cntfrq_hz;
+
+#ifndef CONFIG_USER_ONLY
+    NotifierList pchannel_state_change;
+#endif
 };
 
 typedef struct ARMCPUInfo {
@@ -3502,5 +3506,12 @@ static inline target_ulong cpu_untagged_addr(CPUState *cs, target_ulong x)
     return x;
 }
 #endif
+
+static inline void arm_cpu_notify_pactive_change(ARMCPU *cpu)
+{
+#ifndef CONFIG_USER_ONLY
+    notifier_list_notify(&cpu->pchannel_state_change, cpu);
+#endif
+}
 
 #endif
