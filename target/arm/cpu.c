@@ -608,6 +608,7 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     }
 
     qemu_set_irq(cpu->wfi, false);
+    arm_cpu_notify_pactive_change(cpu);
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.memattr_ns) {
@@ -632,6 +633,8 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 #ifndef CONFIG_USER_ONLY
     cpu_halt_update(cs);
 #endif
+
+    arm_cpu_notify_pactive_change(cpu);
 }
 
 void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
@@ -1205,6 +1208,14 @@ static bool pchannel_request_state_change_unimp(ARMPChannelIf *obj,
 {
     return false;
 }
+
+static void cpu_pchannel_register_state_change_notifier(ARMPChannelIf *obj,
+                                                        Notifier *notifier)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    notifier_list_add(&cpu->pchannel_state_change, notifier);
+}
 #endif
 
 static void arm_cpu_initfn(Object *obj)
@@ -1277,6 +1288,10 @@ static void arm_cpu_initfn(Object *obj)
                              (Object **)&cpu->env.memattr_s,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
+#endif
+
+#ifndef CONFIG_USER_ONLY
+    notifier_list_init(&cpu->pchannel_state_change);
 #endif
 }
 
@@ -2600,6 +2615,8 @@ static void arm_cpu_class_init(ObjectClass *oc, const void *data)
 #ifndef CONFIG_USER_ONLY
     apcic->get_current_state = pchannel_get_current_state_unimp;
     apcic->request_state_change = pchannel_request_state_change_unimp;
+    apcic->register_state_change_notifier =
+        cpu_pchannel_register_state_change_notifier;
 #endif
 }
 

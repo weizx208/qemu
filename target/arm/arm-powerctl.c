@@ -79,6 +79,7 @@ static void arm_set_cpu_on_async_work(CPUState *target_cpu_state,
     /* Finally set the power status */
     assert(bql_locked());
     target_cpu->power_state = PSCI_ON;
+    arm_cpu_notify_pactive_change(target_cpu);
 }
 
 int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
@@ -187,6 +188,7 @@ static void arm_set_cpu_on_and_reset_async_work(CPUState *target_cpu_state,
     /* Finally set the power status */
     assert(bql_locked());
     target_cpu->power_state = PSCI_ON;
+    arm_cpu_notify_pactive_change(target_cpu);
 }
 
 int arm_set_cpu_on_and_reset(uint64_t cpuid)
@@ -242,6 +244,7 @@ static void arm_set_cpu_off_async_work(CPUState *target_cpu_state,
     target_cpu->power_state = PSCI_OFF;
     target_cpu_state->halted = 1;
     target_cpu_state->exception_index = EXCP_HLT;
+    arm_cpu_notify_pactive_change(target_cpu);
 }
 
 int arm_set_cpu_off(uint64_t cpuid)

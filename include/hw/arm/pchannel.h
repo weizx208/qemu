@@ -48,6 +48,14 @@ struct ARMPChannelIfClass {
      * Returns: the device specific P-Channel state
      */
     uint32_t (*get_current_state)(ARMPChannelIf *obj);
+
+    /**
+     * register_state_change_notifier
+     *
+     * Register a notifier called when the P-Channel state changes
+     */
+    void (*register_state_change_notifier)(ARMPChannelIf *obj,
+                                           Notifier *notifier);
 };
 
 static inline bool pchannel_request_state_change(ARMPChannelIf *obj,
@@ -63,6 +71,16 @@ static inline uint32_t pchannel_get_current_state(ARMPChannelIf *obj)
     ARMPChannelIfClass *klass = ARM_PCHANNEL_IF_GET_CLASS(obj);
 
     return klass->get_current_state(obj);
+}
+
+static inline void pchannel_register_state_change_notifier(ARMPChannelIf *obj,
+                                                           Notifier *notifier)
+{
+    ARMPChannelIfClass *klass = ARM_PCHANNEL_IF_GET_CLASS(obj);
+
+    if (klass->register_state_change_notifier) {
+        klass->register_state_change_notifier(obj, notifier);
+    }
 }
 
 struct ARMPChannelDummyState {

@@ -1188,6 +1188,10 @@ struct ArchCPU {
 
     /* Generic timer counter frequency, in Hz */
     uint64_t gt_cntfrq_hz;
+
+#ifndef CONFIG_USER_ONLY
+    NotifierList pchannel_state_change;
+#endif
 };
 
 typedef struct ARMCPUInfo {
@@ -2686,5 +2690,12 @@ extern const uint64_t pred_esz_masks[5];
 /* We associate one allocation tag per 16 bytes, the minimum.  */
 #define LOG2_TAG_GRANULE 4
 #define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
+
+static inline void arm_cpu_notify_pactive_change(ARMCPU *cpu)
+{
+#ifndef CONFIG_USER_ONLY
+    notifier_list_notify(&cpu->pchannel_state_change, cpu);
+#endif
+}
 
 #endif
