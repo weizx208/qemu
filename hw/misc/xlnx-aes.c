@@ -408,9 +408,21 @@ int xlnx_aes_push_data(XlnxAES *s,
         }
     }
 
-    /* 'last_word' is honored only for PAYLOAD phase */
+    /* 'last_word' triggers tag emission in PAYLOAD or AAD-only (GMAC) mode */
     if (last_word && ((s->state == AAD && is_aad) || s->state == PAYLOAD)) {
+        /* AAD-only (GMAC): flush residual AAD (GCM handles partial block padding) */
+        if (s->state == AAD && is_aad && !xlnx_aes_pack_empty(s)) {
+            xlnx_aes_load_aad(s, &s->pack_buf, 0);
+        }
+
         if (s->encrypt) {
+            /*
+             * AAD-only (GMAC): discard AAD echo from output.
+             * only the GCM tag should appear in the output.
+             */
+            if (s->state == AAD && is_aad) {
+                opos = 0;
+            }
             /* Emit tag on end-of-message */
             gcm_emit_tag(&s->gcm_ctx, outbuf + opos, 16);
             opos += 16;
