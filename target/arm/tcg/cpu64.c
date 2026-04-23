@@ -406,6 +406,7 @@ static void aarch64_a78_initfn(Object *obj)
 #ifndef CONFIG_USER_ONLY
 static const uint32_t PCHANNEL_AARCH64_A78_ON_STATE = 0x8;
 static const uint32_t PCHANNEL_AARCH64_A78_OFF_STATE = 0x0;
+static const uint32_t PCHANNEL_AARCH64_A78_FULL_RET_STATE = 0x5;
 
 static bool cortex_a78_pchan_request_state_change(ARMPChannelIf *obj,
                                                   uint32_t new_state)
@@ -433,10 +434,20 @@ static bool cortex_a78_pchan_request_state_change(ARMPChannelIf *obj,
 
 static uint32_t cortex_a78_pchan_get_current_state(ARMPChannelIf *obj)
 {
-    ARMCPU *cpu = ARM_CPU(obj);
+    ARMCPU *arm_cpu = ARM_CPU(obj);
+    CPUState *cpu = CPU(obj);
 
-    return (cpu->power_state == PSCI_ON) ? PCHANNEL_AARCH64_A78_ON_STATE
-                                         : PCHANNEL_AARCH64_A78_OFF_STATE;
+    g_assert(qemu_mutex_iothread_locked());
+
+    if (arm_cpu->power_state != PSCI_ON) {
+        return PCHANNEL_AARCH64_A78_OFF_STATE;
+    }
+
+    if (cpu->halted) {
+        return PCHANNEL_AARCH64_A78_FULL_RET_STATE;
+    }
+
+    return PCHANNEL_AARCH64_A78_ON_STATE;
 }
 
 static void aarch64_a78_class_init(ObjectClass *oc, void *data)
