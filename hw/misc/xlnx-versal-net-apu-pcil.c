@@ -693,6 +693,7 @@ REG32(APU_PCIL_ERR, 0xf100)
 typedef struct ApuPcilCore {
     APU_PCIL *parent;
     ARMPChannelIf *pchan;
+    Notifier pactive_change_notifier;
 } ApuPcilCore;
 
 struct APU_PCIL {
@@ -1126,18 +1127,17 @@ static uint64_t apu_pcil_ids_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
+const uint32_t PACTIVE_ON_STATE = 8;
+
 static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
 {
     const size_t PSTATE_IDX = preq_idx + R_CORE_0_PSTATE - R_CORE_0_PREQ;
     const size_t PACTIVE_IDX = preq_idx + R_CORE_0_PACTIVE - R_CORE_0_PREQ;
-    const size_t ISR_POWER_IDX = preq_idx + R_CORE_0_ISR_POWER - R_CORE_0_PREQ;
-    const size_t ISR_WAKE_IDX = preq_idx + R_CORE_0_ISR_WAKE - R_CORE_0_PREQ;
-    const uint32_t PSTATE_ON = 8;
 
     uint32_t preq = s->regs[preq_idx];
     size_t core_idx = preq_idx / (R_CORE_1_PREQ - R_CORE_0_PREQ);
-    bool prev_on, new_on, request_accepted;
-    uint32_t pactive, pstate, new_pstate;
+    bool request_accepted;
+    uint32_t pactive, pstate;
 
     if (!((1 << core_idx) & s->core_mask)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1154,6 +1154,36 @@ static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
         return;
     }
 
+    pactive = s->regs[PACTIVE_IDX];
+    pstate = FIELD_EX32(s->regs[PSTATE_IDX], CORE_0_PSTATE, PSTATE);
+
+    request_accepted = pchannel_request_state_change(s->core[core_idx].pchan,
+                                                     pstate);
+
+    pactive = FIELD_DP32(pactive, CORE_0_PACTIVE, PACCEPT, request_accepted);
+    pactive = FIELD_DP32(pactive, CORE_0_PACTIVE, PDENY, !request_accepted);
+    s->regs[PACTIVE_IDX] = pactive;
+
+    trace_xlnx_versal_net_apu_pcil_core_preq(core_idx, pstate,
+                                             request_accepted);
+}
+
+static void apu_pactive_change_notify(Notifier *notifier, void *opaque)
+{
+    ApuPcilCore *core = container_of(notifier, ApuPcilCore,
+                                     pactive_change_notifier);
+    APU_PCIL *s = core->parent;
+    size_t core_idx = core - s->core;
+    uint32_t pactive, new_pactive;
+    bool prev_on, new_on;
+
+    const size_t STRIDE = (R_CORE_1_PSTATE - R_CORE_0_PSTATE) * core_idx;
+    const size_t PACTIVE_IDX = R_CORE_0_PACTIVE + STRIDE;
+    const size_t ISR_POWER_IDX = R_CORE_0_ISR_POWER + STRIDE;
+    const size_t ISR_WAKE_IDX = R_CORE_0_ISR_WAKE + STRIDE;
+
+    g_assert(core_idx < ARRAY_SIZE(s->core));
+
     /*
      * As a simplification we consider the following PSTATE values for the
      * core:
@@ -1161,28 +1191,17 @@ static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
      *   anything else: OFF
      */
 
-    pactive = pchannel_get_current_state(s->core[core_idx].pchan);
-    pstate = FIELD_EX32(s->regs[PSTATE_IDX], CORE_0_PSTATE, PSTATE);
+    pactive = FIELD_EX32(s->regs[PACTIVE_IDX], CORE_0_PACTIVE, PACTIVE);
 
-    prev_on = pactive == PSTATE_ON;
+    prev_on = pactive == PACTIVE_ON_STATE;
 
-    request_accepted = pchannel_request_state_change(s->core[core_idx].pchan,
-                                                     pstate);
+    new_pactive = pchannel_get_current_state(s->core[core_idx].pchan);
+    new_on = new_pactive == PACTIVE_ON_STATE;
 
-    new_pstate = pchannel_get_current_state(s->core[core_idx].pchan);
-    new_on = new_pstate == PSTATE_ON;
+    s->regs[PACTIVE_IDX] = FIELD_DP32(s->regs[PACTIVE_IDX],
+                                      CORE_0_PACTIVE, PACTIVE, new_pactive);
 
-    pactive = FIELD_DP32(pactive, CORE_0_PACTIVE, PACTIVE, new_pstate);
-    pactive = FIELD_DP32(pactive, CORE_0_PACTIVE, PACCEPT, request_accepted);
-    pactive = FIELD_DP32(pactive, CORE_0_PACTIVE, PDENY, !request_accepted);
-    s->regs[PACTIVE_IDX] = pactive;
-
-    trace_xlnx_versal_net_apu_pcil_core_request_pstate_change(core_idx,
-                                                              pstate,
-                                                              request_accepted);
-    if (!request_accepted) {
-        return;
-    }
+    trace_xlnx_versal_net_apu_pcil_core_pactive_change(core_idx, new_pactive);
 
     if (prev_on == new_on) {
         return;
@@ -1191,13 +1210,11 @@ static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
     /* trigger corresponding IRQs */
     if (new_on) {
         s->regs[ISR_WAKE_IDX] =
-            FIELD_DP32(s->regs[ISR_WAKE_IDX],
-                       CORE_0_ISR_WAKE, WAKE, 1);
+            FIELD_DP32(s->regs[ISR_WAKE_IDX], CORE_0_ISR_WAKE, WAKE, 1);
         update_core_wake_irq(s, core_idx);
     } else {
         s->regs[ISR_POWER_IDX] =
-            FIELD_DP32(s->regs[ISR_POWER_IDX],
-                       CORE_0_ISR_POWER, POWER_DOWN, 1);
+            FIELD_DP32(s->regs[ISR_POWER_IDX], CORE_0_ISR_POWER, POWER_DOWN, 1);
         update_core_power_irq(s, core_idx);
     }
 }
@@ -1223,7 +1240,7 @@ static uint64_t core_x_pactive_postr(RegisterInfo *reg, uint64_t val64)
     APU_PCIL *s = XILINX_APU_PCIL(reg->opaque);
     size_t idx = reg->access->addr / 4;
     size_t core_idx = idx / (R_CORE_1_PACTIVE - R_CORE_0_PACTIVE);
-    uint32_t pstate;
+    uint32_t pactive;
 
     if (!((1 << core_idx) & s->core_mask)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1232,10 +1249,10 @@ static uint64_t core_x_pactive_postr(RegisterInfo *reg, uint64_t val64)
         return 0;
     }
 
-    pstate = pchannel_get_current_state(s->core[core_idx].pchan);
-    trace_xlnx_versal_net_apu_pcil_core_read_current_pstate(core_idx, pstate);
+    pactive = pchannel_get_current_state(s->core[core_idx].pchan);
+    trace_xlnx_versal_net_apu_pcil_core_read_current_pstate(core_idx, pactive);
 
-    return FIELD_DP32(val64, CORE_0_PACTIVE, PACTIVE, pstate);
+    return FIELD_DP32(val64, CORE_0_PACTIVE, PACTIVE, pactive);
 }
 
 static void cluster_x_preq_postw(RegisterInfo *reg, uint64_t val64)
@@ -2204,6 +2221,9 @@ static void apu_pcil_realize(DeviceState *dev, Error **errp)
             if (*errp) {
                 return;
             }
+        } else {
+            pchannel_register_state_change_notifier(s->core[i].pchan,
+                                                    &s->core[i].pactive_change_notifier);
         }
     }
 
@@ -2235,6 +2255,7 @@ static void apu_pcil_init(Object *obj)
 
     for (i = 0; i < ARRAY_SIZE(s->core); i++) {
         s->core[i].parent = s;
+        s->core[i].pactive_change_notifier.notify = apu_pactive_change_notify;
     }
 }
 
