@@ -411,15 +411,17 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
                         target_el);
     }
 
+    cs->exception_index = EXCP_HLT;
+    cs->halted = 1;
+
     /* Drive STANDBYWFI only if cpu reset-pin is inactive */
     bql_lock();
     if (cs->reset_pin == false) {
         qemu_irq_raise(cpu->wfi);
+        arm_cpu_notify_pactive_change(cpu);
     }
     bql_unlock();
 
-    cs->exception_index = EXCP_HLT;
-    cs->halted = 1;
     cpu_loop_exit(cs);
 #endif
 }
