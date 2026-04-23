@@ -56,8 +56,7 @@
 
 #define TYPE_XILINX_APU_PCIL "xlnx.apu_pcil"
 
-#define XILINX_APU_PCIL(obj) \
-     OBJECT_CHECK(APU_PCIL, (obj), TYPE_XILINX_APU_PCIL)
+OBJECT_DECLARE_SIMPLE_TYPE(APU_PCIL, XILINX_APU_PCIL)
 
 REG32(CORE_0_PWRDWN, 0x0)
     FIELD(CORE_0_PWRDWN, EN, 0, 1)
@@ -691,7 +690,12 @@ REG32(APU_PCIL_ERR, 0xf100)
 
 #define APU_PCIL_R_MAX (R_APU_PCIL_ERR + 1)
 
-typedef struct APU_PCIL {
+typedef struct ApuPcilCore {
+    APU_PCIL *parent;
+    ARMPChannelIf *pchan;
+} ApuPcilCore;
+
+struct APU_PCIL {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
@@ -711,8 +715,8 @@ typedef struct APU_PCIL {
     uint32_t cluster_mask;
     uint32_t core_mask;
 
-    ARMPChannelIf *core_pchan[APU_PCIL_MAX_CORE];
-} APU_PCIL;
+    ApuPcilCore core[APU_PCIL_MAX_CORE];
+};
 
 static void update_cluster_power_irq(APU_PCIL *s, size_t cluster)
 {
@@ -1157,15 +1161,15 @@ static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
      *   anything else: OFF
      */
 
-    pactive = pchannel_get_current_state(s->core_pchan[core_idx]);
+    pactive = pchannel_get_current_state(s->core[core_idx].pchan);
     pstate = FIELD_EX32(s->regs[PSTATE_IDX], CORE_0_PSTATE, PSTATE);
 
     prev_on = pactive == PSTATE_ON;
 
-    request_accepted = pchannel_request_state_change(s->core_pchan[core_idx],
+    request_accepted = pchannel_request_state_change(s->core[core_idx].pchan,
                                                      pstate);
 
-    new_pstate = pchannel_get_current_state(s->core_pchan[core_idx]);
+    new_pstate = pchannel_get_current_state(s->core[core_idx].pchan);
     new_on = new_pstate == PSTATE_ON;
 
     pactive = FIELD_DP32(pactive, CORE_0_PACTIVE, PACTIVE, new_pstate);
@@ -1228,7 +1232,7 @@ static uint64_t core_x_pactive_postr(RegisterInfo *reg, uint64_t val64)
         return 0;
     }
 
-    pstate = pchannel_get_current_state(s->core_pchan[core_idx]);
+    pstate = pchannel_get_current_state(s->core[core_idx].pchan);
     trace_xlnx_versal_net_apu_pcil_core_read_current_pstate(core_idx, pstate);
 
     return FIELD_DP32(val64, CORE_0_PACTIVE, PACTIVE, pstate);
@@ -2121,9 +2125,9 @@ static void apu_pcil_reset_exit(Object *obj)
     uint32_t mask;
 
     FOREACH_CORE(s, mask, i) {
-        if (object_dynamic_cast(OBJECT(s->core_pchan[i]),
+        if (object_dynamic_cast(OBJECT(s->core[i].pchan),
                                 TYPE_ARM_PCHANNEL_DUMMY)) {
-            device_cold_reset(DEVICE(s->core_pchan[i]));
+            device_cold_reset(DEVICE(s->core[i].pchan));
         }
     }
 }
@@ -2194,8 +2198,8 @@ static void apu_pcil_realize(DeviceState *dev, Error **errp)
     FOREACH_CORE(s, mask, i) {
         sysbus_init_irq(sbd, &s->irq_core_wakeup[i]);
 
-        if (s->core_pchan[i] == NULL) {
-            stub_pchannel_iface(OBJECT(dev), &s->core_pchan[i], errp);
+        if (s->core[i].pchan == NULL) {
+            stub_pchannel_iface(OBJECT(dev), &s->core[i].pchan, errp);
 
             if (*errp) {
                 return;
@@ -2213,6 +2217,7 @@ static void apu_pcil_init(Object *obj)
     APU_PCIL *s = XILINX_APU_PCIL(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     RegisterInfoArray *reg_array;
+    size_t i;
 
     memory_region_init(&s->iomem, obj, TYPE_XILINX_APU_PCIL,
                        APU_PCIL_R_MAX * 4);
@@ -2227,6 +2232,10 @@ static void apu_pcil_init(Object *obj)
                                 0x0,
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    for (i = 0; i < ARRAY_SIZE(s->core); i++) {
+        s->core[i].parent = s;
+    }
 }
 
 static const VMStateDescription vmstate_apu_pcil = {
@@ -2244,37 +2253,37 @@ static Property apu_pcil_properties[] = {
                        (1 << APU_PCIL_MAX_CLUSTER) - 1),
     DEFINE_PROP_UINT32("core-mask", APU_PCIL, core_mask,
                        (1 << APU_PCIL_MAX_CORE) - 1),
-    DEFINE_PROP_LINK("core-0", APU_PCIL, core_pchan[0],
+    DEFINE_PROP_LINK("core-0", APU_PCIL, core[0].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-1", APU_PCIL, core_pchan[1],
+    DEFINE_PROP_LINK("core-1", APU_PCIL, core[1].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-2", APU_PCIL, core_pchan[2],
+    DEFINE_PROP_LINK("core-2", APU_PCIL, core[2].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-3", APU_PCIL, core_pchan[3],
+    DEFINE_PROP_LINK("core-3", APU_PCIL, core[3].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-4", APU_PCIL, core_pchan[4],
+    DEFINE_PROP_LINK("core-4", APU_PCIL, core[4].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-5", APU_PCIL, core_pchan[5],
+    DEFINE_PROP_LINK("core-5", APU_PCIL, core[5].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-6", APU_PCIL, core_pchan[6],
+    DEFINE_PROP_LINK("core-6", APU_PCIL, core[6].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-7", APU_PCIL, core_pchan[7],
+    DEFINE_PROP_LINK("core-7", APU_PCIL, core[7].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-8", APU_PCIL, core_pchan[8],
+    DEFINE_PROP_LINK("core-8", APU_PCIL, core[8].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-9", APU_PCIL, core_pchan[9],
+    DEFINE_PROP_LINK("core-9", APU_PCIL, core[9].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-10", APU_PCIL, core_pchan[10],
+    DEFINE_PROP_LINK("core-10", APU_PCIL, core[10].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-11", APU_PCIL, core_pchan[11],
+    DEFINE_PROP_LINK("core-11", APU_PCIL, core[11].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-12", APU_PCIL, core_pchan[12],
+    DEFINE_PROP_LINK("core-12", APU_PCIL, core[12].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-13", APU_PCIL, core_pchan[13],
+    DEFINE_PROP_LINK("core-13", APU_PCIL, core[13].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-14", APU_PCIL, core_pchan[14],
+    DEFINE_PROP_LINK("core-14", APU_PCIL, core[14].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_LINK("core-15", APU_PCIL, core_pchan[15],
+    DEFINE_PROP_LINK("core-15", APU_PCIL, core[15].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
     DEFINE_PROP_END_OF_LIST(),
 };
