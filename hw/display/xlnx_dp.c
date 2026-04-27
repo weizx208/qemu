@@ -333,9 +333,11 @@ static inline void xlnx_dp_audio_activate(XlnxDPState *s)
                    & DP_TX_AUD_CTRL) != 0);
     AUD_set_active_out(s->amixer_output_stream, activated);
     xlnx_dpdma_set_host_data_location(s->dpdma, DP_AUDIO_DMA_CHANNEL(0),
-                                      &s->audio_buffer_0);
+                                      &s->audio_buffer_0,
+                                      sizeof(s->audio_buffer_0));
     xlnx_dpdma_set_host_data_location(s->dpdma, DP_AUDIO_DMA_CHANNEL(1),
-                                      &s->audio_buffer_1);
+                                      &s->audio_buffer_1,
+                                      sizeof(s->audio_buffer_1));
 }
 
 static inline void xlnx_dp_audio_mix_buffer(XlnxDPState *s)
@@ -593,8 +595,11 @@ static void xlnx_dp_set_dpdma(const Object *obj, const char *name, Object *val,
     if (s->console) {
         DisplaySurface *surface = qemu_console_surface(s->console);
         XlnxDPDMAState *dma = XLNX_DPDMA(val);
+        size_t surface_size = (size_t)surface_stride(surface) *
+                              surface_height(surface);
         xlnx_dpdma_set_host_data_location(dma, DP_GRAPHIC_DMA_CHANNEL,
-                                          surface_data(surface));
+                                          surface_data(surface),
+                                          surface_size);
     }
 }
 
@@ -657,10 +662,17 @@ static void xlnx_dp_recreate_surface(XlnxDPState *s)
             dpy_gfx_replace_surface(s->console, s->g_plane.surface);
         }
 
+        size_t g_plane_size = (size_t)surface_stride(s->g_plane.surface) *
+                              surface_height(s->g_plane.surface);
+        size_t v_plane_size = (size_t)surface_stride(s->v_plane.surface) *
+                              surface_height(s->v_plane.surface);
+
         xlnx_dpdma_set_host_data_location(s->dpdma, DP_GRAPHIC_DMA_CHANNEL,
-                                            surface_data(s->g_plane.surface));
+                                          surface_data(s->g_plane.surface),
+                                          g_plane_size);
         xlnx_dpdma_set_host_data_location(s->dpdma, DP_VIDEO_DMA_CHANNEL,
-                                            surface_data(s->v_plane.surface));
+                                          surface_data(s->v_plane.surface),
+                                          v_plane_size);
     }
 }
 
@@ -1414,7 +1426,9 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     s->console = graphic_console_init(dev, 0, &xlnx_dp_gfx_ops, s);
     surface = qemu_console_surface(s->console);
     xlnx_dpdma_set_host_data_location(s->dpdma, DP_GRAPHIC_DMA_CHANNEL,
-                                      surface_data(surface));
+                                      surface_data(surface),
+                                      (size_t)surface_stride(surface) *
+                                      surface_height(surface));
 
     as.freq = 44100;
     as.nchannels = 2;
