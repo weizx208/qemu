@@ -41,6 +41,7 @@ struct XlnxDPDMAState {
     MemoryRegion iomem;
     uint32_t registers[XLNX_DPDMA_REG_ARRAY_SIZE];
     uint8_t *data[6];
+    size_t data_size[6];
     bool operation_finished[6];
     qemu_irq irq;
 };
@@ -72,10 +73,10 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
  * @s The DPDMA state.
  * @channel The channel associated to the pointer.
  * @p The buffer where to store the data.
+ * @size The size of the buffer in bytes (used for bounds checking).
  */
-/* XXX: add a maximum size arg and send an interrupt in case of overflow. */
 void xlnx_dpdma_set_host_data_location(XlnxDPDMAState *s, uint8_t channel,
-                                       void *p);
+                                       void *p, size_t size);
 
 /*
  * xlnx_dpdma_trigger_vsync_irq: Trigger a VSYNC IRQ when the display is

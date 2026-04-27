@@ -607,6 +607,7 @@ static void xlnx_dpdma_reset(DeviceState *dev)
 
     for (i = 0; i < 6; i++) {
         s->data[i] = NULL;
+        s->data_size[i] = 0;
         s->operation_finished[i] = true;
     }
 }
@@ -721,9 +722,20 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
             int64_t transfer_len = xlnx_dpdma_desc_get_transfer_size(&desc);
             uint32_t line_size = xlnx_dpdma_desc_get_line_size(&desc);
             uint32_t line_stride = xlnx_dpdma_desc_get_line_stride(&desc);
+
             if (xlnx_dpdma_desc_is_contiguous(&desc)) {
                 source_addr[0] = xlnx_dpdma_desc_get_source_address(&desc, 0);
                 while (transfer_len != 0) {
+                    size_t buf_remaining = s->data_size[channel] - ptr;
+                    if (line_size > buf_remaining) {
+                        qemu_log_mask(LOG_GUEST_ERROR,
+                                      "DPDMA: transfer exceeds buffer bounds "
+                                      "(ptr=%zu, line_size=%u, buf_size=%zu)\n",
+                                      ptr, line_size, s->data_size[channel]);
+                        s->registers[DPDMA_EISR] |= ((1 << 1) << channel);
+                        xlnx_dpdma_update_irq(s);
+                        break;
+                    }
                     if (dma_memory_read(s->dma_as,
                                         source_addr[0],
                                         &s->data[channel][ptr],
@@ -749,10 +761,21 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
                 }
 
                 frag = 0;
-                while ((transfer_len < 0) && (frag < 5)) {
+                while ((transfer_len > 0) && (frag < 5)) {
                     size_t fragment_len = DPDMA_FRAG_MAX_SZ
                                     - (source_addr[frag] % DPDMA_FRAG_MAX_SZ);
+                    size_t buf_remaining = s->data_size[channel] - ptr;
 
+                    if (fragment_len > buf_remaining) {
+                        qemu_log_mask(LOG_GUEST_ERROR,
+                                      "DPDMA: fragmented transfer exceeds "
+                                      "buffer bounds (ptr=%zu, frag_len=%zu, "
+                                      "buf_size=%zu)\n",
+                                      ptr, fragment_len, s->data_size[channel]);
+                        s->registers[DPDMA_EISR] |= ((1 << 1) << channel);
+                        xlnx_dpdma_update_irq(s);
+                        break;
+                    }
                     if (dma_memory_read(s->dma_as,
                                         source_addr[frag],
                                         &(s->data[channel][ptr]),
@@ -790,7 +813,7 @@ size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
 }
 
 void xlnx_dpdma_set_host_data_location(XlnxDPDMAState *s, uint8_t channel,
-                                         void *p)
+                                         void *p, size_t size)
 {
     if (!s) {
         qemu_log_mask(LOG_UNIMP, "DPDMA client not attached to valid DPDMA"
@@ -800,6 +823,7 @@ void xlnx_dpdma_set_host_data_location(XlnxDPDMAState *s, uint8_t channel,
 
     assert(channel <= 5);
     s->data[channel] = p;
+    s->data_size[channel] = size;
 }
 
 void xlnx_dpdma_trigger_vsync_irq(XlnxDPDMAState *s)
