@@ -34,6 +34,7 @@
 #include "target/arm/gtimer.h"
 #include "target/arm/cpu-sysregs.h"
 #include "target/arm/mmuidx.h"
+#include "hwdtb/memattrs.h"
 
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
@@ -795,8 +796,8 @@ typedef struct CPUArchState {
         uint32_t rnr[M_REG_NUM_BANKS];
     } pmsav7;
 
-    MemTxAttrs *memattr_ns;
-    MemTxAttrs *memattr_s;
+    HwDtbMemTxAttrs *memattr_ns;
+    HwDtbMemTxAttrs *memattr_s;
 
     /* PMSAv8 MPU */
     struct {

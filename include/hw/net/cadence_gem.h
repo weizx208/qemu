@@ -32,6 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(CadenceGEMState, CADENCE_GEM)
 #include "net/net.h"
 #include "hw/sysbus.h"
 #include "hw/mdio/mdio.h"
+#include "hwdtb/memattrs.h"
 
 #define CADENCE_GEM_MAXREG        (0x00000f00 / 4) /* Last valid GEM address */
 
@@ -50,8 +51,8 @@ struct CadenceGEMState {
     SysBusDevice parent_obj;
 
     /*< public >*/
-    MemTxAttrs *attr_r;
-    MemTxAttrs *attr_w;
+    HwDtbMemTxAttrs *attr_r;
+    HwDtbMemTxAttrs *attr_w;
     MemoryRegion iomem;
     MemoryRegion *dma_mr;
     AddressSpace dma_as;

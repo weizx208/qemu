@@ -41,6 +41,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/irq.h"
+#include "hwdtb/memattrs.h"
 
 #ifndef XILINX_AXIPCIE_MAIN_ERR_DEBUG
 #define XILINX_AXIPCIE_MAIN_ERR_DEBUG 0
@@ -317,7 +318,7 @@ typedef struct AXIPCIE_MAIN {
     PCIExpressHost parent_obj;
     MemoryRegion *dma_mr;
     AddressSpace *dma_as;
-    MemTxAttrs *attr;
+    HwDtbMemTxAttrs *attr;
 
     IOMMUMemoryRegion iommu_attr;
     AddressSpace *iommu_attr_as;
@@ -702,7 +703,7 @@ static IOMMUTLBEntry axipcie_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     };
 
     if (s->attr) {
-        *attr = *s->attr;
+        *attr = hwdtb_memattrs_get(s->attr);
     }
     return ret;
 }
@@ -778,7 +779,7 @@ static void axipcie_main_init(Object *obj)
                              (Object **)&s->dma_mr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);

@@ -26,6 +26,7 @@
 #include "hw/usb.h"
 #include "hw/usb/xhci.h"
 #include "system/dma.h"
+#include "hwdtb/memattrs.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(XHCIState, XHCI)
 
@@ -180,7 +181,7 @@ typedef struct XHCIState {
     MemoryRegion mem;
     MemoryRegion *dma_mr;
     AddressSpace *as;
-    MemTxAttrs *attrs;
+    HwDtbMemTxAttrs *attrs;
     MemoryRegion mem_cap;
     MemoryRegion mem_oper;
     MemoryRegion mem_runtime;

@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/hwdtb.h"
+#include "hwdtb/memattrs.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"

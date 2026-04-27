@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hwdtb/memattrs.h"
 
 #ifndef XILINX_LPD_IOU_SECURE_SLCR_ERR_DEBUG
 #define XILINX_LPD_IOU_SECURE_SLCR_ERR_DEBUG 0
@@ -75,8 +76,8 @@ typedef struct LPD_IOU_SECURE_SLCR {
     MemoryRegion iomem;
     qemu_irq irq_imr;
 
-    MemTxAttrs *memattr_r_gem[2];
-    MemTxAttrs *memattr_w_gem[2];
+    HwDtbMemTxAttrs *memattr_r_gem[2];
+    HwDtbMemTxAttrs *memattr_w_gem[2];
 
     uint32_t regs[LPD_IOU_SECURE_SLCR_R_MAX];
     RegisterInfo regs_info[LPD_IOU_SECURE_SLCR_R_MAX];
@@ -140,26 +141,26 @@ static void slcr_gem_postw(RegisterInfo *reg, uint64_t val64)
     switch (offset) {
     case A_IOU_AXI_WPRTCN_GEM0:
         if (s->memattr_w_gem[0]) {
-            s->memattr_w_gem[0]->secure = sec;
-            s->memattr_w_gem[0]->user = priv;
+            s->memattr_w_gem[0]->attrs.secure = sec;
+            s->memattr_w_gem[0]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_RPRTCN_GEM0:
         if (s->memattr_r_gem[0]) {
-            s->memattr_r_gem[0]->secure = sec;
-            s->memattr_r_gem[0]->user = priv;
+            s->memattr_r_gem[0]->attrs.secure = sec;
+            s->memattr_r_gem[0]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_WPRTCN_GEM1:
         if (s->memattr_w_gem[1]) {
-            s->memattr_w_gem[1]->secure = sec;
-            s->memattr_w_gem[1]->user = priv;
+            s->memattr_w_gem[1]->attrs.secure = sec;
+            s->memattr_w_gem[1]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_RPRTCN_GEM1:
         if (s->memattr_r_gem[1]) {
-            s->memattr_r_gem[1]->secure = sec;
-            s->memattr_r_gem[1]->user = priv;
+            s->memattr_r_gem[1]->attrs.secure = sec;
+            s->memattr_r_gem[1]->attrs.user = priv;
         }
         break;
     default:
@@ -248,22 +249,22 @@ static void lpd_iou_secure_slcr_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_imr);
 
     object_property_add_link(obj, "memattr-gem0",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_r_gem[0],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-write-gem0",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w_gem[0],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-gem1",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_r_gem[1],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-write-gem1",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w_gem[1],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);

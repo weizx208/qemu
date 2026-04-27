@@ -37,6 +37,7 @@
 #include "net/checksum.h"
 #include "net/eth.h"
 #include "hw/mdio/mdio_slave.h"
+#include "qemu/error-report.h"
 
 #define CADENCE_GEM_ERR_DEBUG 0
 #define DB_PRINT(...) do {\
@@ -1166,7 +1167,7 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
     DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", desc_addr);
 
     /* read current descriptor */
-    address_space_read(&s->dma_as, desc_addr, *s->attr_r,
+    address_space_read(&s->dma_as, desc_addr, hwdtb_memattrs_get(s->attr_r),
                      (uint8_t *)s->rx_desc[q],
                      sizeof(uint32_t) * gem_get_desc_len(s, true));
 
@@ -1293,7 +1294,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Copy packet data to emulated DMA buffer */
         address_space_write(&s->dma_as, rx_desc_get_buffer(s, s->rx_desc[q]) +
                                                                   rxbuf_offset,
-                            *s->attr_w, rxbuf_ptr,
+                            hwdtb_memattrs_get(s->attr_w), rxbuf_ptr,
                             MIN(bytes_to_copy, rxbufsize));
         rxbuf_ptr += MIN(bytes_to_copy, rxbufsize);
         bytes_to_copy -= MIN(bytes_to_copy, rxbufsize);
@@ -1332,7 +1333,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Descriptor write-back.  */
         desc_addr = gem_get_rx_desc_addr(s, q);
         address_space_write(&s->dma_as, desc_addr,
-                            *s->attr_w,
+                            hwdtb_memattrs_get(s->attr_w),
                             (uint8_t *)s->rx_desc[q],
                             sizeof(uint32_t) * gem_get_desc_len(s, true));
 
@@ -1446,7 +1447,7 @@ static void gem_transmit(CadenceGEMState *s)
 
         DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", packet_desc_addr);
         address_space_read(&s->dma_as, packet_desc_addr,
-                           *s->attr_r, (uint8_t *)desc,
+                           hwdtb_memattrs_get(s->attr_r), (uint8_t *)desc,
                            sizeof(uint32_t) * gem_get_desc_len(s, false));
         /* Handle all descriptors owned by hardware */
         while (tx_desc_get_used(desc) == 0) {
@@ -1481,7 +1482,7 @@ static void gem_transmit(CadenceGEMState *s)
              * contig buffer.
              */
             address_space_read(&s->dma_as, tx_desc_get_buffer(s, desc),
-                               *s->attr_r,
+                               hwdtb_memattrs_get(s->attr_r),
                                p, tx_desc_get_length(desc));
             p += tx_desc_get_length(desc);
             total_bytes += tx_desc_get_length(desc);
@@ -1495,12 +1496,12 @@ static void gem_transmit(CadenceGEMState *s)
                  * the processor.
                  */
                 address_space_read(&s->dma_as, desc_addr,
-                                   *s->attr_r,
+                                   hwdtb_memattrs_get(s->attr_r),
                                    (uint8_t *)desc_first,
                                    sizeof(desc_first));
                 tx_desc_set_used(desc_first);
                 address_space_write(&s->dma_as, desc_addr,
-                                   *s->attr_w,
+                                   hwdtb_memattrs_get(s->attr_w),
                                    (uint8_t *)desc_first,
                                     sizeof(desc_first));
                 /* Advance the hardware current descriptor past this packet */
@@ -1554,7 +1555,7 @@ static void gem_transmit(CadenceGEMState *s)
             }
             DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", packet_desc_addr);
             address_space_read(&s->dma_as, packet_desc_addr,
-                               *s->attr_r, (uint8_t *)desc,
+                               hwdtb_memattrs_get(s->attr_r), (uint8_t *)desc,
                                sizeof(uint32_t) * gem_get_desc_len(s, false));
         }
 
@@ -2018,11 +2019,13 @@ static void gem_realize(DeviceState *dev, Error **errp)
     gem_init_register_masks(s);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
-    if (!s->attr_r) {
-        s->attr_r = MEMORY_TRANSACTION_ATTR(
-                      object_new(TYPE_MEMORY_TRANSACTION_ATTR));
-    }
-    if (!s->attr_w) {
+    /*
+     * Prior 2026.2 "memattr-write" property can be left unset while "memattr"
+     * is set.  We keep that for backward compatibility.
+     */
+    if ((s->attr_r) && (!s->attr_w)) {
+        warn_report("Leaving \"memattr-write\" property unset while setting"
+                    "\"memattr\" is deprecated, the hwdtb need to be fixed.\n");
         s->attr_w = s->attr_r;
     }
 
@@ -2048,11 +2051,11 @@ static void gem_init(Object *obj)
                           "enet", sizeof(s->regs));
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_r,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
-    object_property_add_link(obj, "memattr-write", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr-write", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_w,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);

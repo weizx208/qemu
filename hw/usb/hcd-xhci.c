@@ -495,7 +495,7 @@ static inline void xhci_dma_read_u32s(XHCIState *xhci, dma_addr_t addr,
     assert((len % sizeof(uint32_t)) == 0);
 
     if (dma_memory_read(xhci->as, addr, buf, len,
-                        *xhci->attrs) != MEMTX_OK) {
+                        hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
         memset(buf, 0xff, len);
@@ -522,7 +522,7 @@ static inline void xhci_dma_write_u32s(XHCIState *xhci, dma_addr_t addr,
         tmp[i] = cpu_to_le32(buf[i]);
     }
     if (dma_memory_write(xhci->as, addr, tmp, len,
-                         *xhci->attrs) != MEMTX_OK) {
+                         hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
         xhci_die(xhci);
@@ -625,7 +625,7 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v)
 
     addr = intr->er_start + TRB_SIZE*intr->er_ep_idx;
     if (dma_memory_write(xhci->as, addr, &ev_trb, TRB_SIZE,
-                         *xhci->attrs) != MEMTX_OK) {
+                         hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
         xhci_die(xhci);
@@ -696,7 +696,7 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
     while (1) {
         TRBType type;
         if (dma_memory_read(xhci->as, ring->dequeue, trb, TRB_SIZE,
-                            *xhci->attrs) != MEMTX_OK) {
+                            hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                           __func__);
             return 0;
@@ -748,7 +748,7 @@ static int xhci_ring_chain_length(XHCIState *xhci, const XHCIRing *ring)
     do {
         TRBType type;
         if (dma_memory_read(xhci->as, dequeue, &trb, TRB_SIZE,
-                            *xhci->attrs) != MEMTX_OK) {
+                            hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                           __func__);
             return -1;
@@ -818,7 +818,7 @@ static void xhci_er_reset(XHCIState *xhci, int v)
         return;
     }
     if (dma_memory_read(xhci->as, erstba, &seg, sizeof(seg),
-                        *xhci->attrs) != MEMTX_OK) {
+                        hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                       __func__);
         xhci_die(xhci);
@@ -1477,7 +1477,7 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
 
     xfer->int_req = false;
     qemu_sglist_init(&xfer->sgl, DEVICE(xhci), xfer->trb_count, xhci->as);
-    xfer->sgl.attrs = *xhci->attrs;
+    xfer->sgl.attrs = hwdtb_memattrs_get(xhci->attrs);
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
         dma_addr_t addr;
@@ -2137,7 +2137,8 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     assert(slotid >= 1 && slotid <= xhci->numslots);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
-    ldq_le_dma(xhci->as, dcbaap + 8 * slotid, &poctx, *xhci->attrs);
+    ldq_le_dma(xhci->as, dcbaap + 8 * slotid, &poctx,
+               hwdtb_memattrs_get(xhci->attrs));
     ictx = xhci_mask64(pictx);
     octx = xhci_mask64(poctx);
 
@@ -2472,9 +2473,9 @@ static TRBCCode xhci_get_port_bandwidth(XHCIState *xhci, uint64_t pctx)
     DPRINTF("xhci: bandwidth context at "DMA_ADDR_FMT"\n", ctx);
 
     /* TODO: actually implement real values here. This is 80% for all ports. */
-    if (stb_dma(xhci->as, ctx, 0, *xhci->attrs) != MEMTX_OK ||
-        dma_memory_set(xhci->as, ctx + 1, 80, xhci->numports,
-                       *xhci->attrs) != MEMTX_OK) {
+    if (stb_dma(xhci->as, ctx, 0, hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK
+            || dma_memory_set(xhci->as, ctx + 1, 80, xhci->numports,
+                              hwdtb_memattrs_get(xhci->attrs)) != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory write failed!\n",
                       __func__);
         return CC_TRB_ERROR;
@@ -3449,11 +3450,6 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
     usb_xhci_init(xhci);
     xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
 
-    if (!xhci->attrs) {
-        xhci->attrs = g_new(MemTxAttrs, 1);
-        *xhci->attrs = MEMTXATTRS_UNSPECIFIED;
-    }
-
     memory_region_init(&xhci->mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
     memory_region_init_io(&xhci->mem_cap, OBJECT(dev), &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
@@ -3526,7 +3522,8 @@ static int usb_xhci_post_load(void *opaque, int version_id)
         if (!slot->addressed) {
             continue;
         }
-        ldq_le_dma(xhci->as, dcbaap + 8 * slotid, &addr, *xhci->attrs);
+        ldq_le_dma(xhci->as, dcbaap + 8 * slotid, &addr,
+                   hwdtb_memattrs_get(xhci->attrs));
         slot->ctx = xhci_mask64(addr);
 
         xhci_dma_read_u32s(xhci, slot->ctx, slot_ctx, sizeof(slot_ctx));

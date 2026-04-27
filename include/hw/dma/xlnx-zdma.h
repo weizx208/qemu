@@ -33,6 +33,7 @@
 #include "hw/register.h"
 #include "system/dma.h"
 #include "qom/object.h"
+#include "hwdtb/memattrs.h"
 
 #define ZDMA_R_MAX (0x204 / 4)
 #define ZDMA_V2_R_MAX (0x41c / 4)
@@ -58,7 +59,7 @@ typedef union {
 
 struct XlnxZDMABase {
     SysBusDevice parent_obj;
-    MemTxAttrs *attr_ptr;
+    HwDtbMemTxAttrs *attr_ptr;
     MemTxAttrs attr;
     MemoryRegion *dma_mr;
     AddressSpace dma_as;

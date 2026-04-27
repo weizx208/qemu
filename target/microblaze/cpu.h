@@ -25,6 +25,7 @@
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
 #include "exec/cpu-interrupt.h"
+#include "hwdtb/memattrs.h"
 
 typedef struct CPUArchState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
@@ -295,7 +296,7 @@ struct CPUArchState {
     /* These fields are preserved on reset.  */
     /* MicroBlaze does not have state that affects the memory attributes so
      * we end up only needing one instance.  */
-    MemTxAttrs *memattr_p;
+    HwDtbMemTxAttrs *memattr_p;
 };
 
 /*

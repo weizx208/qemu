@@ -611,11 +611,13 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.memattr_ns) {
-        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs = *cpu->env.memattr_ns;
+        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs =
+            hwdtb_memattrs_get(cpu->env.memattr_ns);
     }
 
     if (cpu->env.memattr_s) {
-        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = *cpu->env.memattr_s;
+        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs =
+            hwdtb_memattrs_get(cpu->env.memattr_s);
     } else if (arm_feature(env, ARM_FEATURE_EL3)) {
             /* Only set secure mode if the CPU support EL3 */
             cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
@@ -1278,12 +1280,12 @@ static void arm_cpu_initfn(Object *obj)
     }
 
 #ifndef CONFIG_USER_ONLY
-    object_property_add_link(obj, "memattr_ns", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr_ns", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&cpu->env.memattr_ns,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
 
-    object_property_add_link(obj, "memattr_s", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr_s", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&cpu->env.memattr_s,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);

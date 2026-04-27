@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hwdtb/memattrs.h"
 
 #ifndef XILINX_PMC_IOU_SECURE_SLCR_ERR_DEBUG
 #define XILINX_PMC_IOU_SECURE_SLCR_ERR_DEBUG 0
@@ -77,10 +78,10 @@ typedef struct PMC_IOU_SECURE_SLCR {
     MemoryRegion iomem;
     qemu_irq irq_imr;
 
-    MemTxAttrs *memattr_r_sd[2];
-    MemTxAttrs *memattr_w_sd[2];
-    MemTxAttrs *memattr_w_qspi;
-    MemTxAttrs *memattr_w_ospi;
+    HwDtbMemTxAttrs *memattr_r_sd[2];
+    HwDtbMemTxAttrs *memattr_w_sd[2];
+    HwDtbMemTxAttrs *memattr_w_qspi;
+    HwDtbMemTxAttrs *memattr_w_ospi;
 
     uint32_t regs[PMC_IOU_SECURE_SLCR_R_MAX];
     RegisterInfo regs_info[PMC_IOU_SECURE_SLCR_R_MAX];
@@ -144,38 +145,38 @@ static void slcr_memattr_postw(RegisterInfo *reg, uint64_t val64)
     switch (offset) {
     case A_IOU_AXI_WPRTCN_SD0:
         if (s->memattr_w_sd[0]) {
-            s->memattr_w_sd[0]->secure = sec;
-            s->memattr_w_sd[0]->user = priv;
+            s->memattr_w_sd[0]->attrs.secure = sec;
+            s->memattr_w_sd[0]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_RPRTCN_SD0:
         if (s->memattr_r_sd[0]) {
-            s->memattr_r_sd[0]->secure = sec;
-            s->memattr_r_sd[0]->user = priv;
+            s->memattr_r_sd[0]->attrs.secure = sec;
+            s->memattr_r_sd[0]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_WPRTCN_SD1:
         if (s->memattr_w_sd[1]) {
-            s->memattr_w_sd[1]->secure = sec;
-            s->memattr_w_sd[1]->user = priv;
+            s->memattr_w_sd[1]->attrs.secure = sec;
+            s->memattr_w_sd[1]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_RPRTCN_SD1:
         if (s->memattr_r_sd[1]) {
-            s->memattr_r_sd[1]->secure = sec;
-            s->memattr_r_sd[1]->user = priv;
+            s->memattr_r_sd[1]->attrs.secure = sec;
+            s->memattr_r_sd[1]->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_WPRTCN_QSPI:
         if (s->memattr_w_qspi) {
-            s->memattr_w_qspi->secure = sec;
-            s->memattr_w_qspi->user = priv;
+            s->memattr_w_qspi->attrs.secure = sec;
+            s->memattr_w_qspi->attrs.user = priv;
         }
         break;
     case A_IOU_AXI_WPRTCN_OSPI:
         if (s->memattr_w_ospi) {
-            s->memattr_w_ospi->secure = sec;
-            s->memattr_w_ospi->user = priv;
+            s->memattr_w_ospi->attrs.secure = sec;
+            s->memattr_w_ospi->attrs.user = priv;
         }
         break;
     default:
@@ -268,32 +269,32 @@ static void pmc_iou_secure_slcr_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_imr);
 
     object_property_add_link(obj, "memattr-sd0",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_r_sd[0],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-write-sd0",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w_sd[0],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-sd1",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_r_sd[1],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-write-sd1",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w_sd[1],
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-write-qspi",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w_qspi,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "memattr-write-ospi",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w_ospi,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);

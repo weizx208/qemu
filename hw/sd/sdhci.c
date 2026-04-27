@@ -653,7 +653,8 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
             }
             dma_memory_rw_attr(s->dma_as, s->sdmasysad,
                              &s->fifo_buffer[begin], s->data_count - begin,
-                             DMA_DIRECTION_FROM_DEVICE, *s->memattr_r);
+                             DMA_DIRECTION_FROM_DEVICE,
+                             hwdtb_memattrs_get(s->memattr_r));
             s->sdmasysad += s->data_count - begin;
             if (s->data_count == block_size) {
                 s->data_count = 0;
@@ -675,7 +676,8 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
             }
             dma_memory_rw_attr(s->dma_as, s->sdmasysad,
                             &s->fifo_buffer[begin], s->data_count - begin,
-                            DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                            DMA_DIRECTION_TO_DEVICE,
+                            hwdtb_memattrs_get(s->memattr_w));
             s->sdmasysad += s->data_count - begin;
             if (s->data_count == block_size) {
                 sdbus_write_data(&s->sdbus, s->fifo_buffer, block_size);
@@ -709,10 +711,12 @@ static void sdhci_sdma_transfer_single_block(SDHCIState *s)
     if (s->trnmod & SDHC_TRNS_READ) {
         sdbus_read_data(&s->sdbus, s->fifo_buffer, datacnt);
         dma_memory_rw_attr(s->dma_as, s->sdmasysad, s->fifo_buffer, datacnt,
-                         DMA_DIRECTION_FROM_DEVICE, *s->memattr_r);
+                         DMA_DIRECTION_FROM_DEVICE,
+                         hwdtb_memattrs_get(s->memattr_r));
     } else {
         dma_memory_rw_attr(s->dma_as, s->sdmasysad, s->fifo_buffer, datacnt,
-                         DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                         DMA_DIRECTION_TO_DEVICE,
+                         hwdtb_memattrs_get(s->memattr_w));
         sdbus_write_data(&s->sdbus, s->fifo_buffer, datacnt);
     }
     s->blkcnt--;
@@ -749,7 +753,8 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
     case SDHC_CTRL_ADMA2_32:
         dma_memory_rw_attr(s->dma_as, entry_addr, (uint8_t *)&adma2,
                         sizeof(adma2),
-                        DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                        DMA_DIRECTION_TO_DEVICE,
+                        hwdtb_memattrs_get(s->memattr_w));
         adma2 = le64_to_cpu(adma2);
         /*
          * The spec does not specify endianness of descriptor table.
@@ -763,7 +768,8 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
     case SDHC_CTRL_ADMA1_32:
         dma_memory_rw_attr(s->dma_as, entry_addr, (uint8_t *)&adma1,
                         sizeof(adma1),
-                        DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                        DMA_DIRECTION_TO_DEVICE,
+                        hwdtb_memattrs_get(s->memattr_w));
         adma1 = le32_to_cpu(adma1);
         dscr->addr = (hwaddr)(adma1 & 0xFFFFF000);
         dscr->attr = (uint8_t)extract32(adma1, 0, 7);
@@ -777,14 +783,17 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
     case SDHC_CTRL_ADMA2_64:
         dma_memory_rw_attr(s->dma_as, entry_addr,
                         (uint8_t *)(&dscr->attr), 1,
-                        DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                        DMA_DIRECTION_TO_DEVICE,
+                        hwdtb_memattrs_get(s->memattr_w));
         dma_memory_rw_attr(s->dma_as, entry_addr + 2,
                         (uint8_t *)(&dscr->length), 2,
-                        DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                        DMA_DIRECTION_TO_DEVICE,
+                        hwdtb_memattrs_get(s->memattr_w));
         dscr->length = le16_to_cpu(dscr->length);
         dma_memory_rw_attr(s->dma_as, entry_addr + 4,
                         (uint8_t *)(&dscr->addr), 8,
-                        DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                        DMA_DIRECTION_TO_DEVICE,
+                        hwdtb_memattrs_get(s->memattr_w));
         dscr->addr = le64_to_cpu(dscr->addr);
         dscr->attr &= (uint8_t) ~0xC0;
         dscr->incr = 12;
@@ -851,7 +860,8 @@ static void sdhci_do_adma(SDHCIState *s)
                     res = dma_memory_rw_attr(s->dma_as, dscr.addr,
                                      &s->fifo_buffer[begin],
                                      s->data_count - begin,
-                                     DMA_DIRECTION_FROM_DEVICE, *s->memattr_r);
+                                     DMA_DIRECTION_FROM_DEVICE,
+                                     hwdtb_memattrs_get(s->memattr_r));
                     if (res != MEMTX_OK) {
                         break;
                     }
@@ -880,7 +890,8 @@ static void sdhci_do_adma(SDHCIState *s)
                     res = dma_memory_rw_attr(s->dma_as, dscr.addr,
                                     &s->fifo_buffer[begin],
                                     s->data_count - begin,
-                                    DMA_DIRECTION_TO_DEVICE, *s->memattr_w);
+                                    DMA_DIRECTION_TO_DEVICE,
+                                    hwdtb_memattrs_get(s->memattr_w));
                     if (res != MEMTX_OK) {
                         break;
                     }
@@ -1454,12 +1465,12 @@ void sdhci_initfn(SDHCIState *s)
     s->io_ops = &sdhci_mmio_le_ops;
 
     object_property_add_link(OBJECT(s), "memattr",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_r,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
     object_property_add_link(OBJECT(s), "memattr-write",
-                             TYPE_MEMORY_TRANSACTION_ATTR,
+                             TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->memattr_w,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
@@ -1630,14 +1641,6 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error **errp)
     } else {
         /* use system_memory() if property "dma" not set */
         s->dma_as = &address_space_memory;
-    }
-
-    if (!s->memattr_r) {
-        s->memattr_r = g_malloc0(sizeof(MemTxAttrs));
-        *s->memattr_r =  MEMTXATTRS_UNSPECIFIED;
-    }
-    if (!s->memattr_w) {
-        s->memattr_w = s->memattr_r;
     }
 
     sysbus_init_irq(sbd, &s->irq);

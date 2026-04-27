@@ -260,9 +260,11 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
     mmu_init(&env->mmu);
 
     if (cpu->env.memattr_p) {
-        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs = *cpu->env.memattr_p;
+        MemTxAttrs attrs = hwdtb_memattrs_get(cpu->env.memattr_p);
+
+        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs = attrs;
         cs->neg.tlb.memattr[MEM_ATTR_NS].attrs.secure = false;
-        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = *cpu->env.memattr_p;
+        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = attrs;
         cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
     }
 #endif
@@ -394,7 +396,7 @@ static void mb_cpu_initfn(Object *obj)
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
     qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
 
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&cpu->env.memattr_p,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);

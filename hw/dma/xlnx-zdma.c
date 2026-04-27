@@ -907,10 +907,7 @@ static void zdma_common_realize(DeviceState *dev, Error **errp)
     }
     address_space_init(&s->dma_as, s->dma_mr, "zdma-dma");
 
-    s->attr = MEMTXATTRS_UNSPECIFIED;
-    if (s->attr_ptr) {
-        s->attr = *s->attr_ptr;
-    }
+    s->attr = hwdtb_memattrs_get(s->attr_ptr);
 
     sysbus_init_mmio(sbd, &s->reg_array->mem);
     sysbus_init_irq(sbd, &s->irq_zdma_ch_imr);
@@ -978,7 +975,7 @@ static void zdma_init(Object *obj)
     memory_region_init_io(&s->reg_array->mem, OBJECT(sv1), &zdma_ops, sv1,
                           TYPE_XLNX_ZDMA, ZDMA_R_MAX * 4);
 
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_ptr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
@@ -998,7 +995,7 @@ static void zdma_v2_init(Object *obj)
     memory_region_init_io(&s->reg_array->mem, OBJECT(sv2), &zdma_ops, sv2,
                           TYPE_XLNX_ZDMA_V2, ZDMA_V2_R_MAX * 4);
 
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_ptr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
