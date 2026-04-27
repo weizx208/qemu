@@ -619,6 +619,7 @@ static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "xlnx,axi-iic-2.0", TYPE_XILINX_AXI_IIC },
     { "xlnx,xps-iic-2.00.a", TYPE_XILINX_AXI_IIC },
     { "arm,cortex-a9-gic", TYPE_ARM_GIC },
+    { "qemu:memory-transaction-attr", TYPE_HWDTB_MEMTXATTRS },
 };
 
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
