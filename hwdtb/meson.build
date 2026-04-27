@@ -17,6 +17,7 @@ system_ss.add(files([
   'gpio-connect.c',
   'util.c',
   'proxy.c',
+  'memattrs.c',
   'fdt-input-visitor.c',
   'legacy-helpers.c',
 ]))
