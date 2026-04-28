@@ -3938,76 +3938,6 @@ static const TypeInfo memory_region_info = {
     .instance_finalize  = memory_region_finalize,
 };
 
-static bool memory_transaction_attr_get_secure(Object *obj, Error **errp)
-{
-    MemTxAttrs *mattr = MEMORY_TRANSACTION_ATTR(obj);
-    return mattr->secure;
-}
-
-static void memory_transaction_attr_set_secure(Object *obj, bool value,
-                                               Error **errp)
-{
-    MemTxAttrs *mattr = MEMORY_TRANSACTION_ATTR(obj);
-    mattr->secure = value;
-}
-
-static void mattr_get_requester_id(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    MemTxAttrs *mattr = MEMORY_TRANSACTION_ATTR(obj);
-    uint16_t value = mattr->requester_id;
-
-    visit_type_uint16(v, name, &value, errp);
-}
-
-
-static void mattr_set_requester_id(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    MemTxAttrs *mattr = MEMORY_TRANSACTION_ATTR(obj);
-    Error *local_err = NULL;
-    uint16_t value;
-
-    visit_type_uint16(v, name, &value, &local_err);
-    mattr->requester_id = value;
-}
-
-static void mattr_set_master_id(Object *obj, Visitor *v, const char *name,
-                                void *opaque, Error **errp)
-{
-    gchar *path = object_get_canonical_path(obj);
-
-    qemu_log("WARNING: %s: The %s property will be deprecated.\n", path, name);
-    g_free(path);
-    mattr_set_requester_id(obj, v, name, opaque, errp);
-}
-
-
-static void memory_transaction_attr_initfn(Object *obj)
-{
-    MemTxAttrs *mattr = MEMORY_TRANSACTION_ATTR(obj);
-
-    object_property_add_bool(OBJECT(mattr), "secure",
-                        memory_transaction_attr_get_secure,
-                        memory_transaction_attr_set_secure);
-    object_property_add(OBJECT(mattr), "requester-id", "uint16",
-                        mattr_get_requester_id,
-                        mattr_set_requester_id,
-                        NULL, NULL);
-    /* Will be deprecated.  */
-    object_property_add(OBJECT(mattr), "master-id", "uint16",
-                        mattr_get_requester_id,
-                        mattr_set_master_id,
-                        NULL, NULL);
-}
-
-static const TypeInfo memory_transaction_attr_info = {
-    .parent             = TYPE_OBJECT,
-    .name               = TYPE_MEMORY_TRANSACTION_ATTR,
-    .instance_size      = sizeof(MemTxAttrs),
-    .instance_init      = memory_transaction_attr_initfn,
-};
-
 static const TypeInfo iommu_memory_region_info = {
     .parent             = TYPE_MEMORY_REGION,
     .name               = TYPE_IOMMU_MEMORY_REGION,
@@ -4026,7 +3956,6 @@ static const TypeInfo ram_discard_manager_info = {
 static void memory_register_types(void)
 {
     type_register_static(&memory_region_info);
-    type_register_static(&memory_transaction_attr_info);
     type_register_static(&iommu_memory_region_info);
     type_register_static(&ram_discard_manager_info);
 }
