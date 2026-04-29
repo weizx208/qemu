@@ -54,6 +54,7 @@ struct CadenceTTCState {
     MemoryRegion iomem;
 
     uint8_t bit_width;
+    uint32_t clock_frequency;
     CadenceTimerState timer[3];
 };
 

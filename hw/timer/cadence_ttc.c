@@ -421,7 +421,12 @@ static void cadence_ttc_realize(DeviceState *dev, Error **errp)
     int i;
 
     for (i = 0; i < 3; ++i) {
-        cadence_timer_init(133000000, &s->timer[i]);
+        /*
+         * Use the device-tree-supplied clock-frequency. The QOM
+         * property has a default that matches the historical literal
+         * (133 MHz) for boards that don't override it.
+         */
+        cadence_timer_init(s->clock_frequency, &s->timer[i]);
         s->timer[i].container = s;
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->timer[i].irq);
     }
@@ -479,6 +484,8 @@ static const VMStateDescription vmstate_cadence_ttc = {
 
 static const Property cadence_ttc_props[] = {
     DEFINE_PROP_UINT8("width", CadenceTTCState, bit_width, 16),
+    DEFINE_PROP_UINT32("clock-frequency", CadenceTTCState, clock_frequency,
+                       133000000),
 };
 
 static void cadence_ttc_class_init(ObjectClass *klass, const void *data)
