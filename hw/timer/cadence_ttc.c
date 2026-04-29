@@ -54,7 +54,7 @@
 
 static void cadence_timer_update(CadenceTimerState *s)
 {
-    qemu_set_irq(s->irq, !!(s->reg_intr & s->reg_intr_en));
+    qemu_set_irq(s->irq, !!(s->reg_intr));
 }
 
 static CadenceTimerState *cadence_timer_from_addr(void *opaque,
@@ -184,12 +184,17 @@ static void cadence_timer_sync(CadenceTimerState *s)
         if (is_between(m, s->reg_value, x) ||
             is_between(m + interval, s->reg_value, x) ||
             is_between(m - interval, s->reg_value, x)) {
-            s->reg_intr |= (2 << i);
+            if (s->reg_intr_en & (2 << i)) {
+                s->reg_intr |= (2 << i);
+            }
         }
     }
     if ((x < 0) || (x >= interval)) {
-        s->reg_intr |= (s->reg_count & COUNTER_CTRL_INT) ?
+        uint32_t ev = (s->reg_count & COUNTER_CTRL_INT) ?
             COUNTER_INTR_IV : COUNTER_INTR_OV;
+        if (s->reg_intr_en & ev) {
+            s->reg_intr |= ev;
+        }
     }
     while (x < 0) {
         x += interval;
