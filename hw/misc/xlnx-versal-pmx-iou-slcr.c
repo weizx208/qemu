@@ -551,10 +551,14 @@ REG32(USB0_CUR_PWR_ST, 0x600)
     FIELD(USB0_CUR_PWR_ST, U2PMU, 0, 2)
 REG32(USB0_CONNECT_ST, 0x604)
     FIELD(USB0_CONNECT_ST, U2PMU, 0, 1)
+REG32(USB0_PW_STATE_REQ, 0x608)
+    FIELD(USB0_PW_STATE_REQ, BIT_1_0, 0, 2)
 REG32(USB1_CUR_PWR_ST, 0x650)
     FIELD(USB1_CUR_PWR_ST, U2PMU, 0, 2)
 REG32(USB1_CONNECT_ST, 0x654)
     FIELD(USB1_CONNECT_ST, U2PMU, 0, 1)
+REG32(USB1_PW_STATE_REQ, 0x658)
+    FIELD(USB1_PW_STATE_REQ, BIT_1_0, 0, 2)
 REG32(CTRL, 0x700)
     FIELD(CTRL, SLVERR_ENABLE, 0, 1)
 REG32(ISR, 0x800)
@@ -1221,6 +1225,15 @@ static uint64_t ospi_qspi_iou_axi_mux_sel_prew(RegisterInfo *reg,
     return val64;
 }
 
+static uint64_t usb_cur_pwr_st_posrt(RegisterInfo *reg, uint64_t val)
+{
+    PMX_IOU_SLCR *s = XILINX_PMX_IOU_SLCR(reg->opaque);
+    size_t idx = reg->access->addr / 4;
+    size_t state_addr = idx + 2;
+
+    return s->regs[state_addr];
+}
+
 static const RegisterAccessInfo pmx_iou_slcr_regs_info[] = {
     {   .name = "MIO_PIN_0",  .addr = A_MIO_PIN_0,
         .rsvd = 0xfffffc01,
@@ -1518,15 +1531,21 @@ static const RegisterAccessInfo pmx_iou_slcr_regs_info[] = {
     },{ .name = "USB0_CUR_PWR_ST",  .addr = A_USB0_CUR_PWR_ST,
         .rsvd = 0xfffffffc,
         .ro = 0x3,
+        .post_read = usb_cur_pwr_st_posrt,
     },{ .name = "USB0_CONNECT_ST",  .addr = A_USB0_CONNECT_ST,
         .rsvd = 0xfffffffe,
         .ro = 0x1,
+    },{ .name = "USB0_PW_STATE_REQ",  .addr = A_USB0_PW_STATE_REQ,
+        .rsvd = 0xfffffffc,
     },{ .name = "USB1_CUR_PWR_ST",  .addr = A_USB1_CUR_PWR_ST,
         .rsvd = 0xfffffffc,
         .ro = 0x3,
+        .post_read = usb_cur_pwr_st_posrt,
     },{ .name = "USB1_CONNECT_ST",  .addr = A_USB1_CONNECT_ST,
         .rsvd = 0xfffffffe,
         .ro = 0x1,
+    },{ .name = "USB1_PW_STATE_REQ",  .addr = A_USB1_PW_STATE_REQ,
+        .rsvd = 0xfffffffc,
     },{ .name = "CTRL",  .addr = A_CTRL,
     },{ .name = "ISR",  .addr = A_ISR,
         .w1c = 0x1,
