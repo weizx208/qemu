@@ -279,14 +279,14 @@ static void ss_stream_notify(void *opaque)
     uint8_t *data;
 
     while (stream_can_push(s->tx_dev, ss_stream_notify, s)) {
-        if (fifo_is_empty(&s->fifo) || fifo_num_used(&s->fifo) < 4) {
+        if (fifo_is_empty(&s->fifo) || fifo_num_used(&s->fifo) < 16) {
             break;
         }
         /* num is equal to number of bytes read as its a fifo of width 1byte.
          * the same dosent holds good if width is grater than 1 byte
          */
         data = (uint8_t *) fifo_pop_buf(&s->fifo,
-                        4, &num);
+                        16, &num);
 
         stream_push(s->tx_dev, data, num, false);
     }
