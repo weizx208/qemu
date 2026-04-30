@@ -267,7 +267,7 @@ static const ARMCPRegInfo cortex_a78_reginfo[] = {
       .resetvalue = 0 },
     { .name = "CPUPWRCTLR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .crn = 15, .crm = 2, .opc2 = 7,
-      .access = PL1_RW, .type = ARM_CP_CONST,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.cpupwrctrl_el1),
       .resetvalue = 0 },
 };
 
@@ -419,6 +419,7 @@ static uint32_t cortex_a78_pchan_get_current_state(ARMPChannelIf *obj)
 {
     ARMCPU *arm_cpu = ARM_CPU(obj);
     CPUState *cpu = CPU(obj);
+    const uint32_t CORE_PWRDN_EN_MASK = 0x1;
 
     g_assert(bql_locked());
 
@@ -427,7 +428,15 @@ static uint32_t cortex_a78_pchan_get_current_state(ARMPChannelIf *obj)
     }
 
     if (cpu->halted) {
-        return PCHANNEL_AARCH64_A78_FULL_RET_STATE;
+        if (arm_cpu->env.cp15.cpupwrctrl_el1 & CORE_PWRDN_EN_MASK) {
+            /*
+             * The core has enabled CORE_PWRDN_EN. When executing WFI, its
+             * PChannel notifies this by reporting OFF state.
+             */
+            return PCHANNEL_AARCH64_A78_OFF_STATE;
+        } else {
+            return PCHANNEL_AARCH64_A78_FULL_RET_STATE;
+        }
     }
 
     return PCHANNEL_AARCH64_A78_ON_STATE;
