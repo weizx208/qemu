@@ -694,6 +694,7 @@ typedef struct ApuPcilCore {
     APU_PCIL *parent;
     ARMPChannelIf *pchan;
     Notifier pactive_change_notifier;
+    bool apu_gic_wakeup_req_sta;
 } ApuPcilCore;
 
 struct APU_PCIL {
@@ -1225,6 +1226,32 @@ static void apu_pactive_change_notify(Notifier *notifier, void *opaque)
     default:
         break;
     }
+}
+
+static void apu_gic_wakeup_request_cb(void *opaque, int n, int level)
+{
+    APU_PCIL *s = XILINX_APU_PCIL(opaque);
+    const size_t STRIDE = (R_CORE_1_PSTATE - R_CORE_0_PSTATE) * n;
+    const size_t ISR_WAKE_IDX = R_CORE_0_ISR_WAKE + STRIDE;
+
+    g_assert(n < ARRAY_SIZE(s->core));
+
+    if (level == s->core[n].apu_gic_wakeup_req_sta) {
+        /* Only a pulse is sent to the APU PCIL when the GIC set this pin to 1 */
+        return;
+    }
+
+    s->core[n].apu_gic_wakeup_req_sta = level;
+
+    if (!level) {
+        return;
+    }
+
+    trace_xlnx_versal_net_apu_pcil_core_wakeup_request(n);
+
+    s->regs[ISR_WAKE_IDX] =
+        FIELD_DP32(s->regs[ISR_WAKE_IDX], CORE_0_ISR_WAKE, WAKE, 1);
+    update_core_wake_irq(s, n);
 }
 
 static void core_x_preq_postw(RegisterInfo *reg, uint64_t val64)
@@ -2136,6 +2163,7 @@ static void apu_pcil_reset_hold(Object *obj)
     FOREACH_CORE(s, mask, i) {
         update_core_power_irq(s, i);
         update_core_wake_irq(s, i);
+        s->core[i].apu_gic_wakeup_req_sta = false;
     }
 
     cluster_dbg_imr_pwrup_req_update_irq(s);
@@ -2191,7 +2219,7 @@ static void apu_pcil_realize(DeviceState *dev, Error **errp)
 {
     APU_PCIL *s = XILINX_APU_PCIL(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    size_t i;
+    size_t i, num_cores = 0;
     uint32_t mask;
 
     if (s->cluster_mask >= (1 << APU_PCIL_MAX_CLUSTER)) {
@@ -2218,6 +2246,7 @@ static void apu_pcil_realize(DeviceState *dev, Error **errp)
 
     FOREACH_CORE(s, mask, i) {
         sysbus_init_irq(sbd, &s->irq_core_power[i]);
+        num_cores++;
     }
 
     FOREACH_CORE(s, mask, i) {
@@ -2234,6 +2263,9 @@ static void apu_pcil_realize(DeviceState *dev, Error **errp)
                                                     &s->core[i].pactive_change_notifier);
         }
     }
+
+    qdev_init_gpio_in_named(dev, apu_gic_wakeup_request_cb,
+                            "apu-gic-wakeup-request", num_cores);
 
     sysbus_init_irq(sbd, &s->irq_cluster_dbg_imr_pwrup_req);
     sysbus_init_irq(sbd, &s->irq_core_dbg_imr_pwrup_req);
@@ -2324,7 +2356,12 @@ static const FDTGenericGPIOSet apu_pcil_gpios[] = {
             {
                 .name = SYSBUS_DEVICE_GPIO_IRQ,
                 .fdt_index = 0,
-                .range = APU_PCIL_MAX_CLUSTER * 2 + APU_PCIL_MAX_CORE * 2 },
+                .range = APU_PCIL_MAX_CLUSTER * 2 + APU_PCIL_MAX_CORE * 2
+            }, {
+                .name = "apu-gic-wakeup-request",
+                .fdt_index = APU_PCIL_MAX_CLUSTER * 2 + APU_PCIL_MAX_CORE * 2,
+                .range = APU_PCIL_MAX_CORE,
+            },
             { },
         }
     },
