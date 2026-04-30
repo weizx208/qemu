@@ -1127,7 +1127,11 @@ static uint64_t apu_pcil_ids_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
-const uint32_t PACTIVE_ON_STATE = 1 << 8;
+enum {
+    PACTIVE_OFF_STATE = 1 << 0,
+    PACTIVE_OFF_EMU_STATE = 1 << 1,
+    PACTIVE_ON_STATE = 1 << 8,
+};
 
 static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
 {
@@ -1175,7 +1179,6 @@ static void apu_pactive_change_notify(Notifier *notifier, void *opaque)
     APU_PCIL *s = core->parent;
     size_t core_idx = core - s->core;
     uint32_t pactive, new_pactive;
-    bool prev_on, new_on;
 
     const size_t STRIDE = (R_CORE_1_PSTATE - R_CORE_0_PSTATE) * core_idx;
     const size_t PACTIVE_IDX = R_CORE_0_PACTIVE + STRIDE;
@@ -1185,37 +1188,42 @@ static void apu_pactive_change_notify(Notifier *notifier, void *opaque)
     g_assert(core_idx < ARRAY_SIZE(s->core));
 
     /*
-     * As a simplification we consider the following PSTATE values for the
-     * core:
-     *   0b001000: ON
-     *   anything else: OFF
+     * The following PACTIVE state are considered OFF states:
+     *    * 0 -> OFF
+     *    * 1 -> OFF_EMU
+     *
+     * The only considered ON state is ON (8)
      */
 
     pactive = FIELD_EX32(s->regs[PACTIVE_IDX], CORE_0_PACTIVE, PACTIVE);
-
-    prev_on = pactive == PACTIVE_ON_STATE;
-
     new_pactive = 1 << pchannel_get_current_state(s->core[core_idx].pchan);
-    new_on = new_pactive == PACTIVE_ON_STATE;
+
+    if (pactive == new_pactive) {
+        return;
+    }
 
     s->regs[PACTIVE_IDX] = FIELD_DP32(s->regs[PACTIVE_IDX],
                                       CORE_0_PACTIVE, PACTIVE, new_pactive);
 
     trace_xlnx_versal_net_apu_pcil_core_pactive_change(core_idx, new_pactive);
 
-    if (prev_on == new_on) {
-        return;
-    }
-
     /* trigger corresponding IRQs */
-    if (new_on) {
+    switch (new_pactive) {
+    case PACTIVE_ON_STATE:
         s->regs[ISR_WAKE_IDX] =
             FIELD_DP32(s->regs[ISR_WAKE_IDX], CORE_0_ISR_WAKE, WAKE, 1);
         update_core_wake_irq(s, core_idx);
-    } else {
+        break;
+
+    case PACTIVE_OFF_STATE:
+    case PACTIVE_OFF_EMU_STATE:
         s->regs[ISR_POWER_IDX] =
             FIELD_DP32(s->regs[ISR_POWER_IDX], CORE_0_ISR_POWER, POWER_DOWN, 1);
         update_core_power_irq(s, core_idx);
+        break;
+
+    default:
+        break;
     }
 }
 
