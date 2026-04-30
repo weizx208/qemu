@@ -599,7 +599,6 @@ static void arm_cpu_reset_hold(Object *obj)
     }
 
     qemu_set_irq(cpu->wfi, false);
-    arm_cpu_notify_pactive_change(cpu);
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.memattr_ns) {
@@ -868,6 +867,7 @@ static bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     uint32_t excp_idx;
 
     qemu_irq_lower(ARM_CPU(cs)->wfi);
+    arm_cpu_notify_pactive_change(ARM_CPU(cs));
 
     /* The prioritization of interrupts is IMPLEMENTATION DEFINED. */
 
