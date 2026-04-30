@@ -608,7 +608,6 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     }
 
     qemu_set_irq(cpu->wfi, false);
-    arm_cpu_notify_pactive_change(cpu);
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.memattr_ns) {
