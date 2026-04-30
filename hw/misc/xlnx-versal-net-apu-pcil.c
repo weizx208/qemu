@@ -1127,7 +1127,7 @@ static uint64_t apu_pcil_ids_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
-const uint32_t PACTIVE_ON_STATE = 8;
+const uint32_t PACTIVE_ON_STATE = 1 << 8;
 
 static void update_core_pchannel(APU_PCIL *s, size_t preq_idx)
 {
@@ -1195,7 +1195,7 @@ static void apu_pactive_change_notify(Notifier *notifier, void *opaque)
 
     prev_on = pactive == PACTIVE_ON_STATE;
 
-    new_pactive = pchannel_get_current_state(s->core[core_idx].pchan);
+    new_pactive = 1 << pchannel_get_current_state(s->core[core_idx].pchan);
     new_on = new_pactive == PACTIVE_ON_STATE;
 
     s->regs[PACTIVE_IDX] = FIELD_DP32(s->regs[PACTIVE_IDX],
@@ -1249,7 +1249,7 @@ static uint64_t core_x_pactive_postr(RegisterInfo *reg, uint64_t val64)
         return 0;
     }
 
-    pactive = pchannel_get_current_state(s->core[core_idx].pchan);
+    pactive = 1 << pchannel_get_current_state(s->core[core_idx].pchan);
     trace_xlnx_versal_net_apu_pcil_core_read_current_pstate(core_idx, pactive);
 
     return FIELD_DP32(val64, CORE_0_PACTIVE, PACTIVE, pactive);
