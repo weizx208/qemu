@@ -612,6 +612,59 @@ static Object *hwdtb_factory_zynq_set_num_cpu(HwDtbNode *node)
     return hwdtb_factory_from_oc(node);
 }
 
+/*
+ * -- Legacy --
+ * ZynqMP old dtbs support
+ *
+ * Add the gpi-sample-mask property on the gpi2 device if missing. This is to
+ * ensure backward compatibility with older hwdtbs.
+ *
+ * This property ensures the STANDBYWFI signals from the APUs get sampled by the
+ * iomodule GPI device. This is a workaround to a discrepancy between QEMU WFI
+ * ARM instruction implementation and real hardware one.
+ */
+static void zynqmp_iomod_gpi28_set_sampling_mask(HwDtbNode *node, void *opaque)
+{
+    DeviceState *dev = HWDTB_NODE_AS(node, DEVICE);
+
+    qdev_prop_set_uint32(dev, "gpi-sample-mask", 0xf);
+}
+
+static Object *hwdtb_factory_iomod_gpi_set_sampling_mask(HwDtbNode *node)
+{
+    HwDtbNode *root = node->hwdtb->root;
+    const char *compat;
+    bool is_zynqmp = false;
+
+    if (strcmp(hwdtb_node_get_name(node), "pmu_gpi@28")) {
+        return hwdtb_factory_from_oc(node);
+    }
+
+    compat = hwdtb_node_get_prop_strings(root, "compatible", NULL);
+
+    while (compat) {
+        if (!strcmp(compat, "xlnx,zynqmp")) {
+            is_zynqmp = true;
+            break;
+        }
+
+        compat = hwdtb_node_get_prop_strings(root, "compatible", compat);
+    }
+
+    if (!is_zynqmp) {
+        return hwdtb_factory_from_oc(node);
+    }
+
+    if (hwdtb_node_has_prop(node, "gpi-sample-mask")) {
+        /* property already present on the node, not a legacy dtb */
+        return hwdtb_factory_from_oc(node);
+    }
+
+    hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                 zynqmp_iomod_gpi28_set_sampling_mask, NULL);
+    return hwdtb_factory_from_oc(node);
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "simple-bus", TYPE_MEMORY_REGION },
     { "qemu:memory-region", TYPE_MEMORY_REGION },
@@ -640,6 +693,7 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { TYPE_A9_SCU, hwdtb_factory_zynq_set_num_cpu },
     { TYPE_A9_GTIMER, hwdtb_factory_zynq_set_num_cpu },
     { TYPE_ARM_MPTIMER, hwdtb_factory_zynq_set_num_cpu },
+    { "xlnx.io_gpi", hwdtb_factory_iomod_gpi_set_sampling_mask },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
