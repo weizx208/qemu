@@ -2026,8 +2026,7 @@ void versal_ospi_create_flash(Versal *s, int flash_idx, const char *flash_mdl,
 
     cs_line = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
 
-    sysbus_connect_irq(SYS_BUS_DEVICE(ospi),
-                       flash_idx + 1, cs_line);
+    qdev_connect_gpio_out(ospi, flash_idx, cs_line);
 }
 
 qemu_irq versal_get_reserved_irq(Versal *s, int idx, int *dtb_idx)

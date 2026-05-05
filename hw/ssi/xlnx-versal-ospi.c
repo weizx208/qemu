@@ -1823,6 +1823,7 @@ static void xlnx_versal_ospi_init(Object *obj)
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 
+    qdev_init_gpio_in_named(dev, ospi_update_dac_status, "ospi-mux-sel", 1);
     qdev_init_gpio_in(dev, ospi_update_dac_status, 1);
 }
 
