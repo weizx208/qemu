@@ -387,9 +387,9 @@ static void aarch64_a78_initfn(Object *obj)
 }
 
 #ifndef CONFIG_USER_ONLY
-static const uint32_t PCHANNEL_AARCH64_A78_ON_STATE = 0x8;
-static const uint32_t PCHANNEL_AARCH64_A78_OFF_STATE = 0x0;
-static const uint32_t PCHANNEL_AARCH64_A78_FULL_RET_STATE = 0x5;
+#define PCHANNEL_AARCH64_A78_ON_STATE 0x8
+#define PCHANNEL_AARCH64_A78_OFF_STATE 0x0
+#define PCHANNEL_AARCH64_A78_FULL_RET_STATE 0x5
 
 static bool cortex_a78_pchan_request_state_change(ARMPChannelIf *obj,
                                                   uint32_t new_state)
