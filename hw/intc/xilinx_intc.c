@@ -252,6 +252,15 @@ static const Property xilinx_intc_properties[] = {
 
 static void xilinx_intc_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
 {
+    if (qdev_get_gpio_out_connector(DEVICE(obj), "Outputs", 0) != NULL) {
+        /*
+         * This function is legacy behaviour and can conflict with actual
+         * hwdtb connections. Do nothing if a connection already exists for
+         * this GPIO.
+         */
+        return;
+    }
+
     qdev_connect_gpio_out_named(DEVICE(obj), "Outputs", 0,
                                 qdev_get_gpio_in(DEVICE(first_cpu), 0));
 }

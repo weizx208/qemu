@@ -2174,6 +2174,16 @@ static void arm_gic_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
         if (i >= s->num_cpu) {
             break;
         }
+
+        if (qdev_get_gpio_out_connector(DEVICE(obj), "irq", i) != NULL) {
+            /*
+             * This function is legacy behaviour and can conflict with actual
+             * hwdtb connections. Do nothing if a connection already exists for
+             * this GPIO.
+             */
+            continue;
+        }
+
         qdev_connect_gpio_out_named(DEVICE(obj), "irq", i,
                                     qdev_get_gpio_in(DEVICE(cs), 0));
         i++;
