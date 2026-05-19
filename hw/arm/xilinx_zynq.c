@@ -173,7 +173,7 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
             qdev_realize_and_unref(flash_dev, BUS(spi), &error_fatal);
 
             cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
-            sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
+            qdev_connect_gpio_out(dev, i * num_ss + j, cs_line);
         }
     }
 

@@ -214,7 +214,7 @@ static void xlnx_zcu102_init(MachineState *machine)
 
         cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
 
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.spi[i]), 1, cs_line);
+        qdev_connect_gpio_out(DEVICE(&s->soc.spi[i]), 0, cs_line);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_FLASH; i++) {
@@ -238,7 +238,7 @@ static void xlnx_zcu102_init(MachineState *machine)
 
         cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
 
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->soc.qspi), i + 1, cs_line);
+        qdev_connect_gpio_out(DEVICE(&s->soc.qspi), i, cs_line);
     }
 
     /* TODO create and connect IDE devices for ide_drive_get() */
