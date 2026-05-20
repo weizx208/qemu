@@ -2631,7 +2631,8 @@ static void ipi_reset(DeviceState *dev)
             s->regs[i] = (1 << num_agents) - 1;
             break;
 
-        case R_MASTER_ID00 ... R_MASTER_ID31:
+        case R_MASTER_ID00 ... R_MASTER_ID19:
+        case R_MASTER_ID20 ... R_MASTER_ID31:
             if (i >= R_MASTER_ID20) {
                 idx = i - R_MASTER_ID20 + 20;
             } else {
