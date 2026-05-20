@@ -21,6 +21,8 @@
 #ifndef RISCV_CPU_CFG_H
 #define RISCV_CPU_CFG_H
 
+#include "include/exec/memattrs.h"
+
 /*
  * map is a 16-bit bitmap: the most significant set bit in map is the maximum
  * satp mode that is supported. It may be chosen by the user and must respect
@@ -152,6 +154,10 @@ struct RISCVCPUConfig {
 
 #ifndef CONFIG_USER_ONLY
     RISCVSATPMap satp_mode;
+#endif
+
+#ifndef CONFIG_USER_ONLY
+    MemTxAttrs *memattr;
 #endif
 };
 

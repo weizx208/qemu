@@ -945,6 +945,11 @@ static void riscv_cpu_reset_hold(Object *obj)
 
 #ifndef CONFIG_USER_ONLY
     cpu_halt_update(cs);
+
+    if (cpu->cfg.memattr) {
+        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs = *cpu->cfg.memattr;
+        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = *cpu->cfg.memattr;
+    }
 #endif
 }
 
@@ -1240,6 +1245,7 @@ static void riscv_cpu_post_init(Object *obj)
 static void riscv_cpu_init(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
+    RISCVCPU *cpu = RISCV_CPU(obj);
     qdev_init_gpio_in(DEVICE(obj), riscv_cpu_set_irq,
                       IRQ_LOCAL_MAX + IRQ_LOCAL_GUEST_MAX);
 #endif /* CONFIG_USER_ONLY */
@@ -1253,6 +1259,13 @@ static void riscv_cpu_init(Object *obj)
      */
     RISCV_CPU(obj)->cfg.ext_zicntr = true;
     RISCV_CPU(obj)->cfg.ext_zihpm = true;
+
+#ifndef CONFIG_USER_ONLY
+    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+                             (Object **)&cpu->cfg.memattr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+#endif
 }
 
 typedef struct misa_ext_info {

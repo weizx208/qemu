@@ -70,6 +70,11 @@ typedef struct CPUArchState CPURISCVState;
 #define RVJ RV('J')
 #define RVG RV('G')
 
+#undef NB_MEM_ATTR
+#define NB_MEM_ATTR 2
+#define MEM_ATTR_NS 0
+#define MEM_ATTR_SEC 1
+
 extern const uint32_t misa_bits[];
 const char *riscv_get_misa_ext_name(uint32_t bit);
 const char *riscv_get_misa_ext_description(uint32_t bit);
