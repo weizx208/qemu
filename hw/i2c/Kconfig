@@ -49,3 +49,8 @@ config SI5341
 config PMBUS
     bool
     select SMBUS
+
+config TPS6598X
+    bool
+    default y if I2C_DEVICES
+    select I2C
