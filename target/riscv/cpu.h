@@ -34,6 +34,7 @@
 #include "cpu_cfg.h"
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
+#include "hwdtb/memattrs.h"
 
 typedef struct CPUArchState CPURISCVState;
 
@@ -548,6 +549,10 @@ struct ArchCPU {
     /* Configuration Settings */
     RISCVCPUConfig cfg;
     RISCVSATPModes satp_modes;
+
+#ifndef CONFIG_USER_ONLY
+    HwDtbMemTxAttrs *memattr;
+#endif
 
     QEMUTimer *pmu_timer;
     /* A bitmask of Available programmable counters */

@@ -38,6 +38,7 @@
 #include "tcg/tcg-cpu.h"
 #include "tcg/tcg.h"
 #include "hw/core/cpu-exec-gpio.h"
+#include "system/memory.h"
 
 /* RISC-V CPU definitions */
 static const char riscv_single_letter_exts[] = "IEMAFDQCBPVH";
@@ -804,6 +805,13 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
     cpu_halt_update(cs);
+
+    if (cpu->memattr) {
+        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs =
+            hwdtb_memattrs_get(cpu->memattr);
+        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs =
+            hwdtb_memattrs_get(cpu->memattr);
+    }
 #endif
 }
 
@@ -1170,6 +1178,13 @@ static void riscv_cpu_init(Object *obj)
 #endif
 
     accel_cpu_instance_init(CPU(obj));
+
+#ifndef CONFIG_USER_ONLY
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
+                             (Object **)&cpu->memattr,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+#endif
 }
 
 typedef struct misa_ext_info {
