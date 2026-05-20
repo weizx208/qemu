@@ -1983,6 +1983,8 @@ typedef struct XlnxVersalIPI {
 
     struct {
         uint32_t num_master_ids;
+        uint32_t master_id_rst_val[VERSAL_NET_NUM_MASTER_IDS];
+        bool master_id_ro[VERSAL_NET_NUM_MASTER_IDS];
     } cfg;
 
     uint32_t regs[IPI_R_MAX];
@@ -2198,7 +2200,7 @@ static void x_trig_postw(RegisterInfo *reg, uint64_t val64)
     x_update_irq(s);
 }
 
-static const RegisterAccessInfo ipi_regs_info[] = {
+static RegisterAccessInfo ipi_regs_info[] = {
     {   .name = "IPI_CTRL",  .addr = A_IPI_CTRL,
     },{ .name = "IPI_INT_TRIG",  .addr = A_IPI_INT_TRIG,
         .rsvd = 0xffffff00,
@@ -2605,6 +2607,8 @@ static void ipi_reset(DeviceState *dev)
     int num_agents = s->cfg.num_master_ids / 2;
 
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
+        size_t idx;
+
         register_reset(&s->regs_info[i]);
 
         switch (i) {
@@ -2625,6 +2629,25 @@ static void ipi_reset(DeviceState *dev)
         case R_IPI_NOBUF5_IMR:
         case R_IPI_NOBUF6_IMR:
             s->regs[i] = (1 << num_agents) - 1;
+            break;
+
+        case R_MASTER_ID00 ... R_MASTER_ID31:
+            if (i >= R_MASTER_ID20) {
+                idx = i - R_MASTER_ID20 + 20;
+            } else {
+                idx = i - R_MASTER_ID00;
+            }
+
+            if (s->cfg.master_id_rst_val[idx]) {
+                s->regs[i] = s->cfg.master_id_rst_val[idx];
+            }
+
+            if (s->cfg.master_id_ro[idx]) {
+                ipi_regs_info[idx].ro = UINT32_MAX;
+            } else {
+                ipi_regs_info[idx].ro = 0x0;
+            }
+
             break;
         };
 
@@ -2677,7 +2700,136 @@ static void ipi_init(Object *obj)
 
 static const Property ipi_properties[] = {
     DEFINE_PROP_UINT32("num-master-ids", XlnxVersalIPI,
-                     cfg.num_master_ids, VERSAL_NUM_MASTER_IDS),
+                       cfg.num_master_ids, VERSAL_NUM_MASTER_IDS),
+    DEFINE_PROP_UINT32("master-id0", XlnxVersalIPI,
+                       cfg.master_id_rst_val[0], 0),
+    DEFINE_PROP_UINT32("master-id1", XlnxVersalIPI,
+                       cfg.master_id_rst_val[1], 0),
+    DEFINE_PROP_UINT32("master-id2", XlnxVersalIPI,
+                       cfg.master_id_rst_val[2], 0),
+    DEFINE_PROP_UINT32("master-id3", XlnxVersalIPI,
+                       cfg.master_id_rst_val[3], 0),
+    DEFINE_PROP_UINT32("master-id4", XlnxVersalIPI,
+                       cfg.master_id_rst_val[4], 0),
+    DEFINE_PROP_UINT32("master-id5", XlnxVersalIPI,
+                       cfg.master_id_rst_val[5], 0),
+    DEFINE_PROP_UINT32("master-id6", XlnxVersalIPI,
+                       cfg.master_id_rst_val[6], 0),
+    DEFINE_PROP_UINT32("master-id7", XlnxVersalIPI,
+                       cfg.master_id_rst_val[7], 0),
+    DEFINE_PROP_UINT32("master-id8", XlnxVersalIPI,
+                       cfg.master_id_rst_val[8], 0),
+    DEFINE_PROP_UINT32("master-id9", XlnxVersalIPI,
+                       cfg.master_id_rst_val[9], 0),
+    DEFINE_PROP_UINT32("master-id10", XlnxVersalIPI,
+                       cfg.master_id_rst_val[10], 0),
+    DEFINE_PROP_UINT32("master-id11", XlnxVersalIPI,
+                       cfg.master_id_rst_val[11], 0),
+    DEFINE_PROP_UINT32("master-id12", XlnxVersalIPI,
+                       cfg.master_id_rst_val[12], 0),
+    DEFINE_PROP_UINT32("master-id13", XlnxVersalIPI,
+                       cfg.master_id_rst_val[13], 0),
+    DEFINE_PROP_UINT32("master-id14", XlnxVersalIPI,
+                       cfg.master_id_rst_val[14], 0),
+    DEFINE_PROP_UINT32("master-id15", XlnxVersalIPI,
+                       cfg.master_id_rst_val[15], 0),
+    DEFINE_PROP_UINT32("master-id16", XlnxVersalIPI,
+                       cfg.master_id_rst_val[16], 0),
+    DEFINE_PROP_UINT32("master-id17", XlnxVersalIPI,
+                       cfg.master_id_rst_val[17], 0),
+    DEFINE_PROP_UINT32("master-id18", XlnxVersalIPI,
+                       cfg.master_id_rst_val[18], 0),
+    DEFINE_PROP_UINT32("master-id19", XlnxVersalIPI,
+                       cfg.master_id_rst_val[19], 0),
+    DEFINE_PROP_UINT32("master-id20", XlnxVersalIPI,
+                       cfg.master_id_rst_val[20], 0),
+    DEFINE_PROP_UINT32("master-id21", XlnxVersalIPI,
+                       cfg.master_id_rst_val[21], 0),
+    DEFINE_PROP_UINT32("master-id22", XlnxVersalIPI,
+                       cfg.master_id_rst_val[22], 0),
+    DEFINE_PROP_UINT32("master-id23", XlnxVersalIPI,
+                       cfg.master_id_rst_val[23], 0),
+    DEFINE_PROP_UINT32("master-id24", XlnxVersalIPI,
+                       cfg.master_id_rst_val[24], 0),
+    DEFINE_PROP_UINT32("master-id25", XlnxVersalIPI,
+                       cfg.master_id_rst_val[25], 0),
+    DEFINE_PROP_UINT32("master-id26", XlnxVersalIPI,
+                       cfg.master_id_rst_val[26], 0),
+    DEFINE_PROP_UINT32("master-id27", XlnxVersalIPI,
+                       cfg.master_id_rst_val[27], 0),
+    DEFINE_PROP_UINT32("master-id28", XlnxVersalIPI,
+                       cfg.master_id_rst_val[28], 0),
+    DEFINE_PROP_UINT32("master-id29", XlnxVersalIPI,
+                       cfg.master_id_rst_val[29], 0),
+    DEFINE_PROP_UINT32("master-id30", XlnxVersalIPI,
+                       cfg.master_id_rst_val[30], 0),
+    DEFINE_PROP_UINT32("master-id31", XlnxVersalIPI,
+                       cfg.master_id_rst_val[31], 0),
+
+    DEFINE_PROP_BOOL("master-id0-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[0], true),
+    DEFINE_PROP_BOOL("master-id1-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[1], true),
+    DEFINE_PROP_BOOL("master-id2-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[2], true),
+    DEFINE_PROP_BOOL("master-id3-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[3], true),
+    DEFINE_PROP_BOOL("master-id4-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[4], false),
+    DEFINE_PROP_BOOL("master-id5-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[5], false),
+    DEFINE_PROP_BOOL("master-id6-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[6], false),
+    DEFINE_PROP_BOOL("master-id7-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[7], false),
+    DEFINE_PROP_BOOL("master-id8-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[8], false),
+    DEFINE_PROP_BOOL("master-id9-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[9], false),
+    DEFINE_PROP_BOOL("master-id10-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[10], false),
+    DEFINE_PROP_BOOL("master-id11-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[11], false),
+    DEFINE_PROP_BOOL("master-id12-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[12], false),
+    DEFINE_PROP_BOOL("master-id13-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[13], false),
+    DEFINE_PROP_BOOL("master-id14-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[14], false),
+    DEFINE_PROP_BOOL("master-id15-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[15], false),
+    DEFINE_PROP_BOOL("master-id16-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[16], false),
+    DEFINE_PROP_BOOL("master-id17-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[17], false),
+    DEFINE_PROP_BOOL("master-id18-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[18], false),
+    DEFINE_PROP_BOOL("master-id19-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[19], false),
+    DEFINE_PROP_BOOL("master-id20-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[20], false),
+    DEFINE_PROP_BOOL("master-id21-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[21], false),
+    DEFINE_PROP_BOOL("master-id22-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[22], false),
+    DEFINE_PROP_BOOL("master-id23-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[23], false),
+    DEFINE_PROP_BOOL("master-id24-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[24], false),
+    DEFINE_PROP_BOOL("master-id25-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[25], false),
+    DEFINE_PROP_BOOL("master-id26-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[26], false),
+    DEFINE_PROP_BOOL("master-id27-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[27], false),
+    DEFINE_PROP_BOOL("master-id28-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[28], false),
+    DEFINE_PROP_BOOL("master-id29-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[29], false),
+    DEFINE_PROP_BOOL("master-id30-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[30], false),
+    DEFINE_PROP_BOOL("master-id31-ro", XlnxVersalIPI,
+                     cfg.master_id_ro[31], false),
 };
 
 static const VMStateDescription vmstate_ipi = {
