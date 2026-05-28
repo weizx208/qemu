@@ -666,6 +666,28 @@ static Object *hwdtb_factory_iomod_gpi_set_sampling_mask(HwDtbNode *node)
     return hwdtb_factory_from_oc(node);
 }
 
+static void device_set_prop_endianness_little(HwDtbNode *node, void *opaque)
+{
+    DeviceState *dev = HWDTB_NODE_AS(node, DEVICE);
+
+    qdev_prop_set_enum(dev, "endianness", ENDIAN_MODE_LITTLE);
+}
+
+/*
+ * -- Legacy --
+ * Set the device endianness property to little-endian if not specified in the
+ * DTB.
+ */
+static Object *hwdtb_factory_set_endianness_prop(HwDtbNode *node)
+{
+    if (!hwdtb_node_has_prop(node, "endianness")) {
+        hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                     device_set_prop_endianness_little, NULL);
+    }
+
+    return hwdtb_factory_from_oc(node);
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "simple-bus", TYPE_MEMORY_REGION },
     { "qemu:memory-region", TYPE_MEMORY_REGION },
@@ -735,6 +757,11 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { TYPE_A9_GTIMER, hwdtb_factory_zynq_set_num_cpu },
     { TYPE_ARM_MPTIMER, hwdtb_factory_zynq_set_num_cpu },
     { "xlnx.io_gpi", hwdtb_factory_iomod_gpi_set_sampling_mask },
+    { TYPE_XILINX_UARTLITE, hwdtb_factory_set_endianness_prop },
+    { "xlnx.xps-intc", hwdtb_factory_set_endianness_prop },
+    { "xlnx.xps-ethernetlite", hwdtb_factory_set_endianness_prop },
+    { "xlnx.xps-spi", hwdtb_factory_set_endianness_prop },
+    { "xlnx.xps-timer", hwdtb_factory_set_endianness_prop },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
