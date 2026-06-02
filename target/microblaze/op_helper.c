@@ -485,7 +485,8 @@ uint32_t HELPER(NAME)(CPUMBState *env, uint64_t ea)                     \
 {                                                                       \
     CPUState *cs = env_cpu(env);                                        \
     MemTxResult txres;                                                  \
-    TYPE ret = FUNC(cs->as, ea, MEMTXATTRS_UNSPECIFIED, &txres);        \
+    MemTxAttrs attrs = cs->neg.tlb.memattr[!MICROBLAZE_CPU(cs)->ns_axi_dp].attrs; \
+    TYPE ret = FUNC(cs->as, ea, attrs, &txres);                         \
     if (unlikely(txres != MEMTX_OK)) {                                  \
         mb_transaction_failed_internal(cs, ea, ea, sizeof(TYPE),        \
                                        MMU_DATA_LOAD, GETPC());         \
@@ -504,7 +505,8 @@ void HELPER(NAME)(CPUMBState *env, uint32_t data, uint64_t ea)          \
 {                                                                       \
     CPUState *cs = env_cpu(env);                                        \
     MemTxResult txres;                                                  \
-    FUNC(cs->as, ea, data, MEMTXATTRS_UNSPECIFIED, &txres);             \
+    MemTxAttrs attrs = cs->neg.tlb.memattr[!MICROBLAZE_CPU(cs)->ns_axi_dp].attrs; \
+    FUNC(cs->as, ea, data, attrs, &txres);                              \
     if (unlikely(txres != MEMTX_OK)) {                                  \
         mb_transaction_failed_internal(cs, ea, ea, sizeof(TYPE),        \
                                        MMU_DATA_STORE, GETPC());        \
