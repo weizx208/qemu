@@ -1644,7 +1644,9 @@ static void gem_reset(DeviceState *d)
         s->sar_active[i] = false;
     }
 
-    gem_phy_reset(s);
+    if (!s->mdio) {
+        gem_phy_reset(s);
+    }
 
     gem_update_int_status(s);
 }
@@ -1683,7 +1685,7 @@ static void gem_phy_write(CadenceGEMState *s, unsigned reg_num, uint16_t val)
     s->phy_regs[reg_num] = val;
 }
 
-static void gem_handle_phy_access(CadenceGEMState *s)
+static void gem_internal_phy_access(CadenceGEMState *s)
 {
     uint32_t val = s->regs[R_PHYMNTNC];
     uint32_t phy_addr, reg_num;
@@ -1720,6 +1722,41 @@ static void gem_handle_phy_access(CadenceGEMState *s)
 
     default:
         break; /* only clause 22 operations are supported */
+    }
+}
+
+static inline void gem_mdio_access(CadenceGEMState *s)
+{
+    uint32_t val = s->regs[R_PHYMNTNC];
+    MDIOFrame frame = {
+        .st = FIELD_EX32(val, PHYMNTNC, ST),
+        .op = FIELD_EX32(val, PHYMNTNC, OP),
+        .addr0 = FIELD_EX32(val, PHYMNTNC, PHY_ADDR),
+        .addr1 = FIELD_EX32(val, PHYMNTNC, REG_ADDR),
+    };
+
+    if (!mdio_frame_is_read(&frame)) {
+        frame.data = FIELD_EX32(val, PHYMNTNC, DATA);
+    }
+
+    mdio_transfer(s->mdio->bus, &frame);
+
+    if (mdio_frame_is_read(&frame)) {
+        s->regs[R_PHYMNTNC] = FIELD_DP32(s->regs[R_PHYMNTNC],
+                                         PHYMNTNC, DATA, frame.data);
+    }
+
+    if (frame.phy_status.present) {
+        s->phy_loop = frame.phy_status.local_loopback;
+    }
+}
+
+static void gem_handle_phy_access(CadenceGEMState *s)
+{
+    if (s->mdio) {
+        gem_mdio_access(s);
+    } else {
+        gem_internal_phy_access(s);
     }
 }
 
@@ -1933,7 +1970,11 @@ static void gem_set_link(NetClientState *nc)
     CadenceGEMState *s = qemu_get_nic_opaque(nc);
 
     DB_PRINT("\n");
-    phy_update_link(s);
+
+    if (!s->mdio) {
+        phy_update_link(s);
+    }
+
     gem_update_int_status(s);
     restart_usx_an(s);
 }
@@ -2014,6 +2055,9 @@ static void gem_init(Object *obj)
     object_property_add_link(obj, "memattr-write", TYPE_MEMORY_TRANSACTION_ATTR,
                              (Object **)&s->attr_w,
                              qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
+    object_property_add_link(obj, "mdio", TYPE_MDIO, (Object **)&s->mdio,
+                             qdev_prop_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 }
 

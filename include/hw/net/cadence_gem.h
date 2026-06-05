@@ -31,6 +31,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(CadenceGEMState, CADENCE_GEM)
 
 #include "net/net.h"
 #include "hw/sysbus.h"
+#include "hw/mdio/mdio.h"
 
 #define CADENCE_GEM_MAXREG        (0x00000f00 / 4) /* Last valid GEM address */
 
@@ -99,6 +100,7 @@ struct CadenceGEMState {
     uint32_t rx_desc[MAX_PRIORITY_QUEUES][DESC_MAX_NUM_WORDS];
 
     bool sar_active[4];
+    MDIO *mdio;
 };
 
 #endif
