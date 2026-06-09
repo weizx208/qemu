@@ -18,7 +18,7 @@
 #define PMC_SSS(obj) \
      OBJECT_CHECK(PMCSSS, (obj), TYPE_PMC_SSS_BASE)
 
-#define TYPE_PMC_SSS "versal,pmc-sss"
+#define TYPE_PMC_SSS "versal-pmc-sss"
 
 #include "sss-asu.h"
 #define TYPE_ASU_SSS "asu-sss"
