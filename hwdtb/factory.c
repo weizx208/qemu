@@ -35,6 +35,7 @@
 #include "hw/net/xlnx-zynqmp-can.h"
 #include "hw/timer/a9gtimer.h"
 #include "hw/timer/arm_mptimer.h"
+#include "hw/char/xilinx_uartlite.h"
 #include "error.h"
 #include "trace.h"
 
@@ -673,6 +674,46 @@ static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "xlnx,xps-iic-2.00.a", TYPE_XILINX_AXI_IIC },
     { "arm,cortex-a9-gic", TYPE_ARM_GIC },
     { "qemu:memory-transaction-attr", TYPE_HWDTB_MEMTXATTRS },
+
+    /* Legacy fdt_generic aliases */
+    { "xlnx,eth-dma", "xlnx.axi-dma" },
+    { "xlnx.zynq-qspi", "xlnx.ps7-qspi" },
+    { "arasan,sdhci-8.9a", "xilinx.zynqmp-sdhci" },
+    { "xlnx,xps-gpio-1.00.a", "xlnx.axi-gpio" },
+    { "xlnx,axi-dpdma-1.0", "xlnx.dpdma" },
+    { "xlnx,ps7-can-1.00.a", "xlnx.zynqmp-can" },
+    { "xlnx.ps7-ethernet", "cadence_gem" },
+    { "cdns,gem", "cadence_gem" },
+    { "cdns,zynq-gem", "cadence_gem" },
+    { "cdns,zynqmp-gem", "cadence_gem" },
+    { "xlnx.ps7-ttc", "cadence_ttc" },
+    { "cdns.ttc", "cadence_ttc" },
+    { "cdns.uart", "cadence_uart" },
+    { "xlnx.ps7-uart", "cadence_uart" },
+    { "cdns.spi-r1p6", "xlnx.ps7-spi" },
+    { "xlnx.xuartps", "cadence_uart" },
+    { "xilinx_spi", "m25p80" },
+    { "silabs,si570", "si57x" },
+    { "silabs,si5341", "si5341" },
+    { "ethernet-phy-id2000.a231", "dp83867" },
+    { "ethernet-phy-id2000.a131", "dp83826" },
+    { "ethernet-phy-id0141.0e50", "88e1116" },
+    { "ethernet-phy-id0141.0e10", "88e1118r" },
+    { "ethernet-phy-id0141.0dd0", "88e1510" },
+    { "ethernet-phy-id0283.bc30", "ADIN1300" },
+    { "xlnx.microblaze", "microblaze-cpu" },
+    { "arm.cortex-a9", "cortex-a9-arm-cpu" },
+    { "nxp,pcf8563", "i2c-dev-dummy" },
+    { "arm.cortex-a9-twd-timer", TYPE_ARM_MPTIMER },
+    { "xlnx.zynq-xadc", "xlnx-zynq-xadc" },
+    { "xlnx.ps7-slcr", "xilinx-zynq_slcr" },
+    { "xlnx.zynq-slcr", "xilinx-zynq_slcr" },
+    { "arm.gic", TYPE_ARM_GIC },
+    { "arm.cortex-a9-scu", "a9-scu" },
+    { "nxp.pcf8563", "i2c-dev-dummy" },
+    { "xilinx.cxtsgen", "arm.generic-timer" },
+    { "xlnx.pmc-sysmon", "xlnx-pmc-sysmon" },
+    { "xlnx.zynqmp-boot", "xlnx-zynqmp-boot" },
 };
 
 static const CompatHandler STATIC_COMPAT_HANDLER[] = {
