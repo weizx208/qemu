@@ -96,7 +96,6 @@ static void rp_pci_class_init(ObjectClass *oc, const void *data)
     k->device_id = 0;
     k->revision = 0;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo rp_info = {
