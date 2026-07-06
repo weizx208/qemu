@@ -805,13 +805,6 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 
 #ifndef CONFIG_USER_ONLY
     cpu_halt_update(cs);
-
-    if (cpu->memattr) {
-        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs =
-            hwdtb_memattrs_get(cpu->memattr);
-        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs =
-            hwdtb_memattrs_get(cpu->memattr);
-    }
 #endif
 }
 
@@ -970,6 +963,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
+
+#ifndef CONFIG_USER_ONLY
+    cpu_address_space_set_memattrs(cs, 0,
+                                   hwdtb_memattrs_get(cpu->memattr));
+#endif
 
     mcc->parent_realize(dev, errp);
 }
