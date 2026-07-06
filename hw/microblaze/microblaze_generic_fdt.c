@@ -254,6 +254,8 @@ microblaze_generic_fdt_init(MachineState *machine)
 
     kernel_filename = machine->kernel_filename;
     if (kernel_filename) {
+        /* Add the chosen node if it doesn't exists.  */
+        qemu_fdt_add_path(fdt, "/chosen");
         microblaze_load_kernel(MICROBLAZE_CPU(first_cpu), true, ram_kernel_base,
                                ram_kernel_size, machine->initrd_filename, NULL,
                                NULL, fdt, fdt_size);
