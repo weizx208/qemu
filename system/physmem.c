@@ -170,11 +170,13 @@ static bool ram_is_cpr_compatible(RAMBlock *rb);
  * @cpu: the CPU whose AddressSpace this is
  * @as: the AddressSpace itself
  * @tcg_as_listener: listener for tracking changes to the AddressSpace
+ * @memattrs_override: requester_id and secure bit override if specified
  */
 typedef struct CPUAddressSpace {
     CPUState *cpu;
     AddressSpace *as;
     MemoryListener tcg_as_listener;
+    MemTxAttrs memattrs_override;
 } CPUAddressSpace;
 
 struct DirtyBitmapSnapshot {
@@ -743,6 +745,33 @@ void tcg_iommu_init_notifier_list(CPUState *cpu)
     cpu->iommu_notifiers = g_array_new(false, true, sizeof(TCGIOMMUNotifier *));
 }
 
+void cpu_address_space_override_memattrs(CPUState *cpu, int asidx,
+                                         MemTxAttrs *attrs)
+{
+    MemTxAttrs attrs_ov = cpu->cpu_ases[asidx].memattrs_override;
+
+    if (attrs_ov.unspecified) {
+        return;
+    }
+
+    /*
+     * For now only requester_id and the secure bit can be overriden through
+     * hwdtb.
+     */
+    attrs->requester_id = attrs_ov.requester_id;
+    attrs->secure = attrs_ov.secure;
+}
+
+void cpu_address_space_set_memattrs(CPUState *cpu, int asidx, MemTxAttrs attrs)
+{
+    cpu->cpu_ases[asidx].memattrs_override = attrs;
+}
+
+MemTxAttrs cpu_address_space_get_memattrs(CPUState *cpu, int asidx)
+{
+    return cpu->cpu_ases[asidx].memattrs_override;
+}
+
 /* Called from RCU critical section */
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
@@ -894,6 +923,8 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
         newas->tcg_as_listener.commit = tcg_commit;
         newas->tcg_as_listener.name = "tcg";
         memory_listener_register(&newas->tcg_as_listener, as);
+
+        newas->memattrs_override = MEMTXATTRS_UNSPECIFIED;
     }
 }
 

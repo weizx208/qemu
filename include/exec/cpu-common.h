@@ -131,6 +131,11 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
  */
 void cpu_destroy_address_spaces(CPUState *cpu);
 
+void cpu_address_space_set_memattrs(CPUState *cpu, int asidx, MemTxAttrs attrs);
+MemTxAttrs cpu_address_space_get_memattrs(CPUState *cpu, int asidx);
+void cpu_address_space_override_memattrs(CPUState *s, int asidx,
+                                         MemTxAttrs *attrs);
+
 void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len);
 void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len);
 void *cpu_physical_memory_map(hwaddr addr,
