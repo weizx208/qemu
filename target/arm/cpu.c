@@ -58,6 +58,7 @@
 #include "trace.h"
 #include "hw/irq.h"
 #include "hw/core/cpu-exec-gpio.h"
+#include "exec/cputlb.h"
 
 #if !defined(CONFIG_USER_ONLY)
 static void arm_cpu_set_irq(void *opaque, int irq, int level);
@@ -610,19 +611,6 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     qemu_set_irq(cpu->wfi, false);
 
 #ifndef CONFIG_USER_ONLY
-    if (cpu->env.memattr_ns) {
-        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs =
-            hwdtb_memattrs_get(cpu->env.memattr_ns);
-    }
-
-    if (cpu->env.memattr_s) {
-        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs =
-            hwdtb_memattrs_get(cpu->env.memattr_s);
-    } else if (arm_feature(env, ARM_FEATURE_EL3)) {
-            /* Only set secure mode if the CPU support EL3 */
-            cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
-    }
-
     for (i = 0; i < ARRAY_SIZE(cpu->env.irq_wires); i++) {
         if (!arm_feature(env, ARM_FEATURE_EL2) && i >= ARM_CPU_VIRQ) {
             break;
@@ -2399,18 +2387,26 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
         cpu_address_space_init(cs, ARMASIdx_S, "cpu-secure-memory",
                                cpu->secure_memory);
+        cpu_address_space_set_memattrs(cs, ARMASIdx_S,
+                                       hwdtb_memattrs_get(cpu->env.memattr_s));
     }
 
     if (cpu->tag_memory != NULL) {
         cpu_address_space_init(cs, ARMASIdx_TagNS, "cpu-tag-memory",
                                cpu->tag_memory);
+        cpu_address_space_set_memattrs(cs, ARMASIdx_TagNS,
+                                       hwdtb_memattrs_get(cpu->env.memattr_ns));
         if (has_secure) {
             cpu_address_space_init(cs, ARMASIdx_TagS, "cpu-tag-memory",
                                    cpu->secure_tag_memory);
+            cpu_address_space_set_memattrs(cs, ARMASIdx_TagS,
+                                           hwdtb_memattrs_get(cpu->env.memattr_s));
         }
     }
 
     cpu_address_space_init(cs, ARMASIdx_NS, "cpu-memory", cs->memory);
+    cpu_address_space_set_memattrs(cs, ARMASIdx_NS,
+                                   hwdtb_memattrs_get(cpu->env.memattr_ns));
 
     /* No core_count specified, default to smp_cpus. */
     if (cpu->core_count == -1) {
