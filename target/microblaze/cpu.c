@@ -258,15 +258,6 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
 #else
     mb_cpu_write_msr(env, 0);
     mmu_init(&env->mmu);
-
-    if (cpu->env.memattr_p) {
-        MemTxAttrs attrs = hwdtb_memattrs_get(cpu->env.memattr_p);
-
-        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs = attrs;
-        cs->neg.tlb.memattr[MEM_ATTR_NS].attrs.secure = false;
-        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs = attrs;
-        cs->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
-    }
 #endif
 
 #ifndef CONFIG_USER_ONLY
@@ -379,6 +370,11 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     if (cpu->cfg.lockstep_slave) {
         cs->reset_pin = true;
     }
+
+#ifndef CONFIG_USER_ONLY
+    cpu_address_space_set_memattrs(cs, 0,
+                                   hwdtb_memattrs_get(cpu->env.memattr_p));
+#endif
     mcc->parent_realize(dev, errp);
 }
 
