@@ -36,6 +36,7 @@
 #include "hw/timer/a9gtimer.h"
 #include "hw/timer/arm_mptimer.h"
 #include "hw/char/xilinx_uartlite.h"
+#include "hw/net/cadence_gem.h"
 #include "error.h"
 #include "trace.h"
 
@@ -688,6 +689,28 @@ static Object *hwdtb_factory_set_endianness_prop(HwDtbNode *node)
     return hwdtb_factory_from_oc(node);
 }
 
+/*
+ * -- Legacy --
+ * Turn on the pcs-enabled property on the Cadence GEM model.
+ *
+ * This property appeared in v10.2 upstream. Previously it was hardcoded on
+ * downstream.
+ */
+static void gem_set_enabled_pcs_prop(HwDtbNode *node, void *opaque)
+{
+    DeviceState *dev = HWDTB_NODE_AS(node, DEVICE);
+
+    qdev_prop_set_bit(dev, "pcs-enabled", true);
+}
+
+static Object *hwdtb_factory_gem_enable_pcs(HwDtbNode *node)
+{
+    hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                 gem_set_enabled_pcs_prop, NULL);
+
+    return hwdtb_factory_from_oc(node);
+}
+
 static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "simple-bus", TYPE_MEMORY_REGION },
     { "qemu:memory-region", TYPE_MEMORY_REGION },
@@ -762,6 +785,7 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { "xlnx.xps-ethernetlite", hwdtb_factory_set_endianness_prop },
     { "xlnx.xps-spi", hwdtb_factory_set_endianness_prop },
     { "xlnx.xps-timer", hwdtb_factory_set_endianness_prop },
+    { TYPE_CADENCE_GEM, hwdtb_factory_gem_enable_pcs },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
