@@ -889,11 +889,11 @@ static const VMStateDescription vmstate_pcie_attrib = {
     }
 };
 
-static void pcie_attrib_class_init(ObjectClass *klass, void *data)
+static void pcie_attrib_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pcie_attrib_reset;
+    device_class_set_legacy_reset(dc, pcie_attrib_reset);
     dc->vmsd = &vmstate_pcie_attrib;
 }
 

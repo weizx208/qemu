@@ -23,21 +23,15 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
+#include "system/system.h"
 #include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/msi.h"
-#include "hw/pci/msix.h"
 #include "hw/pci/pci_ids.h"
-#include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/qdev-core.h"
-#include "hw/sysbus.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
 
@@ -522,8 +516,8 @@ static void rp_root_port_realize(DeviceState *d, Error **errp)
                                 &port->address_space_mem);
 
     rpdc = DEVICE_GET_CLASS(DEVICE(port->rp));
-    if (rpdc->reset) {
-        rpdc->reset(DEVICE(port->rp));
+    if (rpdc->legacy_reset) {
+        rpdc->legacy_reset(DEVICE(port->rp));
     }
     port->peer = rp_get_peer(port->rp);
 
@@ -564,13 +558,12 @@ static void rp_root_port_init(Object *obj)
                           UINT64_MAX);
 }
 
-static Property rp_root_port_properties[] = {
+static const Property rp_root_port_properties[] = {
     DEFINE_PROP_UINT32("rp-chan0", RemotePortPCIERootPort, cfg.rp_dev, 0),
     DEFINE_PROP_UINT32("nr-devs", RemotePortPCIERootPort, cfg.nr_devs, 21),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void rp_root_port_class_init(ObjectClass *cls, void *data)
+static void rp_root_port_class_init(ObjectClass *cls, const void *data)
 {
     DeviceClass *devcls = DEVICE_CLASS(cls);
     PCIDeviceClass *pcicls = PCI_DEVICE_CLASS(cls);

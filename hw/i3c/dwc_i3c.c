@@ -2389,7 +2389,7 @@ static const VMStateDescription dwc_i3c_device_vmstate = {
     .name = TYPE_DWC_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]){
+    .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(regs, DwcI3CDevice, DWC_I3C_NR_REGS),
         VMSTATE_END_OF_LIST(),
     }
@@ -2441,7 +2441,7 @@ static void dwc_i3c_device_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->ibi_ptimer);
 }
 
-static Property dwc_i3c_device_properties[] = {
+static const Property dwc_i3c_device_properties[] = {
     DEFINE_PROP_UINT8("device-id", DwcI3CDevice, id, 0),
     DEFINE_PROP_BOOL("current-master", DwcI3CDevice, cur_master, true),
     /*
@@ -2473,27 +2473,25 @@ static Property dwc_i3c_device_properties[] = {
                       cfg.slv_static_addr, 0x0),
     DEFINE_PROP_LINK("i3c-target", DwcI3CDevice, i3c_target,
                      TYPE_I3C_TARGET, I3CTarget *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static Property dwc_i3c_target_properties[] = {
+static const Property dwc_i3c_target_properties[] = {
     DEFINE_PROP_LINK("dwc-i3c-device", DwcI3CTarget, dwc_i3c,
                      TYPE_DWC_I3C, DwcI3CDevice *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void dwc_i3c_device_class_init(ObjectClass *klass, void *data)
+static void dwc_i3c_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "DWC I3C Device";
     dc->realize = dwc_i3c_device_realize;
-    dc->reset = dwc_i3c_device_reset;
+    device_class_set_legacy_reset(dc, dwc_i3c_device_reset);
     device_class_set_props(dc, dwc_i3c_device_properties);
     dc->vmsd = &dwc_i3c_device_vmstate;
 }
 
-static void dwc_i3c_device_target_class_init(ObjectClass *klass, void *data)
+static void dwc_i3c_device_target_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I3CTargetClass *k = I3C_TARGET_CLASS(klass);

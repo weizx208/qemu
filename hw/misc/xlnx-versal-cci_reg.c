@@ -220,11 +220,11 @@ static const VMStateDescription vmstate_cci_reg = {
     }
 };
 
-static void cci_reg_class_init(ObjectClass *klass, void *data)
+static void cci_reg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cci_reg_reset;
+    device_class_set_legacy_reset(dc, cci_reg_reset);
     dc->realize = cci_reg_realize;
     dc->vmsd = &vmstate_cci_reg;
 }

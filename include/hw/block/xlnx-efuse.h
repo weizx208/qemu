@@ -30,16 +30,16 @@
 
 #include "qom/object.h"
 
-#define TYPE_XLNX_EFUSE "xlnx.efuse"
+#define TYPE_XLNX_EFUSE "xlnx-efuse"
 #include "hw/ptimer.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "hw/zynqmp_aes_key.h"
 
 #define XLNX_EFUSE(obj) \
      OBJECT_CHECK(XLNXEFuse, (obj), TYPE_XLNX_EFUSE)
 
 #define TYPE_XLNX_EFUSE_SYSMON_DATA_SOURCE \
-    "xlnx,efuse-sysmon-data-source-interface"
+    "xlnx.efuse-sysmon-data-source-interface"
 typedef struct XlnxEFuseSysmonDataSourceClass XlnxEFuseSysmonDataSourceClass;
 DECLARE_CLASS_CHECKERS(XlnxEFuseSysmonDataSourceClass,
                        XLNX_EFUSE_SYSMON_DATA_SOURCE,

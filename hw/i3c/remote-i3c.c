@@ -41,7 +41,7 @@ typedef struct {
 
 typedef struct {
     I3CTarget parent_obj;
-    CharBackend chr;
+    CharFrontend chr;
     /* For ease of debugging. */
 
     struct {
@@ -467,14 +467,13 @@ static void remote_i3c_realize(DeviceState *dev, Error **errp)
                              NULL, OBJECT(i3c), NULL, true);
 }
 
-static Property remote_i3c_props[] = {
+static const Property remote_i3c_props[] = {
     DEFINE_PROP_CHR("chardev", RemoteI3C, chr),
     DEFINE_PROP_UINT32("buf-size", RemoteI3C, cfg.buf_size, 0x10000),
     DEFINE_PROP_STRING("device-name", RemoteI3C, cfg.name),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void remote_i3c_class_init(ObjectClass *klass, void *data)
+static void remote_i3c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I3CTargetClass *k = I3C_TARGET_CLASS(klass);

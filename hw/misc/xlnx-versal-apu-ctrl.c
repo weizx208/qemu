@@ -32,7 +32,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "cpu.h"
@@ -330,12 +330,12 @@ static const VMStateDescription vmstate_apu_ctrl = {
     }
 };
 
-static void apu_ctrl_class_init(ObjectClass *klass, void *data)
+static void apu_ctrl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = apu_ctrl_reset;
+    device_class_set_legacy_reset(dc, apu_ctrl_reset);
     dc->vmsd = &vmstate_apu_ctrl;
     dc->realize = apu_ctrl_realize;
     fggc->controller_gpios = apu_ctrl_controller_gpios;

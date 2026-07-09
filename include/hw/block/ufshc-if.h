@@ -13,7 +13,7 @@
 #include "qom/object.h"
 #include "hw/block/ufs-upiu.h"
 #include "hw/qdev-core.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 #define TYPE_UFSHC_IF "ufshc-if"
 typedef struct ufshcIFClass ufshcIFClass;

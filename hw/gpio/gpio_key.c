@@ -46,7 +46,7 @@ static const VMStateDescription vmstate_gpio_key = {
     .name = "gpio-key",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_PTR(timer, GPIOKEYState),
         VMSTATE_END_OF_LIST()
     }
@@ -88,18 +88,17 @@ static void gpio_key_realize(DeviceState *dev, Error **errp)
     s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, gpio_key_timer_expired, s);
 }
 
-static Property gpio_key_properties[] = {
+static const Property gpio_key_properties[] = {
     DEFINE_PROP_BOOL("inverted", GPIOKEYState, inverted, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void gpio_key_class_init(ObjectClass *klass, void *data)
+static void gpio_key_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = gpio_key_realize;
     dc->vmsd = &vmstate_gpio_key;
-    dc->reset = &gpio_key_reset;
+    device_class_set_legacy_reset(dc, gpio_key_reset);
     device_class_set_props(dc, gpio_key_properties);
 }
 

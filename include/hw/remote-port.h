@@ -12,13 +12,11 @@
 #include <stdbool.h>
 #include "hw/remote-port-proto.h"
 #include "hw/remote-port-device.h"
-#include "chardev/char.h"
-#include "chardev/char-fe.h"
+#include "io/channel.h"
 #include "hw/ptimer.h"
-#include "qapi/qmp/qdict.h"
 
 #define TYPE_REMOTE_PORT "remote-port"
-#define REMOTE_PORT(obj) OBJECT_CHECK(RemotePort, (obj), TYPE_REMOTE_PORT)
+OBJECT_DECLARE_SIMPLE_TYPE(RemotePort, REMOTE_PORT)
 
 typedef struct RemotePortRespSlot {
             RemotePortDynPkt rsp;
@@ -30,24 +28,13 @@ typedef struct RemotePortRespSlot {
 struct RemotePort {
     DeviceState parent;
 
-    QemuThread thread;
-    union {
-       int pipes[2];
-       struct {
-           int read;
-           int write;
-       } pipe;
-    } event;
-    Chardev *chrdev;
-    CharBackend chr;
+    QIOChannel *chan;
+    Notifier machine_done;
     bool do_sync;
     bool doing_sync;
     bool finalizing;
-    /* To serialize writes to fd.  */
-    QemuMutex write_mutex;
 
     char *chardesc;
-    char *chrdev_id;
     struct rp_peer_state peer;
 
     struct {
@@ -59,18 +46,8 @@ struct RemotePort {
         uint64_t quantum;
     } sync;
 
-    QemuMutex rsp_mutex;
-    QemuCond progress_cond;
-
-#define RX_QUEUE_SIZE 1024
-    struct {
-        /* This array must be sized minimum 2 and always a power of 2.  */
-        RemotePortDynPkt pkt[RX_QUEUE_SIZE];
-        bool inuse[RX_QUEUE_SIZE];
-        QemuSemaphore sem;
-        unsigned int wpos;
-        unsigned int rpos;
-    } rx_queue;
+    QemuCond packet_notify;
+    bool receiving; /* a thread is in the middle of a packet reception */
 
     /*
      * rsp holds responses for the remote side.
@@ -85,13 +62,9 @@ struct RemotePort {
      */
     RemotePortDynPkt rspqueue;
 
-    bool resets[32];
-
-    const char *prefix;
-    const char *remote_prefix;
+    char *prefix;
 
     uint32_t current_id;
-    bool reset_done;
 
 #define REMOTE_PORT_MAX_DEVS 1024
 #define RP_MAX_OUTSTANDING_TRANSACTIONS 32
@@ -142,8 +115,5 @@ static inline void rp_resp_slot_done(RemotePort *s,
 }
 
 RemotePortRespSlot *rp_dev_wait_resp(RemotePort *s, uint32_t dev, uint32_t id);
-RemotePortRespSlot *rp_dev_timed_wait_resp(RemotePort *s, uint32_t dev,
-                                           uint32_t id, int timems);
-void rp_process(RemotePort *s);
 
 #endif

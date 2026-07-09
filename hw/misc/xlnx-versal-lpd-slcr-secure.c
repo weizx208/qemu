@@ -40,7 +40,7 @@
 #define XILINX_LPD_SLCR_SECURE_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_LPD_SLCR_SECURE "xlnx,versal-lpd-slcr-secure"
+#define TYPE_XILINX_LPD_SLCR_SECURE "xlnx-versal-lpd-slcr-secure"
 
 #define XILINX_LPD_SLCR_SECURE(obj) \
      OBJECT_CHECK(LPD_SLCR_SECURE, (obj), TYPE_XILINX_LPD_SLCR_SECURE)
@@ -290,11 +290,11 @@ static const VMStateDescription vmstate_lpd_slcr_secure = {
     }
 };
 
-static void lpd_slcr_secure_class_init(ObjectClass *klass, void *data)
+static void lpd_slcr_secure_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = lpd_slcr_secure_reset;
+    device_class_set_legacy_reset(dc, lpd_slcr_secure_reset);
     dc->realize = lpd_slcr_secure_realize;
     dc->vmsd = &vmstate_lpd_slcr_secure;
 }

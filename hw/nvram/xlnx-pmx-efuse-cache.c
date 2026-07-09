@@ -88,15 +88,14 @@ static void pmx_efuse_cache_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property pmx_efuse_cache_props[] = {
+static const Property pmx_efuse_cache_props[] = {
     DEFINE_PROP_LINK("efuse",
                      XlnxPmxEFuseCache, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pmx_efuse_cache_class_init(ObjectClass *klass, void *data)
+static void pmx_efuse_cache_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

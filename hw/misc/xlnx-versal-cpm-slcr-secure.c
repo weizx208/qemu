@@ -347,7 +347,7 @@ static void cpm_slcr_secure_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void cpm_slcr_secure_reset_hold(Object *obj)
+static void cpm_slcr_secure_reset_hold(Object *obj, ResetType type)
 {
     CPM_SLCR_SECURE *s = XILINX_CPM_SLCR_SECURE(obj);
 
@@ -401,7 +401,7 @@ static const VMStateDescription vmstate_cpm_slcr_secure = {
     }
 };
 
-static void cpm_slcr_secure_class_init(ObjectClass *klass, void *data)
+static void cpm_slcr_secure_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

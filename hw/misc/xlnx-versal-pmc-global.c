@@ -34,12 +34,12 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/qdev-properties.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "hw/misc/xlnx-versal-pmc.h"
-
+#include "qapi/visitor.h"
 #include "hw/fdt_generic_util.h"
 #include "hw/nvram/xlnx-efuse.h"
 #include "hw/nvram/xlnx-versal-efuse.h"
@@ -1286,10 +1286,7 @@ static void pmc_global_tamper_respond(PMC_GLOBAL *s, unsigned slot)
 
     /* Relay to external responder, if one is attached */
     irq = s->tamper_out[slot];
-    if (qemu_irq_is_connected(irq)) {
-        qemu_irq_pulse(irq);
-        return;
-    }
+    qemu_irq_pulse(irq);
 
     /* Otherwise, apply built-in responses */
     resp = pmc_global_tamper_response(s, slot);
@@ -1906,11 +1903,10 @@ static void pmc_global_prop_tamper_event_add(ObjectClass *klass)
                                           "Set to trigger tamper events");
 }
 
-static Property pmc_global_properties[] = {
+static const Property pmc_global_properties[] = {
     DEFINE_PROP_LINK("bbram", PMC_GLOBAL, bbram, TYPE_OBJECT, Object *),
     DEFINE_PROP_LINK("efuse", PMC_GLOBAL, efuse, TYPE_OBJECT, Object *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pmc_global = {
@@ -1943,12 +1939,12 @@ static const FDTGenericGPIOSet ctrl_gpios[] = {
     { },
 };
 
-static void pmc_global_class_init(ObjectClass *klass, void *data)
+static void pmc_global_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = pmc_global_reset;
+    device_class_set_legacy_reset(dc, pmc_global_reset);
     dc->vmsd = &vmstate_pmc_global;
     fggc->controller_gpios = ctrl_gpios;
 

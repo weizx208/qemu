@@ -885,7 +885,7 @@ static void pmx_crp_reset_enter(Object *obj, ResetType type)
     s->in_reset_enter = false;
 }
 
-static void pmx_crp_reset_hold(Object *obj)
+static void pmx_crp_reset_hold(Object *obj, ResetType type)
 {
     PMX_CRP *s = XILINX_PMX_CRP(obj);
 
@@ -996,7 +996,7 @@ static const FDTGenericGPIOSet pmx_crp_gpios[] = {
     { },
 };
 
-static void pmx_crp_class_init(ObjectClass *klass, void *data)
+static void pmx_crp_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

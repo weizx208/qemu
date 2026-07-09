@@ -245,11 +245,11 @@ static const VMStateDescription vmstate_zynqmp_csu_sss = {
     }
 };
 
-static void csu_sss_class_init(ObjectClass *klass, void *data)
+static void csu_sss_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = sss_reset;
+    device_class_set_legacy_reset(dc, sss_reset);
     dc->realize = zynqmp_csu_sss_realize;
     dc->vmsd = &vmstate_zynqmp_csu_sss;
 }

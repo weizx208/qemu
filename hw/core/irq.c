@@ -26,22 +26,43 @@
 #include "hw/irq.h"
 #include "qom/object.h"
 
-OBJECT_DECLARE_SIMPLE_TYPE(IRQState, IRQ)
-
-struct IRQState {
-    Object parent_obj;
-
-    qemu_irq_handler handler;
-    void *opaque;
-    int n;
-};
-
 void qemu_set_irq(qemu_irq irq, int level)
 {
     if (!irq)
         return;
 
     irq->handler(irq->opaque, irq->n, level);
+}
+
+static void init_irq_fields(IRQState *irq, qemu_irq_handler handler,
+                            void *opaque, int n)
+{
+    irq->handler = handler;
+    irq->opaque = opaque;
+    irq->n = n;
+}
+
+void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
+                   int n)
+{
+    object_initialize(irq, sizeof(*irq), TYPE_IRQ);
+    init_irq_fields(irq, handler, opaque, n);
+}
+
+void qemu_init_irq_child(Object *parent, const char *propname,
+                         IRQState *irq, qemu_irq_handler handler,
+                         void *opaque, int n)
+{
+    object_initialize_child(parent, propname, irq, TYPE_IRQ);
+    init_irq_fields(irq, handler, opaque, n);
+}
+
+void qemu_init_irqs(IRQState irq[], size_t count,
+                    qemu_irq_handler handler, void *opaque)
+{
+    for (size_t i = 0; i < count; i++) {
+        qemu_init_irq(&irq[i], handler, opaque, i);
+    }
 }
 
 qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
@@ -67,13 +88,8 @@ qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
 
 qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
 {
-    IRQState *irq;
-
-    irq = IRQ(object_new(TYPE_IRQ));
-    irq->handler = handler;
-    irq->opaque = opaque;
-    irq->n = n;
-
+    IRQState *irq = IRQ(object_new(TYPE_IRQ));
+    init_irq_fields(irq, handler, opaque, n);
     return irq;
 }
 
@@ -103,22 +119,6 @@ qemu_irq qemu_irq_invert(qemu_irq irq)
     /* The default state for IRQs is low, so raise the output now.  */
     qemu_irq_raise(irq);
     return qemu_allocate_irq(qemu_notirq, irq, 0);
-}
-
-/* Xilinx */
-static void qemu_splitirq(void *opaque, int line, int level)
-{
-    struct IRQState **irq = opaque;
-    irq[0]->handler(irq[0]->opaque, irq[0]->n, level);
-    irq[1]->handler(irq[1]->opaque, irq[1]->n, level);
-}
-
-qemu_irq qemu_irq_split(qemu_irq irq1, qemu_irq irq2)
-{
-    qemu_irq *s = g_new0(qemu_irq, 2);
-    s[0] = irq1;
-    s[1] = irq2;
-    return qemu_allocate_irq(qemu_splitirq, s, 0);
 }
 
 void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n)

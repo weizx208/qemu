@@ -361,9 +361,8 @@ static void ocm_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 }
 
-static Property ocmc_properties[] = {
+static const Property ocmc_properties[] = {
     DEFINE_PROP_UINT64("memsize", OCMC, cfg.memsize, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_ocm = {
@@ -376,11 +375,11 @@ static const VMStateDescription vmstate_ocm = {
     }
 };
 
-static void ocm_class_init(ObjectClass *klass, void *data)
+static void ocm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ocm_reset;
+    device_class_set_legacy_reset(dc, ocm_reset);
     dc->vmsd = &vmstate_ocm;
     device_class_set_props(dc, ocmc_properties);
 }

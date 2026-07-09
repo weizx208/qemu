@@ -28,16 +28,16 @@
 #include "hw/ptimer.h"
 #include "qemu/bitops.h"
 #include "qapi/error.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "hw/core/cpu.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/reset.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-backend.h"
+#include "system/reset.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
 
 #include "hw/misc/xlnx-zynqmp-pmufw-cfg.h"
 
@@ -45,7 +45,7 @@
 #define XILINX_ZYNQMP_BOOT_DEBUG 0
 #endif
 
-#define TYPE_XILINX_ZYNQMP_BOOT "xlnx,zynqmp-boot"
+#define TYPE_XILINX_ZYNQMP_BOOT "xlnx-zynqmp-boot"
 
 #define XILINX_ZYNQMP_BOOT(obj) \
      OBJECT_CHECK(ZynqMPBoot, (obj), TYPE_XILINX_ZYNQMP_BOOT)
@@ -368,15 +368,14 @@ static void zynqmp_boot_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property zynqmp_boot_props[] = {
+static const Property zynqmp_boot_props[] = {
     DEFINE_PROP_UINT32("cpu-num", ZynqMPBoot, cfg.cpu_num, CPU_NONE),
     DEFINE_PROP_BOOL("use-pmufw", ZynqMPBoot, cfg.use_pmufw, false),
     DEFINE_PROP_BOOL("load-pmufw-cfg", ZynqMPBoot, cfg.load_pmufw_cfg, true),
     DEFINE_PROP_DRIVE("drive", ZynqMPBoot, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void zynqmp_boot_class_init(ObjectClass *klass, void *data)
+static void zynqmp_boot_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

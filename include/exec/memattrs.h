@@ -14,9 +14,6 @@
 #ifndef MEMATTRS_H
 #define MEMATTRS_H
 
-#include "qom/object.h"
-#include "qapi/visitor-impl.h"
-
 /* Every memory transaction has associated with it a set of
  * attributes. Some of these are generic (such as the ID of
  * the bus master); some are specific to a particular kind of
@@ -26,13 +23,6 @@
  * different semantics.
  */
 typedef struct MemTxAttrs {
-    Object parent_obj;
-    /* Bus masters which don't specify any attributes will get this
-     * (via the MEMTXATTRS_UNSPECIFIED constant), so that we can
-     * distinguish "all attributes deliberately clear" from
-     * "didn't specify" if necessary.
-     */
-    unsigned int unspecified:1;
     /*
      * ARM/AMBA: TrustZone Secure access
      * x86: System Management Mode access
@@ -46,8 +36,6 @@ typedef struct MemTxAttrs {
     unsigned int space:2;
     /* Memory access is usermode (unprivileged) */
     unsigned int user:1;
-    /* Memory access request from the debugger */
-    unsigned int debug:1;
     /*
      * Bus interconnect and peripherals can access anything (memories,
      * devices) by default. By setting the 'memory' bit, bus transaction
@@ -56,10 +44,30 @@ typedef struct MemTxAttrs {
      * (see MEMTX_ACCESS_ERROR).
      */
     unsigned int memory:1;
+    /* Debug access that can even write to ROM. */
+    unsigned int debug:1;
     /* Requester ID (for MSI for example) */
     unsigned int requester_id:16;
-    /* Invert endianness for this page */
-    unsigned int byte_swap:1;
+
+    /*
+     * PID (PCI PASID) support: Limited to 8 bits process identifier.
+     */
+    unsigned int pid:8;
+
+    /* PCI - IOMMU operations, see PCIAddressType */
+    unsigned int address_type:1;
+
+    /*
+     * Bus masters which don't specify any attributes will get this
+     * (via the MEMTXATTRS_UNSPECIFIED constant), so that we can
+     * distinguish "all attributes deliberately clear" from
+     * "didn't specify" if necessary. "debug" can be set alongside
+     * "unspecified".
+     */
+    bool unspecified;
+
+    uint8_t _reserved1;
+    uint16_t _reserved2:13;
 
     /* XILINX: More details for interconnect emulation.  */
     /* Memory access may be buffered and early acked.  */
@@ -68,25 +76,18 @@ typedef struct MemTxAttrs {
     unsigned int modify:1;
     /* Memory access may be cached.  */
     unsigned int cache:1;
-
-    /*
-     * The following are target-specific page-table bits.  These are not
-     * related to actual memory transactions at all.  However, this structure
-     * is part of the tlb_fill interface, cached in the cputlb structure,
-     * and has unused bits.  These fields will be read by target-specific
-     * helpers using env->iotlb[mmu_idx][tlb_index()].attrs.target_tlb_bitN.
-     */
-    unsigned int target_tlb_bit0 : 1;
-    unsigned int target_tlb_bit1 : 1;
-    unsigned int target_tlb_bit2 : 1;
 } MemTxAttrs;
+
+/* The following can't be true ATM in our fork since MemTxAttrs is an object and
+ * thus is far beyond 8 bytes.  */
+/* QEMU_BUILD_BUG_ON(sizeof(MemTxAttrs) > 8); */
 
 /* Bus masters which don't specify any attributes will get this,
  * which has all attribute bits clear except the topmost one
  * (so that we can distinguish "all attributes deliberately clear"
  * from "didn't specify" if necessary).
  */
-#define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) { .unspecified = 1 })
+#define MEMTXATTRS_UNSPECIFIED ((MemTxAttrs) { .unspecified = true })
 
 /* New-style MMIO accessors can indicate that the transaction failed.
  * A zero (MEMTX_OK) response means success; anything else is a failure
@@ -98,8 +99,5 @@ typedef struct MemTxAttrs {
 #define MEMTX_DECODE_ERROR      (1U << 1) /* nothing at that address */
 #define MEMTX_ACCESS_ERROR      (1U << 2) /* access denied */
 typedef uint32_t MemTxResult;
-
-void cpu_set_mr(Object *obj, Visitor *v, void *opaque,
-                const char *name, Error **errp);
 
 #endif

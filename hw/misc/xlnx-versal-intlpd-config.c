@@ -606,6 +606,12 @@ static void ir_status_postw(RegisterInfo *reg, uint64_t val64)
     bool afifs_timeout = ARRAY_FIELD_EX32(s->regs, IR_STATUS,
                          IF_INTLPD_AFIFSLPD_AXI_T_MAINTIMEOUT);
 
+    /*
+     * s->AFIFSSerbs was a link property. The corresponding
+     * functionality has been removed from the remote-port code. The link has
+     * been removed from this device to keep backward compatibility with
+     * existing DTBs.
+     */
     if (!afifs_timeout && s->AFIFSSerbs) {
         xlnx_serbs_if_timeout_set(s->AFIFSSerbs, AFIFS_SERBS_ID, false);
     }
@@ -837,7 +843,7 @@ static void intlpd_config_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void intlpd_config_reset_hold(Object *obj)
+static void intlpd_config_reset_hold(Object *obj, ResetType type)
 {
     INTLPD_CONFIG *s = XILINX_INTLPD_CONFIG(obj);
 
@@ -905,10 +911,6 @@ static void intlpd_config_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_ir_mission1);
     sysbus_init_irq(sbd, &s->irq_ir_mission2);
     sysbus_init_irq(sbd, &s->irq_ir_perr);
-    object_property_add_link(obj, "afifs-serbs", TYPE_XLNX_SERBS_IF,
-                             (Object **)&s->AFIFSSerbs,
-                             qdev_prop_allow_set_link,
-                             OBJ_PROP_LINK_STRONG);
 }
 
 static const VMStateDescription vmstate_intlpd_config = {
@@ -921,12 +923,11 @@ static const VMStateDescription vmstate_intlpd_config = {
     }
 };
 
-static Property intlpd_properties[] = {
+static const Property intlpd_properties[] = {
     DEFINE_PROP_INT32("timeout", INTLPD_CONFIG, tov, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void intlpd_config_class_init(ObjectClass *klass, void *data)
+static void intlpd_config_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -607,20 +607,19 @@ static const VMStateDescription vmstate_csu_core = {
     }
 };
 
-static Property csu_core_properties[] = {
+static const Property csu_core_properties[] = {
     DEFINE_PROP_UINT8("version-platform", CSU, cfg.version.platform,
                       VERSION_PLATFORM_QEMU),
     DEFINE_PROP_UINT8("version-ps-version", CSU, cfg.version.ps_version,
                       VERSION_PS_VERSION_PROD),
     DEFINE_PROP_UINT32("idcode", CSU, cfg.idcode, QEMU_IDCODE),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void csu_core_class_init(ObjectClass *klass, void *data)
+static void csu_core_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = csu_core_reset;
+    device_class_set_legacy_reset(dc, csu_core_reset);
     dc->realize = csu_core_realize;
     device_class_set_props(dc, csu_core_properties);
     dc->vmsd = &vmstate_csu_core;

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2012 Xilinx. Inc
  * Copyright (c) 2012 Peter A.G. Crosthwaite (peter.crosthwaite@xilinx.com)
+ * Copyright (c) 2026 Advanced Micro Devices, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,14 +25,16 @@
 #include "qemu/log.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
+#include "system/system.h"
+#include "system/qtest.h"
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/arm/boot.h"
+#include "exec/tswap.h"
+#include "hw/arm/machines-qom.h"
+#include "qemu/hwdtb.h"
 
 #include <libfdt.h>
-#include "hw/fdt_generic_util.h"
-#include "hw/fdt_generic_devices.h"
+#include "system/device_tree.h"
 #include "hw/hotplug.h"
 #include "hw/misc/amd-ddr-memory.h"
 
@@ -91,20 +94,16 @@ static void arm_write_secondary_boot(ARMCPU *cpu,
                        SMP_BOOT_ADDR);
 }
 
-static void set_default_hwdtb_ddr_map(void *fdt)
+static void replace_compatible(void *fdt, const char *old, const char *new)
 {
-    int offset = -1;
-    char node_path[DT_PATH_LENGTH];
+    int offset;
 
-    do {
-        offset = fdt_node_offset_by_compatible(fdt, offset,
-                                               "qemu:memory-region-ddr");
-        if (offset > 0) {
-            fdt_get_path(fdt, offset, node_path, DT_PATH_LENGTH);
-            qemu_fdt_setprop_string(fdt, node_path, "compatible",
-                                    "qemu:memory-region");
-        }
-    } while (offset > 0);
+    offset = fdt_node_offset_by_compatible(fdt, -1, old);
+
+    while (offset != -FDT_ERR_NOTFOUND) {
+        fdt_setprop_string(fdt, offset, "compatible", new);
+        offset = fdt_node_offset_by_compatible(fdt, -1, old);
+    }
 }
 
 static void zynq7000_usb_nuke_phy(void *fdt)
@@ -118,117 +117,12 @@ static void zynq7000_usb_nuke_phy(void *fdt)
     }
 }
 
-static int zynq7000_mdio_phy_connect(char *node_path, FDTMachineInfo *fdti,
-                                     void *Opaque)
-{
-    Object *parent;
-    char parent_node_path[DT_PATH_LENGTH];
-
-    /* Register MDIO obj instance to fdti, useful during child registration */
-    fdt_init_set_opaque(fdti, node_path, Opaque);
-    if (qemu_devtree_getparent(fdti->fdt, parent_node_path, node_path)) {
-        abort();
-    }
-
-    /* Wait for the parent to be created */
-    while (!fdt_init_has_opaque(fdti, parent_node_path)) {
-        fdt_init_yield(fdti);
-    }
-
-    /* Get the parent obj (i.e gem object), which was registerd in fdti */
-    parent = fdt_init_get_opaque(fdti, parent_node_path);
-
-    /* Add parent to mdio node */
-    if (!OBJECT(Opaque)->parent) {
-        object_property_add_child(OBJECT(parent), "mdio_child", OBJECT(Opaque));
-    }
-
-    /* Set mdio property of gem device */
-    object_property_set_link(OBJECT(parent), "mdio", OBJECT(Opaque), NULL);
-    return 0;
-}
-
-static int zynq7000_mdio_phy_create(char *node_path, FDTMachineInfo *fdti,
-                                     void *Opaque)
-{
-    bool has_mdio = false;
-    char parent_node_path[DT_PATH_LENGTH];
-    DeviceState *dev;
-    uint32_t reg;
-
-    if (qemu_devtree_getparent(fdti->fdt, parent_node_path, node_path)) {
-        abort();
-    }
-
-    if (!strcmp(qemu_devtree_get_node_name(fdti->fdt, parent_node_path),
-                "mdio")) {
-        /* To not break the backward compatiblity lets also consider mdio node
-         * dts can as be as below, with mdio node, when which we do not connect
-         * mdio to ethernet instance as mdio node has other instance handler
-         *
-         * mdio {
-         *    ethernet-phy@7 {
-         *        reg = <0x7>;
-         *        device_type = "ethernet-phy";
-         *    };
-         * };
-         */
-        has_mdio = true;
-    }
-
-    if (!has_mdio) {
-        zynq7000_mdio_phy_connect(node_path, fdti, Opaque);
-    }
-
-    /* Wait for the parent to be created */
-    while (!fdt_init_has_opaque(fdti, parent_node_path)) {
-        fdt_init_yield(fdti);
-    }
-
-    dev = DEVICE(object_new("88e1116r"));
-    qdev_set_parent_bus(dev, qdev_get_child_bus(Opaque, "mdio-bus"),
-                        &error_abort);
-    reg = qemu_fdt_getprop_cell(fdti->fdt, node_path, "reg", 0, false,
-                                NULL);
-    object_property_set_int(OBJECT(dev), "reg", reg, NULL);
-    return 0;
-}
-
-static int zynq7000_gem_post_init(char *node_path, FDTMachineInfo *fdti,
-                                 void *opaque)
-{
-    uint32_t *phy_handle = NULL;
-    char *phy_node_path = NULL;
-    char *phy_compat = NULL;
-
-    phy_handle = qemu_fdt_getprop(fdti->fdt, node_path, "phy-handle",
-                                  NULL, false, NULL);
-    if (phy_handle) {
-        phy_node_path = g_new0(char, DT_PATH_LENGTH);
-        qemu_devtree_get_node_by_phandle(fdti->fdt, phy_node_path,
-                                     be32_to_cpu(*phy_handle));
-
-        phy_compat = qemu_fdt_getprop(fdti->fdt, phy_node_path, "compatible",
-                                      NULL, false, NULL);
-        if (!phy_compat) {
-            /*
-             * Compatible not found, so create a phy manually
-             */
-            zynq7000_mdio_phy_create(phy_node_path, fdti, opaque);
-        }
-        g_free(phy_compat);
-        g_free(phy_handle);
-        g_free(phy_node_path);
-    }
-    return 0;
-}
-
 #define ZYNQ7000_QSPI_DUMMY_NAME "/ps7-qspi-dummy@0"
 
 static char *zynq7000_qspi_flash_node_clone(void *fdt)
 {
     char qspi_node_path[DT_PATH_LENGTH];
-    char qspi_new_node_path[DT_PATH_LENGTH + strlen(ZYNQ7000_QSPI_DUMMY_NAME)];
+    char qspi_new_node_path[DT_PATH_LENGTH + sizeof(ZYNQ7000_QSPI_DUMMY_NAME)];
     char *qspi_clone_name = NULL;
     uint32_t val[2];
 
@@ -286,7 +180,7 @@ static char *zynq7000_qspi_flash_node_clone(void *fdt)
                     qspi_clone_name = g_strdup(qspi_new_node_path);
 
                     /* Attach Dummy flash node to bus 0 */
-                    val[0] = 0;
+                    val[0] = cpu_to_be32(1);
                     val[1] = cpu_to_be32(1);
                     fdt_setprop(fdt, fdt_path_offset(fdt, qspi_new_node_path),
                                 "reg", val, 8);
@@ -300,16 +194,15 @@ static char *zynq7000_qspi_flash_node_clone(void *fdt)
     return qspi_clone_name;
 }
 
-static memory_info init_memory(void *fdt, ram_addr_t ram_size, bool zynq_7000)
+static memory_info init_machine(MachineState *machine,
+                                void *fdt, ram_addr_t ram_size, bool zynq_7000)
 {
     bool dynamic_mem;
-    FDTMachineInfo *fdti;
     char node_path[DT_PATH_LENGTH];
-    MemoryRegion *mem_area;
     memory_info kernel_info;
-    ram_addr_t start_addr;
-    int mem_offset = 0;
     Error *errp = NULL;
+    uint64_t kernel_base;
+    HwDtb *hwdtb;
 
     if (zynq_7000) {
         if (!qemu_devtree_node_by_compatible(fdt, node_path,
@@ -335,196 +228,47 @@ static memory_info init_memory(void *fdt, ram_addr_t ram_size, bool zynq_7000)
     dynamic_mem = object_property_get_bool(OBJECT(qdev_get_machine()),
                                            "dynamic-mem", NULL);
     if (dynamic_mem == false) {
-        set_default_hwdtb_ddr_map(fdt);
+        replace_compatible(fdt, "qemu:memory-region-ddr", "qemu:memory-region");
+    } else {
+        /* Hide memory-region-spec nodes so that hwdtb does not populate them */
+        replace_compatible(fdt, "qemu:memory-region-spec",
+                           "qemu:memory-region-spec-disabled");
     }
 
     /* Instantiate peripherals from the FDT.  */
-    fdti = fdt_generic_create_machine(fdt, NULL);
+    hwdtb = hwdtb_create_machine(machine, fdt);
 
-    mem_area = MEMORY_REGION(object_resolve_path(node_path, NULL));
-
-    /*
-     * Look for the optional kernel-base prop. If not found fallback to
-     * start of memory.
-     */
-    kernel_info.ram_kernel_base = qemu_fdt_getprop_sized_cell(fdt, "/",
-                                              "kernel-base", 0, 2, &errp);
-    if (errp) {
-        kernel_info.ram_kernel_base = object_property_get_int(OBJECT(mem_area),
-                                                              "addr", NULL);
-    }
-
-    kernel_info.ram_kernel_size = object_property_get_int(OBJECT(mem_area),
-                                                          "size", NULL);
-
-    if (kernel_info.ram_kernel_size == -1) {
+    if (hwdtb_node_get_prop_uint64(hwdtb->root, "kernel-base",
+                                   &kernel_base)) {
+        kernel_info.ram_kernel_base = kernel_base;
         kernel_info.ram_kernel_size = ram_size;
-    }
+    } else if (hwdtb->first_mem_node) {
+        Object *first_mem_node = hwdtb_get_obj(hwdtb->first_mem_node);
+        MemoryRegion *mr = MEMORY_REGION(first_mem_node);
 
-    if (zynq_7000) {
-        do {
-            mem_offset = fdt_node_offset_by_compatible(fdt, mem_offset,
-                                                       "qemu:memory-region");
-            if (mem_offset > 0) {
-                fdt_get_path(fdt, mem_offset, node_path, DT_PATH_LENGTH);
-                mem_area = MEMORY_REGION(object_resolve_path(node_path, NULL));
-
-                if (!memory_region_is_mapped(mem_area)) {
-                    start_addr =  object_property_get_int(OBJECT(mem_area),
-                                                          "addr", NULL);
-                    memory_region_add_subregion(get_system_memory(),
-                                                start_addr, mem_area);
-                }
-            }
-        } while (mem_offset > 0);
-    } else {
-        /* Let's find out how much memory we have already created, then
-         * based on what the user ser with '-m' let's add more if needed.
-         */
-        uint64_t reg_value, mem_created = 0;
-        int mem_container;
-        char mem_node_path[DT_PATH_LENGTH];
-        int size_cells;
-
-        do {
-            mem_offset =
-                fdt_node_offset_by_compatible(fdt, mem_offset,
-                                              "qemu:memory-region");
-
-            /* Check if we found anything and that it is top level memory */
-            if (mem_offset > 0 &&
-                    fdt_node_depth(fdt, mem_offset) == 1) {
-                fdt_get_path(fdt, mem_offset, mem_node_path,
-                             DT_PATH_LENGTH);
-
-                mem_container = qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                      "container",
-                                                      0, 0, NULL);
-
-                /* We only want RAM, so we filter to make sure the container of
-                 * what we are looking at is the same as the main memory@0 node
-                 * we just found above.
-                 */
-                if (mem_container != qemu_fdt_get_phandle(fdt, node_path)) {
-                    continue;
-                }
-
-                DB_PRINT(0, "Found top level memory region %s\n",
-                         mem_node_path);
-                size_cells = qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                "#size-cells", 0, true, NULL);
-
-                reg_value = qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                  "reg", 0, 0, NULL);
-                reg_value = reg_value << 32;
-                reg_value += qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                   "reg", 1, 0, NULL);
-
-                DB_PRINT(1, "    Address: 0x%" PRIx64 " ", reg_value);
-
-                reg_value += qemu_fdt_getprop_sized_cell(fdt, mem_node_path,
-                                                   "reg", 2, size_cells, NULL);
-
-                DB_PRINT_RAW(1, "Size: 0x%" PRIx64 "\n", reg_value);
-
-                /* Find the largest address (start address + size) */
-                if (mem_created < reg_value) {
-                    mem_created = reg_value;
-                }
-            }
-        } while (mem_offset > 0);
-
-        DB_PRINT(0, "Highest memory address from DTS is: " \
-                 "0x%" PRIx64 "/0x" RAM_ADDR_FMT "\n", mem_created, ram_size);
-
-        /* We now have the maximum amount of DDR that has been created. */
-        if (mem_created == 0) {
-            qemu_log_mask(LOG_GUEST_ERROR, "No memory was specified in the " \
-                          "device tree, are there no memory nodes on the " \
-                          "root level?\n");
-        } else if (dynamic_mem == false && mem_created < ram_size) {
-            /* We need to create more memory to match what the user asked for.
-             * We do this based on the qemu:memory-region-spec values.
-             */
-            do {
-                mem_offset =
-                    fdt_node_offset_by_compatible(fdt, mem_offset,
-                                                  "qemu:memory-region-spec");
-
-                if (mem_offset > 0) {
-                    MemoryRegion *container;
-                    MemoryRegion *ram_region = g_new(MemoryRegion, 1);
-                    const char *region_name;
-                    uint64_t region_start, region_size;
-                    int container_offset, container_phandle, ram_prop;
-
-                    fdt_get_path(fdt, mem_offset, mem_node_path,
-                                 DT_PATH_LENGTH);
-
-                    DB_PRINT(0, "Connecting %s\n", mem_node_path);
-
-                    region_name = fdt_get_name(fdt, mem_offset, NULL);
-
-                    /* This assumes two address cells and two size cells */
-                    region_start = qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                       "reg", 0, 0, NULL);
-                    region_start = region_start << 32;
-                    region_start += qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                       "reg", 1, 0, NULL);
-
-                    DB_PRINT(1, "    Address: 0x%" PRIx64 " ", region_start);
-
-                    region_size = qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                         "reg", 2, 0, NULL);
-                    region_size = region_size << 32;
-                    region_size += qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                         "reg", 3, 0, NULL);
-
-                    region_size = MIN(region_size, ram_size - mem_created);
-                    mem_created += region_size;
-
-                    DB_PRINT_RAW(1, "Size: 0x%" PRIx64 "\n", region_size);
-
-                    container_phandle = qemu_fdt_getprop_cell(fdt,
-                                                              mem_node_path,
-                                                              "container", 0,
-                                                              0, NULL);
-                    container_offset =
-                            fdt_node_offset_by_phandle(fdt, container_phandle);
-                    fdt_get_path(fdt, container_offset,
-                                 node_path, DT_PATH_LENGTH);
-                    container = MEMORY_REGION(
-                                        object_resolve_path(node_path, NULL));
-
-                    ram_prop = qemu_fdt_getprop_cell(fdt, mem_node_path,
-                                                     "qemu,ram", 0,
-                                                     0, NULL);
-                    memory_region_init(ram_region, NULL, region_name,
-                                           region_size);
-                    object_property_set_int(OBJECT(ram_region), "ram", ram_prop, &error_abort);
-                    memory_region_add_subregion(container, region_start,
-                                                ram_region);
-                }
-            } while (mem_offset > 0 && ram_size > mem_created);
-        } else {
-            /*
-             * Handle the following cases:
-             * 1) The device tree generated more or equal amount of memory then
-             *    the user specified.
-             * 2) dynamic-memory is enabled, it then reflects the size of the
-             *    first portion of memory created (DDR at address 0).
-             *
-             * Set this internally in QEMU.
-             */
-            DB_PRINT(0, "No extra memory is required\n");
-
-            ram_size = mem_created;
-            qemu_opt_set_number(qemu_find_opts_singleton("memory"), "size",
-                                mem_created, &error_fatal);
+        kernel_info.ram_kernel_base = object_property_get_int(first_mem_node,
+                                                              "addr", &errp);
+        if (errp) {
+            return kernel_info;
         }
+
+        kernel_info.ram_kernel_size = object_property_get_int(first_mem_node,
+                                                              "size", &errp);
+
+        if (kernel_info.ram_kernel_size == -1) {
+            kernel_info.ram_kernel_size = ram_size;
+        }
+
+        if (zynq_7000 && !memory_region_is_mapped(mr)) {
+            memory_region_add_subregion(get_system_memory(),
+                                        kernel_info.ram_kernel_base, mr);
+        }
+    } else {
+        kernel_info.ram_kernel_base = 0;
+        kernel_info.ram_kernel_size = hwdtb->fulfilled_ram_amount;
     }
 
-    fdt_init_destroy_fdti(fdti);
+    hwdtb_free(hwdtb);
 
     return kernel_info;
 }
@@ -581,15 +325,14 @@ static void arm_generic_fdt_init(MachineState *machine)
     }
 
     /* If the user provided a -hw-dtb, use it as the hw description.  */
-    if (hw_dtb_arg) {
-        fdt = load_device_tree(hw_dtb_arg, &fdt_size);
-        if (!fdt) {
-            error_report("Error: Unable to load Device Tree %s", hw_dtb_arg);
-            exit(1);
-        }
-    } else if (sw_fdt) {
-        fdt = sw_fdt;
-        fdt_size = sw_fdt_size;
+    if (!hw_dtb_arg) {
+        hw_dtb_arg = dtb_arg;
+    }
+
+    fdt = load_device_tree(hw_dtb_arg, &fdt_size);
+    if (!fdt) {
+        error_report("Error: Unable to load Device Tree %s", hw_dtb_arg);
+        exit(1);
     }
 
     if (zynq_7000) {
@@ -621,9 +364,18 @@ static void arm_generic_fdt_init(MachineState *machine)
                                        ZYNQ7000_MPCORE_REV);
             }
         } while (node_offset > 0);
+
+        replace_compatible(fdt, "simple-bus", "qemu:system-memory");
+
+        while ((node_offset = fdt_next_node(fdt, node_offset, NULL))) {
+            if ((fdt_get_property(fdt, node_offset, "interrupt-names", NULL))) {
+                fdt_delprop(fdt, node_offset, "interrupt-names");
+                node_offset = 0;
+            }
+        }
     }
 
-    kernel_info = init_memory(fdt, machine->ram_size, zynq_7000);
+    kernel_info = init_machine(machine, fdt, machine->ram_size, zynq_7000);
 
     arm_generic_fdt_binfo.fdt = sw_fdt;
     arm_generic_fdt_binfo.fdt_size = sw_fdt_size;
@@ -646,7 +398,7 @@ static void arm_generic_fdt_init(MachineState *machine)
     }
 
     if (zynq_7000) {
-        zynq7000_usb_nuke_phy(fdt);
+        zynq7000_usb_nuke_phy(sw_fdt);
     }
 
     if (machine->kernel_filename) {
@@ -664,6 +416,8 @@ static void arm_generic_fdt_7000_init(MachineState *machine)
     MemoryRegion *ocm_ram;
     DriveInfo *dinfo;
     DeviceState *att_dev;
+    uint32_t num_cpus = 0;
+    CPUState *cpu;
 
     ocm_ram = g_new(MemoryRegion, 1);
     memory_region_init_ram(ocm_ram, NULL, "zynq.ocm_ram", 256 << 10,
@@ -671,7 +425,7 @@ static void arm_generic_fdt_7000_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0xFFFC0000, ocm_ram);
 
     dev = qdev_new("arm.pl35x");
-    object_property_add_child(container_get(qdev_get_machine(), "/unattached"),
+    object_property_add_child(machine_get_container("unattached"),
                               "pl353", OBJECT(dev));
     qdev_prop_set_uint8(dev, "x", 3);
     dinfo = drive_get_next(IF_PFLASH);
@@ -685,24 +439,15 @@ static void arm_generic_fdt_7000_init(MachineState *machine)
     sysbus_mmio_map(busdev, 0, 0xe000e000);
     sysbus_mmio_map(busdev, 2, 0xe1000000);
 
-    /* Mark the simple-bus as incompatible as it breaks the Zynq boot */
-    add_to_compat_table(NULL, "compatible:simple-bus", NULL);
-
-    dev = qdev_new("mdio");
-    /* Add MDIO Connect Call back */
-    add_to_inst_bind_table(zynq7000_mdio_phy_connect, "mdio", dev);
-    add_to_compat_table(zynq7000_gem_post_init, "postinit:cdns,gem", dev);
-    /*
-     * For backward compatiblity
-     */
-    add_to_compat_table(zynq7000_gem_post_init, "postinit:cdns,zynq-gem", dev);
-    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-
     arm_generic_fdt_init(machine);
+
+    CPU_FOREACH(cpu) {
+        num_cpus++;
+    }
 
     dev = qdev_new("a9-scu");
     busdev = SYS_BUS_DEVICE(dev);
-    qdev_prop_set_uint32(dev, "num-cpu", fdt_generic_num_cpus);
+    qdev_prop_set_uint32(dev, "num-cpu", num_cpus);
     sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, ZYNQ7000_MPCORE_PERIPHBASE);
 }
@@ -767,9 +512,6 @@ static void arm_generic_fdt_dep_machine_init(MachineClass *mc)
     mc->default_cpus = 2;
 }
 
-fdt_register_compatibility_opaque(pflash_cfi01_fdt_init,
-                                  "compatibile:cfi-flash", NULL);
-
 static void arm_generic_fdt_machine_plug(HotplugHandler *hotplug_dev,
                                          DeviceState *dev, Error **errp)
 {
@@ -783,18 +525,16 @@ static void arm_generic_fdt_machine_plug(HotplugHandler *hotplug_dev,
         AMDDDRMemory *ddr = AMD_DDR_MEMORY(dev);
         Object *mem_obj;
         MemoryRegion *c;
-        uint8_t ram;
-        char *name = NULL;
 
         /* DDR low is handled by the hwdtb */
         if (ddr->address < DDR_LOW_SIZE) {
             return;
         }
 
-        mem_obj = object_resolve_path_type("/memory@00000000",
+        mem_obj = object_resolve_path_type("/machine/hwdtb<memory@00000000>",
                                            TYPE_MEMORY_REGION, NULL);
         if (!mem_obj) {
-            mem_obj = object_resolve_path_type("/memory@0",
+            mem_obj = object_resolve_path_type("/machine/hwdtb<memory@0>",
                                                TYPE_MEMORY_REGION, NULL);
         }
         if (!mem_obj) {
@@ -802,12 +542,6 @@ static void arm_generic_fdt_machine_plug(HotplugHandler *hotplug_dev,
                        "/memory@00000000 or /memory@0 is missing in the FDT");
             return;
         }
-
-        name = g_strdup_printf("qemu-memory-_%s", memory_region_name(&ddr->mr));
-        object_property_set_str(OBJECT(&ddr->mr), "filename", name, errp);
-
-        ram = (machine_path) ? ddr->max_ram_property : 1;
-        object_property_set_uint(OBJECT(&ddr->mr), "ram", ram, errp);
 
         c = MEMORY_REGION(mem_obj);
 
@@ -824,7 +558,7 @@ static HotplugHandler *arm_generic_fdt_get_hotplug_handler(MachineState *ms,
     return NULL;
 }
 
-static void arm_generic_fdt_machine_class_init(ObjectClass *oc, void *data)
+static void arm_generic_fdt_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
@@ -842,6 +576,8 @@ static const TypeInfo arm_generic_fdt_machine_typeinfo = {
     .class_init = arm_generic_fdt_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
+        { TYPE_TARGET_ARM_MACHINE },
+        { TYPE_TARGET_AARCH64_MACHINE },
         { }
     },
 };
@@ -852,5 +588,5 @@ static void arm_generic_fdt_machine_register_types(void)
 }
 type_init(arm_generic_fdt_machine_register_types)
 
-DEFINE_MACHINE(ZYNQ7000_MACHINE_NAME, arm_generic_fdt_7000_machine_init)
-DEFINE_MACHINE(DEP_GENERAL_MACHINE_NAME, arm_generic_fdt_dep_machine_init)
+DEFINE_MACHINE_AARCH64(ZYNQ7000_MACHINE_NAME, arm_generic_fdt_7000_machine_init)
+DEFINE_MACHINE_AARCH64(DEP_GENERAL_MACHINE_NAME, arm_generic_fdt_dep_machine_init)

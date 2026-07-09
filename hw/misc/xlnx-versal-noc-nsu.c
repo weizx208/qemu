@@ -1080,11 +1080,11 @@ static const VMStateDescription vmstate_noc_nsu = {
     }
 };
 
-static void noc_nsu_class_init(ObjectClass *klass, void *data)
+static void noc_nsu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = noc_nsu_reset;
+    device_class_set_legacy_reset(dc, noc_nsu_reset);
     dc->vmsd = &vmstate_noc_nsu;
 }
 

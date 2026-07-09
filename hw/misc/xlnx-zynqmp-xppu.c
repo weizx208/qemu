@@ -28,7 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "migration/vmstate.h"
 
 #include "hw/fdt_generic_util.h"
@@ -326,14 +326,13 @@ static const MemoryRegionOps xppu_ap_ops = {
 static XPPU *xppu_from_mr(void *mr_accessor)
 {
     RegisterInfoArray *reg_array = mr_accessor;
-    Object *obj;
+    DeviceState *dev;
 
     assert(reg_array != NULL);
 
-    obj = reg_array->mem.owner;
-    assert(obj);
+    dev = register_array_get_owner(reg_array);
 
-    return XILINX_XPPU(obj);
+    return XILINX_XPPU(dev);
 }
 
 static MemTxResult xppu_read(void *opaque, hwaddr addr, uint64_t *value,
@@ -431,12 +430,12 @@ static const VMStateDescription vmstate_xppu = {
     }
 };
 
-static void xppu_class_init(ObjectClass *klass, void *data)
+static void xppu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
-    dc->reset = xppu_reset;
+    device_class_set_legacy_reset(dc, xppu_reset);
     dc->realize = xppu_realize;
     dc->vmsd = &vmstate_xppu;
     fmc->parse_reg = xppu_parse_reg;

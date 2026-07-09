@@ -429,16 +429,19 @@ static void pmc_sha3_v2_reset_enter(Object *obj, ResetType type)
          * Reset from the bus, will as a side effect call
          * pmc_sha3_v2_reset_postw.  Avoid infinite recursion here.
          */
-        if (!s->reseting || (i != R_SHA_RESET)) {
+        switch (i) {
+        case R_SHA_RESET:
+            s->regs[i] = 0x1;
+            break;
+
+        default:
             register_reset(&s->regs_info[i]);
-        } else {
-            s->regs[R_SHA_RESET] = 0x1;
         }
     }
     ARRAY_FIELD_DP32(s->regs, SHA_VERSION, VALUE, 0x20001);
 }
 
-static void pmc_sha3_v2_reset_hold(Object *obj)
+static void pmc_sha3_v2_reset_hold(Object *obj, ResetType type)
 {
     PmcSha3V2 *s = XILINX_PMC_SHA3_V2(obj);
 
@@ -487,7 +490,7 @@ static const VMStateDescription vmstate_pmc_sha3_v2 = {
     }
 };
 
-static void pmc_sha3_v2_class_init(ObjectClass *klass, void *data)
+static void pmc_sha3_v2_class_init(ObjectClass *klass, const void *data)
 {
     XlnxSha3CommonClass *cc = XLNX_SHA3_COMMON_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

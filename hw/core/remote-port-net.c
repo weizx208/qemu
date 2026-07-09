@@ -24,14 +24,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/help-texts.h"
-#include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "hw/sysbus.h"
-#include "sysemu/dma.h"
 #include "hw/hw.h"
 #include "net/net.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
 #include "hw/remote-port.h"
@@ -186,20 +181,19 @@ static void rp_net_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property rp_net_properties[] = {
+static const Property rp_net_properties[] = {
     DEFINE_PROP_UINT32("rp-chan0", RemotePortNet, rx.rp_dev, 0),
     DEFINE_PROP_UINT32("rp-chan1", RemotePortNet, tx.rp_dev, 0),
     DEFINE_NIC_PROPERTIES(struct RemotePortNet, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void rp_net_class_init(ObjectClass *klass, void *data)
+static void rp_net_class_init(ObjectClass *klass, const void *data)
 {
     RemotePortDeviceClass *rpdc = REMOTE_PORT_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = rp_net_realize;
-    dc->reset = rp_net_reset;
+    device_class_set_legacy_reset(dc, rp_net_reset);
     device_class_set_props(dc, rp_net_properties);
 
     rpdc->ops[RP_CMD_write] = rp_net_tx;

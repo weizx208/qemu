@@ -395,7 +395,7 @@ static void psx_crf_reset_enter(Object *obj, ResetType type)
     s->in_reset_enter = false;
 }
 
-static void psx_crf_reset_hold(Object *obj)
+static void psx_crf_reset_hold(Object *obj, ResetType type)
 {
     PSX_CRF *s = XILINX_PSX_CRF(obj);
 
@@ -488,12 +488,11 @@ static const FDTGenericGPIOSet crf_gpios[] = {
     { },
 };
 
-static Property psx_crf_properties[] = {
+static const Property psx_crf_properties[] = {
     DEFINE_PROP_UINT32("cores-per-cluster", PSX_CRF, cfg.cores_per_cluster, 4),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void psx_crf_class_init(ObjectClass *klass, void *data)
+static void psx_crf_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

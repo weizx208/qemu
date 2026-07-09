@@ -6449,11 +6449,11 @@ static const VMStateDescription vmstate_ddrmc_main = {
     }
 };
 
-static void ddrmc_main_class_init(ObjectClass *klass, void *data)
+static void ddrmc_main_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ddrmc_main_reset;
+    device_class_set_legacy_reset(dc, ddrmc_main_reset);
     dc->vmsd = &vmstate_ddrmc_main;
 }
 

@@ -41,11 +41,8 @@ def main() -> int:
     parser.parse_args()
 
     packages = {
-        "meson==1.2.3":
-        "4533a43c34548edd1f63a276a42690fce15bde9409bcf20c4b8fa3d7e4d7cac1",
-
-        "tomli==2.0.1":
-        "939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
+        "meson==1.9.0":
+        "45e51ddc41e37d961582d06e78c48e0f9039011587f3495c4d6b0781dad92357",
     }
 
     vendor_dir = Path(__file__, "..", "..", "wheels").resolve()

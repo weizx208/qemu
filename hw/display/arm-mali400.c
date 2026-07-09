@@ -1495,17 +1495,16 @@ static const VMStateDescription vmstate_mali400 = {
     },
 };
 
-static Property mali400_properties[] = {
+static const Property mali400_properties[] = {
     DEFINE_PROP_BOOL("reg-trace", ArmMali400, reg_trc.enable, false),
     DEFINE_PROP_UINT32("l2c-version", ArmMali400, l2c_version,
                        ((0xcac2 << 16) | (0x01 << 7) | 0x01)),
     DEFINE_PROP_UINT32("l2c-size", ArmMali400, l2c_size,
                        ((7 << 24) | (16 << 16) | (2 << 8) | 6)),
     DEFINE_PROP_UINT32("num-pp", ArmMali400, num_pp, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void mali400_class_init(ObjectClass *klass, void *data)
+static void mali400_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

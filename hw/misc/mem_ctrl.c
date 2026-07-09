@@ -142,7 +142,7 @@ static void mem_ctrl_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static void mem_ctrl_class_init(ObjectClass *klass, void *data)
+static void mem_ctrl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

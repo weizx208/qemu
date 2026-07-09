@@ -120,7 +120,7 @@ typedef struct SlaveBootInt {
     uint8_t busy_line;    /* active high */
     uint8_t rdwr;         /* 0: data load
                            * 1: read-back */
-    CharBackend chr; /* Data bus */
+    CharFrontend chr; /* Data bus */
     qemu_irq smap_busy;
 } SlaveBootInt;
 
@@ -666,18 +666,17 @@ static const FDTGenericGPIOSet sbi_client_gpios[] = {
     { },
 };
 
-static Property sbi_props[] = {
+static const Property sbi_props[] = {
         DEFINE_PROP_CHR("chardev", SlaveBootInt, chr),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ss_class_init(ObjectClass *klass, void *data)
+static void ss_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
     dc->realize = ss_realize;
-    dc->reset = ss_reset;
+    device_class_set_legacy_reset(dc, ss_reset);
     device_class_set_props(dc, sbi_props);
     ssc->push = ss_stream_push;
     ssc->can_push = ss_stream_can_push;

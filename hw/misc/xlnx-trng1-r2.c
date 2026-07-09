@@ -1084,17 +1084,16 @@ static void xlnx_trng1r2_prop_fault_event_set(Object *obj, Visitor *v,
 }
 
 static const PropertyInfo xlnx_trng1r2_prop_fault_events = {
-    .name = "uint32:bits",
+    .type = "uint32:bits",
     .description = "Set STATUS register's fault-event bits",
     .set = xlnx_trng1r2_prop_fault_event_set,
     .realized_set_allowed = true,
 };
 
-static Property xlnx_trng1r2_props[] = {
+static const Property xlnx_trng1r2_props[] = {
     DEFINE_PROP("fips-fault-events", XlnxTRng1r2, forced_faults,
                 xlnx_trng1r2_prop_fault_events, uint32_t),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_trng1r2 = {
@@ -1107,7 +1106,7 @@ static const VMStateDescription vmstate_trng1r2 = {
     }
 };
 
-static void xlnx_trng1r2_class_init(ObjectClass *klass, void *data)
+static void xlnx_trng1r2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

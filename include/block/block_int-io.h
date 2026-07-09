@@ -38,8 +38,8 @@
 int coroutine_fn GRAPH_RDLOCK bdrv_co_preadv_snapshot(BdrvChild *child,
     int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset);
 int coroutine_fn GRAPH_RDLOCK bdrv_co_snapshot_block_status(
-    BlockDriverState *bs, bool want_zero, int64_t offset, int64_t bytes,
-    int64_t *pnum, int64_t *map, BlockDriverState **file);
+    BlockDriverState *bs, unsigned int mode, int64_t offset,
+    int64_t bytes, int64_t *pnum, int64_t *map, BlockDriverState **file);
 int coroutine_fn GRAPH_RDLOCK bdrv_co_pdiscard_snapshot(BlockDriverState *bs,
     int64_t offset, int64_t bytes);
 
@@ -99,7 +99,7 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
  */
 void bdrv_wakeup(BlockDriverState *bs);
 
-const char *bdrv_get_parent_name(const BlockDriverState *bs);
+const char * GRAPH_RDLOCK bdrv_get_parent_name(const BlockDriverState *bs);
 bool blk_dev_has_tray(BlockBackend *blk);
 bool blk_dev_is_tray_open(BlockBackend *blk);
 
@@ -130,32 +130,36 @@ bdrv_co_refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 int co_wrapper_mixed_bdrv_rdlock
 bdrv_refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 
-BdrvChild *bdrv_cow_child(BlockDriverState *bs);
-BdrvChild *bdrv_filter_child(BlockDriverState *bs);
-BdrvChild *bdrv_filter_or_cow_child(BlockDriverState *bs);
-BdrvChild *bdrv_primary_child(BlockDriverState *bs);
-BlockDriverState *bdrv_skip_filters(BlockDriverState *bs);
-BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_cow_child(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_filter_child(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_filter_or_cow_child(BlockDriverState *bs);
+BdrvChild * GRAPH_RDLOCK bdrv_primary_child(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK bdrv_skip_filters(BlockDriverState *bs);
+BlockDriverState * GRAPH_RDLOCK bdrv_backing_chain_next(BlockDriverState *bs);
 
-static inline BlockDriverState *bdrv_cow_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_cow_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_cow_child(bs));
 }
 
-static inline BlockDriverState *bdrv_filter_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_filter_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_filter_child(bs));
 }
 
-static inline BlockDriverState *bdrv_filter_or_cow_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_filter_or_cow_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_filter_or_cow_child(bs));
 }
 
-static inline BlockDriverState *bdrv_primary_bs(BlockDriverState *bs)
+static inline BlockDriverState * GRAPH_RDLOCK
+bdrv_primary_bs(BlockDriverState *bs)
 {
     IO_CODE();
     return child_bs(bdrv_primary_child(bs));
@@ -186,5 +190,11 @@ void bdrv_bsc_invalidate_range(BlockDriverState *bs,
  * Mark the range [offset, offset + bytes) as a data region.
  */
 void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes);
+
+/*
+ * Notify all parents that the size of the child changed.
+ */
+void coroutine_fn GRAPH_RDLOCK
+bdrv_co_parent_cb_resize(BlockDriverState *bs);
 
 #endif /* BLOCK_INT_IO_H */

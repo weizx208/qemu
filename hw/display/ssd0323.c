@@ -324,7 +324,7 @@ static const VMStateDescription vmstate_ssd0323 = {
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = ssd0323_post_load,
-    .fields      = (VMStateField []) {
+    .fields = (const VMStateField []) {
         VMSTATE_UINT32(cmd_len, ssd0323_state),
         VMSTATE_INT32(cmd, ssd0323_state),
         VMSTATE_INT32_ARRAY(cmd_data, ssd0323_state, 8),
@@ -361,7 +361,7 @@ static void ssd0323_realize(SSIPeripheral *d, Error **errp)
     qdev_init_gpio_in(dev, ssd0323_cd, 1);
 }
 
-static void ssd0323_class_init(ObjectClass *klass, void *data)
+static void ssd0323_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);

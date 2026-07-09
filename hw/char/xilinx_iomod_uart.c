@@ -30,7 +30,7 @@
 #include "chardev/char-fe.h"
 #include "hw/register.h"
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -73,7 +73,7 @@ typedef struct XilinxUART {
         bool tx_interrupt;
         bool err_interrupt;
     } cfg;
-    CharBackend chr;
+    CharFrontend chr;
     uint32_t regs[R_MAX_0];
     uint32_t baud;
     RegisterInfo regs_info0[R_MAX_0];
@@ -82,14 +82,13 @@ typedef struct XilinxUART {
     const char *prefix;
 } XilinxUART;
 
-static Property xlx_iom_properties[] = {
+static const Property xlx_iom_properties[] = {
     DEFINE_PROP_BOOL("use-uart-rx", XilinxUART, cfg.use_rx, 0),
     DEFINE_PROP_BOOL("use-uart-tx", XilinxUART, cfg.use_tx, 0),
     DEFINE_PROP_BOOL("uart-rx-interrupt", XilinxUART, cfg.rx_interrupt, 0),
     DEFINE_PROP_BOOL("uart-tx-interrupt", XilinxUART, cfg.tx_interrupt, 0),
     DEFINE_PROP_BOOL("uart-error-interrupt", XilinxUART, cfg.err_interrupt, 0),
     DEFINE_PROP_CHR("chardev", XilinxUART, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)
@@ -252,11 +251,11 @@ static const VMStateDescription vmstate_xlx_iom = {
     }
 };
 
-static void xlx_iom_class_init(ObjectClass *klass, void *data)
+static void xlx_iom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = iom_uart_reset;
+    device_class_set_legacy_reset(dc, iom_uart_reset);
     dc->realize = xlx_iom_realize;
     device_class_set_props(dc, xlx_iom_properties);
     dc->vmsd = &vmstate_xlx_iom;

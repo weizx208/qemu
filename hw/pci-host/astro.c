@@ -35,6 +35,7 @@
 #include "target/hppa/cpu.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "exec/target_page.h"
 
 /*
  * Helper functions
@@ -122,10 +123,6 @@ static MemTxResult elroy_chip_read_with_attrs(void *opaque, hwaddr addr,
     case 0x0800:                /* IOSAPIC_REG_SELECT */
         val = s->iosapic_reg_select;
         break;
-    case 0x0808:
-        val = UINT64_MAX;            /* XXX: tbc. */
-        g_assert_not_reached();
-        break;
     case 0x0810:                /* IOSAPIC_REG_WINDOW */
         switch (s->iosapic_reg_select) {
         case 0x01:              /* IOSAPIC_REG_VERSION */
@@ -135,15 +132,21 @@ static MemTxResult elroy_chip_read_with_attrs(void *opaque, hwaddr addr,
             if (s->iosapic_reg_select < ARRAY_SIZE(s->iosapic_reg)) {
                 val = s->iosapic_reg[s->iosapic_reg_select];
             } else {
-                trace_iosapic_reg_read(s->iosapic_reg_select, size, val);
-                g_assert_not_reached();
+                goto check_hf;
             }
         }
         trace_iosapic_reg_read(s->iosapic_reg_select, size, val);
         break;
     default:
-        trace_elroy_read(addr, size, val);
-        g_assert_not_reached();
+    check_hf:
+        if (s->status_control & HF_ENABLE) {
+            val = 0;
+            ret = MEMTX_DECODE_ERROR;
+        } else {
+            /* return -1ULL if HardFail is disabled */
+            val = ~0;
+            ret = MEMTX_OK;
+        }
     }
     trace_elroy_read(addr, size, val);
 
@@ -191,7 +194,7 @@ static MemTxResult elroy_chip_write_with_attrs(void *opaque, hwaddr addr,
         if (s->iosapic_reg_select < ARRAY_SIZE(s->iosapic_reg)) {
             s->iosapic_reg[s->iosapic_reg_select] = val;
         } else {
-            g_assert_not_reached();
+            goto check_hf;
         }
         break;
     case 0x0840:                /* IOSAPIC_REG_EOI */
@@ -204,7 +207,10 @@ static MemTxResult elroy_chip_write_with_attrs(void *opaque, hwaddr addr,
         }
         break;
     default:
-        g_assert_not_reached();
+    check_hf:
+        if (s->status_control & HF_ENABLE) {
+            return MEMTX_DECODE_ERROR;
+        }
     }
     return MEMTX_OK;
 }
@@ -418,22 +424,23 @@ static void elroy_reset(DeviceState *dev)
     }
 }
 
-static void elroy_pcihost_init(Object *obj)
+static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
 {
-    ElroyState *s = ELROY_PCI_HOST_BRIDGE(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    ElroyState *s = ELROY_PCI_HOST_BRIDGE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Object *obj = OBJECT(s);
 
     /* Elroy config access from CPU.  */
-    memory_region_init_io(&s->this_mem, OBJECT(s), &elroy_chip_ops,
+    memory_region_init_io(&s->this_mem, obj, &elroy_chip_ops,
                           s, "elroy", 0x2000);
 
     /* Elroy PCI config. */
-    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
-                          &elroy_config_addr_ops, DEVICE(s),
+    memory_region_init_io(&phb->conf_mem, obj,
+                          &elroy_config_addr_ops, dev,
                           "pci-conf-idx", 8);
-    memory_region_init_io(&phb->data_mem, OBJECT(phb),
-                          &elroy_config_data_ops, DEVICE(s),
+    memory_region_init_io(&phb->data_mem, obj,
+                          &elroy_config_data_ops, dev,
                           "pci-conf-data", 8);
     memory_region_add_subregion(&s->this_mem, 0x40,
                                 &phb->conf_mem);
@@ -441,8 +448,8 @@ static void elroy_pcihost_init(Object *obj)
                                 &phb->data_mem);
 
     /* Elroy PCI bus memory.  */
-    memory_region_init(&s->pci_mmio, OBJECT(s), "pci-mmio", UINT64_MAX);
-    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+    memory_region_init(&s->pci_mmio, obj, "pci-mmio", UINT64_MAX);
+    memory_region_init_io(&s->pci_io, obj, &unassigned_io_ops, obj,
                             "pci-isa-mmio",
                             ((uint32_t) IOS_DIST_BASE_SIZE) / ROPES_PER_IOC);
 
@@ -453,18 +460,14 @@ static void elroy_pcihost_init(Object *obj)
 
     sysbus_init_mmio(sbd, &s->this_mem);
 
-    qdev_init_gpio_in(DEVICE(obj), elroy_set_irq, ELROY_IRQS);
+    qdev_init_gpio_in(dev, elroy_set_irq, ELROY_IRQS);
 }
-
-static Property elroy_pcihost_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static const VMStateDescription vmstate_elroy = {
     .name = "Elroy",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(hpa, ElroyState),
         VMSTATE_UINT32(pci_bus_num, ElroyState),
         VMSTATE_UINT64(config_address, ElroyState),
@@ -480,12 +483,12 @@ static const VMStateDescription vmstate_elroy = {
     }
 };
 
-static void elroy_pcihost_class_init(ObjectClass *klass, void *data)
+static void elroy_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = elroy_reset;
-    device_class_set_props(dc, elroy_pcihost_properties);
+    device_class_set_legacy_reset(dc, elroy_reset);
+    dc->realize = elroy_pcihost_realize;
     dc->vmsd = &vmstate_elroy;
     dc->user_creatable = false;
 }
@@ -493,7 +496,6 @@ static void elroy_pcihost_class_init(ObjectClass *klass, void *data)
 static const TypeInfo elroy_pcihost_info = {
     .name          = TYPE_ELROY_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_init = elroy_pcihost_init,
     .instance_size = sizeof(ElroyState),
     .class_init    = elroy_pcihost_class_init,
 };
@@ -520,6 +522,53 @@ static ElroyState *elroy_init(int num)
 /*
  * Astro Runway chip.
  */
+
+static void adjust_LMMIO_DIRECT_mapping(AstroState *s, unsigned int reg_index)
+{
+    MemoryRegion *lmmio_alias;
+    unsigned int lmmio_index, map_route;
+    hwaddr map_addr;
+    uint32_t map_size;
+    struct ElroyState *elroy;
+
+    /* pointer to LMMIO_DIRECT entry */
+    lmmio_index = reg_index / 3;
+    lmmio_alias = &s->lmmio_direct[lmmio_index];
+
+    map_addr  = s->ioc_ranges[3 * lmmio_index + 0];
+    map_size  = s->ioc_ranges[3 * lmmio_index + 1];
+    map_route = s->ioc_ranges[3 * lmmio_index + 2];
+
+    /* find elroy to which this address is routed */
+    map_route &= (ELROY_NUM - 1);
+    elroy = s->elroy[map_route];
+
+    if (lmmio_alias->enabled) {
+        memory_region_set_enabled(lmmio_alias, false);
+    }
+
+    map_addr = F_EXTEND(map_addr);
+    map_addr &= TARGET_PAGE_MASK;
+    map_size = (~map_size) + 1;
+    map_size &= TARGET_PAGE_MASK;
+
+    /* exit if disabled or zero map size */
+    if (!(map_addr & 1) || !map_size) {
+        return;
+    }
+
+    if (!memory_region_size(lmmio_alias)) {
+        memory_region_init_alias(lmmio_alias, OBJECT(elroy),
+                        "pci-lmmmio-alias", &elroy->pci_mmio,
+                        (uint32_t) map_addr, map_size);
+        memory_region_add_subregion(get_system_memory(), map_addr,
+                                 lmmio_alias);
+    } else {
+        memory_region_set_alias_offset(lmmio_alias, map_addr);
+        memory_region_set_size(lmmio_alias, map_size);
+        memory_region_set_enabled(lmmio_alias, true);
+    }
+}
 
 static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
                                              uint64_t *data, unsigned size,
@@ -594,8 +643,8 @@ static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
 #undef EMPTY_PORT
 
     default:
-        trace_astro_chip_read(addr, size, val);
-        g_assert_not_reached();
+        val = 0;
+        ret = MEMTX_DECODE_ERROR;
     }
 
     /* for 32-bit accesses mask return value */
@@ -610,6 +659,7 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
                                               uint64_t val, unsigned size,
                                               MemTxAttrs attrs)
 {
+    MemTxResult ret = MEMTX_OK;
     AstroState *s = opaque;
 
     trace_astro_chip_write(addr, size, val);
@@ -627,6 +677,11 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
         break;
     case 0x0300 ... 0x03d8 - 1: /* LMMIO_DIRECT0_BASE... */
         put_val_in_arrary(s->ioc_ranges, 0x300, addr, size, val);
+        unsigned int index = (addr - 0x300) / 8;
+        /* check if one of the 4 LMMIO_DIRECT regs, each using 3 entries. */
+        if (index < LMMIO_DIRECT_RANGES * 3) {
+            adjust_LMMIO_DIRECT_mapping(s, index);
+        }
         break;
     case 0x10200:
     case 0x10220:
@@ -686,11 +741,9 @@ static MemTxResult astro_chip_write_with_attrs(void *opaque, hwaddr addr,
 #undef EMPTY_PORT
 
     default:
-        /* Controlled by astro_chip_mem_valid above.  */
-        trace_astro_chip_write(addr, size, val);
-        g_assert_not_reached();
+        ret = MEMTX_DECODE_ERROR;
     }
-    return MEMTX_OK;
+    return ret;
 }
 
 static const MemoryRegionOps astro_chip_ops = {
@@ -711,7 +764,7 @@ static const VMStateDescription vmstate_astro = {
     .name = "Astro",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT64(ioc_ctrl, AstroState),
         VMSTATE_UINT64(ioc_status_ctrl, AstroState),
         VMSTATE_UINT64_ARRAY(ioc_ranges, AstroState, (0x03d8 - 0x300) / 8),
@@ -857,11 +910,11 @@ static void astro_realize(DeviceState *obj, Error **errp)
     }
 }
 
-static void astro_class_init(ObjectClass *klass, void *data)
+static void astro_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = astro_reset;
+    device_class_set_legacy_reset(dc, astro_reset);
     dc->vmsd = &vmstate_astro;
     dc->realize = astro_realize;
     /*
@@ -880,7 +933,7 @@ static const TypeInfo astro_chip_info = {
 };
 
 static void astro_iommu_memory_region_class_init(ObjectClass *klass,
-                                                   void *data)
+                                                 const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

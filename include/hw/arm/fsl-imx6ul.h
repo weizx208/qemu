@@ -33,7 +33,7 @@
 #include "hw/net/imx_fec.h"
 #include "hw/usb/chipidea.h"
 #include "hw/usb/imx-usb-phy.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "cpu.h"
 #include "qom/object.h"
 #include "qemu/units.h"
@@ -182,6 +182,8 @@ enum FslIMX6ULMemoryMap {
     FSL_IMX6UL_ENET1_ADDR           = 0x02188000,
 
     FSL_IMX6UL_USBO2_USBMISC_ADDR   = 0x02184800,
+    FSL_IMX6UL_USBO2_USBMISC_SIZE   = 0x200,
+
     FSL_IMX6UL_USBO2_USB1_ADDR      = 0x02184000,
     FSL_IMX6UL_USBO2_USB2_ADDR      = 0x02184200,
 

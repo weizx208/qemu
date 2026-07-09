@@ -8,12 +8,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
+#include "chardev/char.h"
 
 #include "hw/remote-port.h"
 
@@ -73,7 +72,7 @@ static void rp_pci_init(Object *obj)
     object_unref(OBJECT(s->rp));
 }
 
-static Property rp_properties[] = {
+static const Property rp_properties[] = {
     DEFINE_PROP_UINT32("vendor-id", RemotePortPCIAdaptor, cfg.vendor_id,
                        PCI_VENDOR_ID_XILINX),
     DEFINE_PROP_UINT32("device-id", RemotePortPCIAdaptor, cfg.device_id, 0),
@@ -82,10 +81,9 @@ static Property rp_properties[] = {
                        PCI_CLASS_NETWORK_ETHERNET),
     DEFINE_PROP_UINT8("prog-if", RemotePortPCIAdaptor, cfg.prog_if, 1),
     DEFINE_PROP_STRING("chardev", RemotePortPCIAdaptor, cfg.chardev_id),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void rp_pci_class_init(ObjectClass *oc, void *data)
+static void rp_pci_class_init(ObjectClass *oc, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -98,7 +96,6 @@ static void rp_pci_class_init(ObjectClass *oc, void *data)
     k->device_id = 0;
     k->revision = 0;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo rp_info = {

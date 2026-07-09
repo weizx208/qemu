@@ -1196,11 +1196,11 @@ static const VMStateDescription vmstate_ddrc = {
     }
 };
 
-static void ddrc_class_init(ObjectClass *klass, void *data)
+static void ddrc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ddrc_reset;
+    device_class_set_legacy_reset(dc, ddrc_reset);
     dc->vmsd = &vmstate_ddrc;
 }
 

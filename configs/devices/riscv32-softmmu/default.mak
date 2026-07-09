@@ -1,17 +1,15 @@
 # Default configuration for riscv32-softmmu
 
 # Uncomment the following lines to disable these optional devices:
-#
-#CONFIG_PCI_DEVICES=n
-CONFIG_SEMIHOSTING=y
-CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
+# CONFIG_PCI_DEVICES=n
+# CONFIG_TEST_DEVICES=n
 
-# Boards:
-#
-CONFIG_SPIKE=y
-CONFIG_SIFIVE_E=y
-CONFIG_SIFIVE_U=y
-CONFIG_RISCV_VIRT=y
+# Boards are selected by default, uncomment to keep out of the build.
+# CONFIG_SPIKE=n
+# CONFIG_SIFIVE_E=n
+# CONFIG_SIFIVE_U=n
+# CONFIG_RISCV_VIRT=n
+# CONFIG_OPENTITAN=n
 
 # Xilinx
 CONFIG_XILINX=y
@@ -24,8 +22,9 @@ CONFIG_PTIMER=y
 CONFIG_CADENCE=y
 CONFIG_SI57X=y
 CONFIG_REMOTE_PORT=y
+CONFIG_SPLIT_IRQ=y
+CONFIG_OR_IRQ=y
 
-CONFIG_OPENTITAN=y
 CONFIG_I3C=y
 CONFIG_CADENCE=y
 CONFIG_XILINX_IOMODULE_UART=y

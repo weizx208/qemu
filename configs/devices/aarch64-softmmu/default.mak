@@ -8,6 +8,8 @@ include ../arm-softmmu/default.mak
 # CONFIG_XLNX_ZYNQMP_ARM=n
 # CONFIG_XLNX_VERSAL=n
 # CONFIG_SBSA_REF=n
+# CONFIG_NPCM8XX=n
+CONFIG_VMAPPLE=n
 
 # Xilinx
 CONFIG_XLNX_VERSAL_ARM=y

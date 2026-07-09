@@ -25,7 +25,7 @@
 #define XLNX_VERSAL_PUFHD_H
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/nvram/xlnx-efuse.h"
 #include "hw/zynqmp_aes_key.h"
 

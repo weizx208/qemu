@@ -18,8 +18,8 @@
 #include "qemu/osdep.h"
 #include <spice.h>
 
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/runstate.h"
 #include "ui/qemu-spice.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -42,7 +42,7 @@
 /* core bits */
 
 static SpiceServer *spice_server;
-static Notifier migration_state;
+static NotifierWithReturn migration_state;
 static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
@@ -50,11 +50,11 @@ static int spice_migration_completed;
 static int spice_display_is_running;
 static int spice_have_target_host;
 
-static QemuThread me;
-
 struct SpiceTimer {
     QEMUTimer *timer;
 };
+
+#define DEFAULT_MAX_REFRESH_RATE 30
 
 static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 {
@@ -126,11 +126,13 @@ static void watch_update_mask(SpiceWatch *watch, int event_mask)
 static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *opaque)
 {
     SpiceWatch *watch;
-
 #ifdef WIN32
+    g_autofree char *msg = NULL;
+
     fd = _open_osfhandle(fd, _O_BINARY);
     if (fd < 0) {
-        error_setg_win32(&error_warn, WSAGetLastError(), "Couldn't associate a FD with the SOCKET");
+        msg = g_win32_error_message(WSAGetLastError());
+        warn_report("Couldn't associate a FD with the SOCKET: %s", msg);
         return NULL;
     }
 #endif
@@ -217,12 +219,12 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      * not do that.  It isn't that easy to fix it in spice and even
      * when it is fixed we still should cover the already released
      * spice versions.  So detect that we've been called from another
-     * thread and grab the iothread lock if so before calling qemu
+     * thread and grab the BQL if so before calling qemu
      * functions.
      */
-    bool need_lock = !qemu_thread_is_self(&me);
+    bool need_lock = !bql_locked();
     if (need_lock) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
 
     if (info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
@@ -260,7 +262,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     }
 
     if (need_lock) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     qapi_free_SpiceServerInfo(server);
@@ -489,6 +491,12 @@ static QemuOptsList qemu_spice_opts = {
             .name = "streaming-video",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "video-codec",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "max-refresh-rate",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "agent-mouse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -568,24 +576,23 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
     return info;
 }
 
-static void migration_state_notifier(Notifier *notifier, void *data)
+static int migration_state_notifier(NotifierWithReturn *notifier,
+                                    MigrationEvent *e, Error **errp)
 {
-    MigrationState *s = data;
-
     if (!spice_have_target_host) {
-        return;
+        return 0;
     }
 
-    if (migration_in_setup(s)) {
+    if (e->type == MIG_EVENT_PRECOPY_SETUP) {
         spice_server_migrate_start(spice_server);
-    } else if (migration_has_finished(s) ||
-               migration_in_postcopy_after_devices(s)) {
+    } else if (e->type == MIG_EVENT_PRECOPY_DONE) {
         spice_server_migrate_end(spice_server, true);
         spice_have_target_host = false;
-    } else if (migration_has_failed(s)) {
+    } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
         spice_server_migrate_end(spice_server, false);
         spice_have_target_host = false;
     }
+    return 0;
 }
 
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
@@ -667,8 +674,6 @@ static void qemu_spice_init(void)
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
     bool seamless_migration;
-
-    qemu_thread_get_self(&me);
 
     if (!opts) {
         return;
@@ -802,6 +807,13 @@ static void qemu_spice_init(void)
         spice_server_set_streaming_video(spice_server, SPICE_STREAM_VIDEO_OFF);
     }
 
+    spice_max_refresh_rate = qemu_opt_get_number(opts, "max-refresh-rate",
+                                                 DEFAULT_MAX_REFRESH_RATE);
+    if (spice_max_refresh_rate <= 0) {
+        error_report("max refresh rate/fps is invalid");
+        exit(1);
+    }
+
     spice_server_set_agent_mouse
         (spice_server, qemu_opt_get_bool(opts, "agent-mouse", 1));
     spice_server_set_playback_compression
@@ -837,11 +849,28 @@ static void qemu_spice_init(void)
 #ifdef HAVE_SPICE_GL
     if (qemu_opt_get_bool(opts, "gl", 0)) {
         if ((port != 0) || (tls_port != 0)) {
+#if SPICE_SERVER_VERSION >= 0x000f03 /* release 0.15.3 */
+            const char *video_codec = NULL;
+            g_autofree char *enc_codec = NULL;
+
+            spice_remote_client = 1;
+
+            video_codec = qemu_opt_get(opts, "video-codec");
+            if (video_codec) {
+                enc_codec = g_strconcat("gstreamer:", video_codec, NULL);
+            }
+            if (spice_server_set_video_codecs(spice_server,
+                                              enc_codec ?: "gstreamer:h264")) {
+                error_report("invalid video codec");
+                exit(1);
+            }
+#else
             error_report("SPICE GL support is local-only for now and "
                          "incompatible with -spice port/tls-port");
             exit(1);
+#endif
         }
-        egl_init(qemu_opt_get(opts, "rendernode"), DISPLAYGL_MODE_ON, &error_fatal);
+        egl_init(qemu_opt_get(opts, "rendernode"), DISPLAY_GL_MODE_ON, &error_fatal);
         spice_opengl = 1;
     }
 #endif

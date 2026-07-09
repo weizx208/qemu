@@ -8,8 +8,9 @@ generated from in-code annotations to function prototypes.
    :maxdepth: 2
 
    bitops
-   loads-stores
    iomem-cache
+   loads-stores
+   lockcnt
    memory
    modules
    pci

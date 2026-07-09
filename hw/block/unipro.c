@@ -218,7 +218,7 @@ static void uniproMphy_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static void uniproMphy_class_init(ObjectClass *klass, void *data)
+static void uniproMphy_class_init(ObjectClass *klass, const void *data)
 {
     ufshcIFClass *uc = UFSHC_IF_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

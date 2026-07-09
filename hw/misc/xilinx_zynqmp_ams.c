@@ -555,11 +555,11 @@ static const VMStateDescription vmstate_ams = {
     }
 };
 
-static void ams_class_init(ObjectClass *klass, void *data)
+static void ams_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ams_reset;
+    device_class_set_legacy_reset(dc, ams_reset);
     dc->realize = ams_realize;
     dc->vmsd = &vmstate_ams;
 }

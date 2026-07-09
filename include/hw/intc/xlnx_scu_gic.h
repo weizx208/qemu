@@ -27,7 +27,7 @@
 
 #include "arm_gic.h"
 
-#define TYPE_XLNX_SCU_GIC "xlnx,zynqmp-scugic"
+#define TYPE_XLNX_SCU_GIC "xlnx-zynqmp-scugic"
 
 #define XLNX_SCU_GIC(obj) \
      OBJECT_CHECK(XlnxSCUGICState, (obj), TYPE_XLNX_SCU_GIC)

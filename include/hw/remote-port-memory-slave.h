@@ -14,9 +14,7 @@
 #include "hw/remote-port-ats.h"
 
 #define TYPE_REMOTE_PORT_MEMORY_SLAVE "remote-port-memory-slave"
-#define REMOTE_PORT_MEMORY_SLAVE(obj) \
-        OBJECT_CHECK(RemotePortMemorySlave, (obj), \
-                     TYPE_REMOTE_PORT_MEMORY_SLAVE)
+OBJECT_DECLARE_SIMPLE_TYPE(RemotePortMemorySlave, REMOTE_PORT_MEMORY_SLAVE)
 
 typedef struct RemotePortMemorySlave {
     /* private */

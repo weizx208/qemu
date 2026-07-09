@@ -213,11 +213,11 @@ static const VMStateDescription vmstate_afi_fm = {
     }
 };
 
-static void afi_fm_class_init(ObjectClass *klass, void *data)
+static void afi_fm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = afi_fm_reset;
+    device_class_set_legacy_reset(dc, afi_fm_reset);
     dc->vmsd = &vmstate_afi_fm;
 }
 

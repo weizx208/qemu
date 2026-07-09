@@ -589,7 +589,7 @@ static void psx_rpu_cluster_reset_enter(Object *obj, ResetType type)
                               R_CLUSTER_AXIS_TCM_BASE_MASK;
 }
 
-static void psx_rpu_cluster_reset_hold(Object *obj)
+static void psx_rpu_cluster_reset_hold(Object *obj, ResetType type)
 {
     PSX_RPU_CLUSTER *s = XILINX_PSX_RPU_CLUSTER(obj);
 
@@ -647,13 +647,12 @@ static const VMStateDescription vmstate_psx_rpu_cluster = {
     }
 };
 
-static Property psx_rpu_cluster_prop[] = {
+static const Property psx_rpu_cluster_prop[] = {
     DEFINE_PROP_UINT32("axis-base", PSX_RPU_CLUSTER, axis_base,
                        0xFF000000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void psx_rpu_cluster_class_init(ObjectClass *klass, void *data)
+static void psx_rpu_cluster_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

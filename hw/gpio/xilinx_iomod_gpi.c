@@ -65,7 +65,7 @@ typedef struct XilinxGPI {
     const char *prefix;
 } XilinxGPI;
 
-static Property xlx_iom_properties[] = {
+static const Property xlx_iom_properties[] = {
     DEFINE_PROP_BOOL("use-gpi", XilinxGPI, cfg.use, 0),
     DEFINE_PROP_BOOL("gpi-interrupt", XilinxGPI, cfg.interrupt, 0),
     DEFINE_PROP_UINT32("gpi-size", XilinxGPI, cfg.size, 0),
@@ -77,7 +77,6 @@ static Property xlx_iom_properties[] = {
      * of the CPUs can be missed by the PSM if it is lowered to quickly.
      */
     DEFINE_PROP_UINT32("gpi-sample-mask", XilinxGPI, cfg.sample_mask, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void update_irq(XilinxGPI *s)
@@ -252,12 +251,12 @@ static const FDTGenericGPIOSet gpio_client_sets[] = {
     { },
 };
 
-static void xlx_iom_class_init(ObjectClass *klass, void *data)
+static void xlx_iom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = iom_gpi_reset;
+    device_class_set_legacy_reset(dc, iom_gpi_reset);
     dc->realize = xlx_iom_realize;
     device_class_set_props(dc, xlx_iom_properties);
     dc->vmsd = &vmstate_xlx_iom;

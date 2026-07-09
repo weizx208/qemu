@@ -652,11 +652,11 @@ static const VMStateDescription vmstate_cmt_mmcm = {
     }
 };
 
-static void cmt_mmcm_class_init(ObjectClass *klass, void *data)
+static void cmt_mmcm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cmt_mmcm_reset;
+    device_class_set_legacy_reset(dc, cmt_mmcm_reset);
     dc->realize = cmt_mmcm_realize;
     dc->vmsd = &vmstate_cmt_mmcm;
 }

@@ -113,12 +113,11 @@ static void gpio_mr_mux_init(Object *obj)
     }
 }
 
-static Property gpio_mr_mux_properties[] = {
+static const Property gpio_mr_mux_properties[] = {
     DEFINE_PROP_UINT64("mr-size", GpioMrMux, cfg.mr_size, UINT64_MAX),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void gpio_mr_mux_class_init(ObjectClass *klass, void *data)
+static void gpio_mr_mux_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

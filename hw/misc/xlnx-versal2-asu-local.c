@@ -150,7 +150,7 @@ static void asu_local_reg_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void asu_local_reg_reset_hold(Object *obj)
+static void asu_local_reg_reset_hold(Object *obj, ResetType type)
 {
     ASU_LOCAL_REG *s = XILINX_ASU_LOCAL_REG(obj);
 
@@ -204,7 +204,7 @@ static const VMStateDescription vmstate_asu_local_reg = {
     }
 };
 
-static void asu_local_reg_class_init(ObjectClass *klass, void *data)
+static void asu_local_reg_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

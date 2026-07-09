@@ -29,7 +29,7 @@
 #include "hw/sysbus.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "qapi/error.h"
@@ -40,7 +40,7 @@
 #include "hw/fdt_generic_util.h"
 #include "hw/misc/xlnx-xppu.h"
 
-#define TYPE_XILINX_XPPU "xlnx,versal-xppu"
+#define TYPE_XILINX_XPPU "xlnx-versal-xppu"
 
 #define XILINX_XPPU(obj) \
      OBJECT_CHECK(XPPU, (obj), TYPE_XILINX_XPPU)
@@ -466,14 +466,13 @@ static const MemoryRegionOps xppu_ap_ops = {
 static XPPU *xppu_from_mr(void *mr_accessor)
 {
     RegisterInfoArray *reg_array = mr_accessor;
-    Object *obj;
+    DeviceState *dev;
 
     assert(reg_array != NULL);
 
-    obj = reg_array->mem.owner;
-    assert(obj);
+    dev = register_array_get_owner(reg_array);
 
-    return XILINX_XPPU(obj);
+    return XILINX_XPPU(dev);
 }
 
 static MemTxResult xppu_read(void *opaque, hwaddr addr, uint64_t *val,
@@ -587,13 +586,12 @@ static const VMStateDescription vmstate_xppu = {
     }
 };
 
-static Property xppu_properties[] = {
+static const Property xppu_properties[] = {
     /*
      * This property is deprecated. Apertures configuration is now done using
      * the reg property.
      */
     DEFINE_PROP_UINT8("region", XPPU, region, XPPU_REGION_PARAM_BASED),
-
     DEFINE_PROP_UINT32("master-id00-reset-val", XPPU,
                        master_id_reset_val[0], 0),
     DEFINE_PROP_UINT32("master-id01-reset-val", XPPU,
@@ -634,15 +632,14 @@ static Property xppu_properties[] = {
                        master_id_reset_val[18], 0),
     DEFINE_PROP_UINT32("master-id19-reset-val", XPPU,
                        master_id_reset_val[19], 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void xppu_class_init(ObjectClass *klass, void *data)
+static void xppu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
-    dc->reset = xppu_reset;
+    device_class_set_legacy_reset(dc, xppu_reset);
     device_class_set_props(dc, xppu_properties);
     dc->realize = xppu_realize;
     dc->vmsd = &vmstate_xppu;

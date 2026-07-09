@@ -187,7 +187,7 @@ static const VMStateDescription vmstate_asu_global_pmc = {
     }
 };
 
-static void asu_global_pmc_class_init(ObjectClass *klass, void *data)
+static void asu_global_pmc_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

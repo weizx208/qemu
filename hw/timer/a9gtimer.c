@@ -32,8 +32,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
-
-#include "hw/fdt_generic_devices.h"
+#include "system/qtest.h"
 
 #ifndef A9_GTIMER_ERR_DEBUG
 #define A9_GTIMER_ERR_DEBUG 0
@@ -50,6 +49,10 @@
 
 static inline int a9_gtimer_get_current_cpu(A9GTimerState *s)
 {
+    if (qtest_enabled()) {
+        return 0;
+    }
+
     if (current_cpu->cpu_index >= s->num_cpu) {
         hw_error("a9gtimer: num-cpu %d but this cpu is %d!\n",
                  s->num_cpu, current_cpu->cpu_index);
@@ -299,9 +302,6 @@ static void a9_gtimer_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
-    if (!s->num_cpu) {
-        s->num_cpu = fdt_generic_num_cpus;
-    }
     if (s->num_cpu < 1 || s->num_cpu > A9_GTIMER_MAX_CPUS) {
         error_setg(errp, "%s: num-cpu must be between 1 and %d",
                    __func__, A9_GTIMER_MAX_CPUS);
@@ -334,7 +334,7 @@ static const VMStateDescription vmstate_a9_gtimer_per_cpu = {
     .name = "arm.cortex-a9-global-timer.percpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, A9GTimerPerCPU),
         VMSTATE_UINT64(compare, A9GTimerPerCPU),
         VMSTATE_UINT32(status, A9GTimerPerCPU),
@@ -348,7 +348,7 @@ static const VMStateDescription vmstate_a9_gtimer_control = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_a9_gtimer_control_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, A9GTimerState),
         VMSTATE_END_OF_LIST()
     }
@@ -358,7 +358,7 @@ static const VMStateDescription vmstate_a9_gtimer = {
     .name = "arm.cortex-a9-global-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_TIMER_PTR(timer, A9GTimerState),
         VMSTATE_UINT64(counter, A9GTimerState),
         VMSTATE_UINT64(ref_counter, A9GTimerState),
@@ -368,25 +368,24 @@ static const VMStateDescription vmstate_a9_gtimer = {
                                      A9GTimerPerCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_a9_gtimer_control,
         NULL
     }
 };
 
-static Property a9_gtimer_properties[] = {
+static const Property a9_gtimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9GTimerState, num_cpu, 0),
     DEFINE_PROP_UINT32("clock-frequency", A9GTimerState, freq_hz, 100000000),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void a9_gtimer_class_init(ObjectClass *klass, void *data)
+static void a9_gtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = a9_gtimer_realize;
     dc->vmsd = &vmstate_a9_gtimer;
-    dc->reset = a9_gtimer_reset;
+    device_class_set_legacy_reset(dc, a9_gtimer_reset);
     device_class_set_props(dc, a9_gtimer_properties);
 }
 

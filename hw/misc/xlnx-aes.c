@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/misc/xlnx-aes.h"
+#include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "qemu/cutils.h"
@@ -476,11 +477,11 @@ static void xlnx_aes_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in_named(dev, reset_handler, "reset", 1);
 }
 
-static void xlnx_aes_class_init(ObjectClass *klass, void *data)
+static void xlnx_aes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xlnx_aes_reset;
+    device_class_set_legacy_reset(dc, xlnx_aes_reset);
     dc->realize = xlnx_aes_realize;
 }
 

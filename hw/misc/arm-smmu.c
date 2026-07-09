@@ -28,11 +28,12 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
@@ -2110,8 +2111,6 @@ static int smmu_populate_regarray(SMMU *s,
         int index = rae[i].addr / 4;
         RegisterInfo *r = &s->regs_info[index];
 
-        object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);
-
         *r = (RegisterInfo) {
             .data = &s->regs[index],
             .data_size = sizeof(uint32_t),
@@ -2208,7 +2207,10 @@ static RegisterInfoArray *smmu_create_regarray(SMMU *s)
     num_regs += s->cfg.num_smr * 2;
     num_regs += s->cfg.num_cb * NUM_REGS_PER_CB;
 
-    r_array = g_new0(RegisterInfoArray, 1);
+    r_array = REGISTER_ARRAY(object_new(TYPE_REGISTER_ARRAY));
+    object_property_add_child(OBJECT(s), "reg-array[*]", OBJECT(r_array));
+    object_unref(OBJECT(r_array));
+
     r_array->r = g_new0(RegisterInfo *, num_regs);
     r_array->num_elements = num_regs;
     r_array->debug = XILINX_SMMU500_ERR_DEBUG;
@@ -2300,11 +2302,7 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
 {
     SMMU *s = XILINX_SMMU500(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ObjectClass *klass = object_class_by_name(TYPE_XILINX_SMMU500);
-    FDTGenericMMapClass *parent_fmc;
     unsigned int i;
-
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
 
     for (i = 0; i < (reg.n - 1); i++) {
         char *name = g_strdup_printf("smmu-tbu%d", i);
@@ -2321,17 +2319,16 @@ static bool smmu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
 
     s->num_tbu = reg.n - 1;
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
-static Property smmu_properties[] = {
+static const Property smmu_properties[] = {
     DEFINE_PROP_UINT32("pamax", SMMU, cfg.pamax, 48),
     DEFINE_PROP_UINT16("num-smr", SMMU, cfg.num_smr, 48),
     DEFINE_PROP_UINT16("num-cb", SMMU, cfg.num_cb, 16),
     DEFINE_PROP_UINT16("num-pages", SMMU, cfg.num_pages, 16),
     DEFINE_PROP_BOOL("ato", SMMU, cfg.ato, true),
     DEFINE_PROP_UINT8("version", SMMU, cfg.version, 0x21),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_smmu500 = {
@@ -2344,12 +2341,12 @@ static const VMStateDescription vmstate_smmu500 = {
     }
 };
 
-static void smmu500_class_init(ObjectClass *klass, void *data)
+static void smmu500_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
-    dc->reset = smmu500_reset;
+    device_class_set_legacy_reset(dc, smmu500_reset);
     dc->realize = smmu500_realize;
     dc->vmsd = &vmstate_smmu500;
     device_class_set_props(dc, smmu_properties);
@@ -2357,7 +2354,7 @@ static void smmu500_class_init(ObjectClass *klass, void *data)
 }
 
 static void smmu500_iommu_memory_region_class_init(ObjectClass *klass,
-                                                   void *data)
+                                                   const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

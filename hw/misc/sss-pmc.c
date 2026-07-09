@@ -18,7 +18,7 @@
 #define PMC_SSS(obj) \
      OBJECT_CHECK(PMCSSS, (obj), TYPE_PMC_SSS_BASE)
 
-#define TYPE_PMC_SSS "versal,pmc-sss"
+#define TYPE_PMC_SSS "versal-pmc-sss"
 
 #include "sss-asu.h"
 #define TYPE_ASU_SSS "asu-sss"
@@ -240,11 +240,11 @@ static const VMStateDescription vmstate_pmc_sss = {
     }
 };
 
-static void pmc_sss_class_init(ObjectClass *klass, void *data)
+static void pmc_sss_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = sss_reset;
+    device_class_set_legacy_reset(dc, sss_reset);
     dc->realize = pmc_sss_realize;
     dc->vmsd = &vmstate_pmc_sss;
 }

@@ -595,13 +595,13 @@ static const VMStateDescription vmstate_asu_sha2 = {
     }
 };
 
-static void asu_sha2_class_init(ObjectClass *klass, void *data)
+static void asu_sha2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 
     dc->vmsd = &vmstate_asu_sha2;
-    dc->reset = asu_sha2_reset;
+    device_class_set_legacy_reset(dc, asu_sha2_reset);
 
     ssc->push = asu_sha2_stream_push;
     ssc->can_push = asu_sha2_stream_can_push;

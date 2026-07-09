@@ -276,13 +276,12 @@ static int si57x_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static Property si57x_properties[] = {
+static const Property si57x_properties[] = {
     DEFINE_PROP_UINT16("temperature-stability", Si57xState, temp_stab,
                        TEMP_STAB_50PPM),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void si57x_class_init(ObjectClass *klass, void *data)
+static void si57x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
@@ -291,7 +290,7 @@ static void si57x_class_init(ObjectClass *klass, void *data)
     k->recv = si57x_rx;
     k->send = si57x_tx;
     device_class_set_props(dc, si57x_properties);
-    dc->reset = si57x_reset;
+    device_class_set_legacy_reset(dc, si57x_reset);
 }
 
 static const TypeInfo si57x_info = {

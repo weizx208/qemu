@@ -31,7 +31,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
-#define TYPE_PMC_STREAM_ZERO "xlnx,pmc-stream-zero"
+#define TYPE_PMC_STREAM_ZERO "xlnx-pmc-stream-zero"
 
 #ifndef PMC_STREAM_ZERO_ERR_DEBUG
 #define PMC_STREAM_ZERO_ERR_DEBUG 0
@@ -89,11 +89,11 @@ static void pmc_stream_zero_reset(DeviceState *dev)
     s->regs[R_PRAM_ZEROIZE_SIZE] = 0;
 }
 
-static void pmc_stream_zero_class_init(ObjectClass *klass, void *data)
+static void pmc_stream_zero_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc =  DEVICE_CLASS(klass);
 
-    dc->reset = pmc_stream_zero_reset;
+    device_class_set_legacy_reset(dc, pmc_stream_zero_reset);
 }
 
 static uint64_t pmc_stream_zero_read_reg(void *opaque, hwaddr addr,

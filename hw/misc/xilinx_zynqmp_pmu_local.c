@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
@@ -952,12 +953,12 @@ static const FDTGenericGPIOSet pmu_local_controller_gpios[] = {
     { },
 };
 
-static void pmu_local_class_init(ObjectClass *klass, void *data)
+static void pmu_local_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = pmu_local_reset;
+    device_class_set_legacy_reset(dc, pmu_local_reset);
     dc->realize = pmu_local_realize;
     dc->vmsd = &vmstate_pmu_local;
     fggc->controller_gpios = pmu_local_controller_gpios;

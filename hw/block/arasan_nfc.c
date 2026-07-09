@@ -26,8 +26,8 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
+#include "system/system.h"
+#include "system/dma.h"
 #include "hw/hw.h"
 #include "hw/register.h"
 #include "hw/irq.h"
@@ -35,7 +35,7 @@
 #include "hw/block/flash.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/fifo.h"
-#include "sysemu/blockdev.h"
+#include "system/blockdev.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -847,11 +847,10 @@ static void arasan_nfc_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property arasan_nfc_properties[] = {
+static const Property arasan_nfc_properties[] = {
     DEFINE_PROP_UINT8("num-cs", ArasanNFCState, num_cs, 2),
     DEFINE_PROP_BOOL("has-mdma", ArasanNFCState, has_mdma, true),
     DEFINE_PROP_BOOL("boot-en", ArasanNFCState, boot_en, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_arasan_nfc = {
@@ -863,11 +862,11 @@ static const VMStateDescription vmstate_arasan_nfc = {
     }
 };
 
-static void arasan_nfc_class_init(ObjectClass *klass, void *data)
+static void arasan_nfc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = arasan_nfc_reset;
+    device_class_set_legacy_reset(dc, arasan_nfc_reset);
     dc->realize = arasan_nfc_realize;
     device_class_set_props(dc, arasan_nfc_properties);
     dc->vmsd = &vmstate_arasan_nfc;

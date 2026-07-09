@@ -15079,14 +15079,8 @@ static void serdes_reset(DeviceState *dev)
 static SERDES *serdes_from_mr(void *mr_accessor)
 {
     RegisterInfoArray *reg_array = mr_accessor;
-    Object *obj;
 
-    assert(reg_array != NULL);
-
-    obj = reg_array->mem.owner;
-    assert(obj);
-
-    return XILINX_SERDES(obj);
+    return XILINX_SERDES(reg_array->r[0]->opaque);
 }
 
 static uint64_t serdes_read(void *opaque, hwaddr addr, unsigned size)
@@ -15135,6 +15129,7 @@ static void serdes_init(Object *obj)
     RegisterInfoArray *reg_array;
 
     s->prefix = object_get_canonical_path(obj);
+    memory_region_init(&s->iomem, obj, TYPE_XILINX_SERDES, SERDES_R_MAX * 4);
     reg_array =
      register_init_block32(DEVICE(obj), serdes_regs_info,
                            ARRAY_SIZE(serdes_regs_info),
@@ -15142,9 +15137,9 @@ static void serdes_init(Object *obj)
                            &serdes_ops,
                            XILINX_SERDES_ERR_DEBUG,
                            SERDES_R_MAX * 4);
-    memory_region_init_io(&s->iomem, obj, &serdes_ops, s,
-                          TYPE_XILINX_SERDES, SERDES_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem, 0x0, &reg_array->mem);
+    memory_region_add_subregion(&s->iomem,
+                                0x0,
+                                &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
@@ -15158,11 +15153,11 @@ static const VMStateDescription vmstate_serdes = {
     }
 };
 
-static void serdes_class_init(ObjectClass *klass, void *data)
+static void serdes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = serdes_reset;
+    device_class_set_legacy_reset(dc, serdes_reset);
     dc->vmsd = &vmstate_serdes;
 }
 

@@ -7,14 +7,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
-#include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
+#include "hw/irq.h"
 #include "qapi/error.h"
 #include "hw/qdev-core.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
 
@@ -49,10 +44,6 @@ static void rp_gpio_handler(void *opaque, int irq, int level)
 
     trace_remote_port_gpio_tx_interrupt(id, flags, s->rp_dev, 0, irq, level);
 
-    if (s->peer->caps.wire_posted_updates && !s->posted_updates) {
-        rp_rsp_mutex_lock(s->rp);
-    }
-
     rp_write(s->rp, (void *)&pkt, len);
 
     /* If peer supports posted updates it will respect our flag and
@@ -69,7 +60,6 @@ static void rp_gpio_handler(void *opaque, int irq, int level)
             intr->hdr.dev, intr->vector, intr->line, intr->val);
 
         rp_resp_slot_done(s->rp, rsp_slot);
-        rp_rsp_mutex_unlock(s->rp);
     }
 }
 
@@ -140,13 +130,12 @@ static void rp_gpio_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property rp_properties[] = {
+static const Property rp_properties[] = {
     DEFINE_PROP_UINT32("rp-chan0", RemotePortGPIO, rp_dev, 0),
     DEFINE_PROP_UINT32("num-gpios", RemotePortGPIO, num_gpios, 16),
     DEFINE_PROP_UINT16("cell-offset-irq-num", RemotePortGPIO,
                        cell_offset_irq_num, 0),
     DEFINE_PROP_BOOL("posted-updates", RemotePortGPIO, posted_updates, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static int rp_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
@@ -166,14 +155,14 @@ static int rp_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
     return 1;
 };
 
-static void rp_gpio_class_init(ObjectClass *oc, void *data)
+static void rp_gpio_class_init(ObjectClass *oc, const void *data)
 {
     RemotePortDeviceClass *rpdc = REMOTE_PORT_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(oc);
 
     rpdc->ops[RP_CMD_interrupt] = rp_gpio_interrupt;
-    dc->reset = rp_gpio_reset;
+    device_class_set_legacy_reset(dc, rp_gpio_reset);
     dc->realize = rp_gpio_realize;
     device_class_set_props(dc, rp_properties);
     fgic->get_irq = rp_fdt_get_irq;

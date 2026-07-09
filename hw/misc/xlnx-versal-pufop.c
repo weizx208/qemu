@@ -50,7 +50,7 @@
 #define VERSAL_PUFOP_ERR_DEBUG 0
 #endif
 
-#define TYPE_VERSAL_PUFOP "xlnx,versal-puf-ctrl"
+#define TYPE_VERSAL_PUFOP "xlnx-versal-puf-ctrl"
 
 #define VERSAL_PUFOP(obj) \
      OBJECT_CHECK(Versal_PUFOP, (obj), TYPE_VERSAL_PUFOP)
@@ -465,7 +465,7 @@ static const VMStateDescription vmstate_versal_pufop = {
     }
 };
 
-static Property versal_pufop_props[] = {
+static const Property versal_pufop_props[] = {
     DEFINE_PROP_LINK("efuse",
                      Versal_PUFOP, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
@@ -474,7 +474,6 @@ static Property versal_pufop_props[] = {
                      Versal_PUFOP, puf_keysink,
                      TYPE_ZYNQMP_AES_KEY_SINK, ZynqMPAESKeySink *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const FDTGenericGPIOSet versal_pufop_gpios[] = {
@@ -488,12 +487,12 @@ static const FDTGenericGPIOSet versal_pufop_gpios[] = {
     { },
 };
 
-static void versal_pufop_class_init(ObjectClass *klass, void *data)
+static void versal_pufop_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = versal_pufop_reset;
+    device_class_set_legacy_reset(dc, versal_pufop_reset);
     dc->vmsd = &vmstate_versal_pufop;
     device_class_set_props(dc, versal_pufop_props);
 

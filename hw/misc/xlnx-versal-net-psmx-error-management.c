@@ -1744,7 +1744,7 @@ static const VMStateDescription vmstate_psmx_err_reg = {
     }
 };
 
-static void psmx_err_reg_class_init(ObjectClass *klass, void *data)
+static void psmx_err_reg_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

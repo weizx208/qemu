@@ -29,7 +29,7 @@
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
 #include "qemu/units.h"
@@ -282,10 +282,10 @@ static IOMMUTLBEntry iomem_cache_load_line(IOMemCache *s, hwaddr addr,
         l = iommem_cache_alloc_line(s, tag);
 
         for (int i = 0; (i * s->cfg.line_size) < s->cache.line_size; i++) {
-            hwaddr addr = tag + i * s->cfg.line_size;
+            hwaddr a = tag + i * s->cfg.line_size;
             void *data = l->data + i * s->cfg.line_size;
 
-            address_space_rw(&s->down_as, addr, MEMTXATTRS_UNSPECIFIED,
+            address_space_rw(&s->down_as, a, MEMTXATTRS_UNSPECIFIED,
                              data, s->cfg.line_size, is_write);
         }
 
@@ -468,10 +468,10 @@ static IOMMUTLBEntry iomem_cache_translate(IOMMUMemoryRegion *iommu,
         return ret;
     }
 
-    locked = qemu_mutex_iothread_locked();
+    locked = bql_locked();
 
     if (locked) {
-        qemu_mutex_unlock_iothread();
+        bql_unlock();
     }
 
     qemu_mutex_lock(&s->mutex);
@@ -519,7 +519,7 @@ done:
     qemu_mutex_unlock(&s->mutex);
 
     if (locked) {
-        qemu_mutex_lock_iothread();
+        bql_lock();
     }
     return ret;
 }
@@ -623,7 +623,7 @@ static void iomem_cache_realize(DeviceState *dev, Error **errp)
 }
 
 static void iomem_cache_iommu_memory_region_class_init(ObjectClass *klass,
-                                                       void *data)
+                                                       const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
@@ -673,16 +673,15 @@ static const TypeInfo iomem_cache_iommu_memory_region_info = {
     .class_init = iomem_cache_iommu_memory_region_class_init,
 };
 
-static Property iomem_cache_properties[] = {
+static const Property iomem_cache_properties[] = {
     DEFINE_PROP_UINT32("cache-size", IOMemCache, cfg.cache_size, 32 * MiB),
     DEFINE_PROP_UINT32("line-size", IOMemCache, cfg.line_size, 1024),
     DEFINE_PROP_BOOL("cache-all", IOMemCache, cfg.cache_all, true),
     DEFINE_PROP_LINK("downstream-mr", IOMemCache, down_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void iomem_class_init(ObjectClass *klass, void * data)
+static void iomem_class_init(ObjectClass *klass, const void *data)
 {
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

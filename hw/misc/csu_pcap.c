@@ -222,12 +222,12 @@ static const VMStateDescription vmstate_zynqmp_csu_pcap = {
     }
 };
 
-static void zynqmp_csu_pcap_class_init(ObjectClass *klass, void *data)
+static void zynqmp_csu_pcap_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 
-    dc->reset = zynqmp_csu_pcap_reset;
+    device_class_set_legacy_reset(dc, zynqmp_csu_pcap_reset);
     dc->vmsd = &vmstate_zynqmp_csu_pcap;
 
     ssc->push = zynqmp_csu_pcap_stream_push;

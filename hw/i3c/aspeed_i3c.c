@@ -91,7 +91,6 @@ static const uint32_t ast2600_i3c_controller_ro[ASPEED_I3C_NR_REGS] = {
     [R_I3C6_REG1]                   = 0xfff00000,
 };
 
-
 static uint64_t aspeed_i3c_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedI3CState *s = ASPEED_I3C(opaque);
@@ -221,18 +220,18 @@ static const VMStateDescription vmstate_aspeed_i3c = {
     .name = TYPE_ASPEED_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedI3CState, ASPEED_I3C_NR_REGS),
         VMSTATE_END_OF_LIST(),
     }
 };
 
-static void aspeed_i3c_class_init(ObjectClass *klass, void *data)
+static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_i3c_realize;
-    dc->reset = aspeed_i3c_reset;
+    device_class_set_legacy_reset(dc, aspeed_i3c_reset);
     dc->desc = "Aspeed I3C Controller";
     dc->vmsd = &vmstate_aspeed_i3c;
 }

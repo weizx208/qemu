@@ -22,7 +22,6 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "tcg_s390x.h"
-#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 
@@ -780,7 +779,7 @@ uint32_t HELPER(kxb)(CPUS390XState *env, Int128 a, Int128 b)
 uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float32 ret = float32_muladd(f2, f3, f1, 0, &env->fpu_status);
+    float32 ret = float32_muladd(f3, f2, f1, 0, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
 }
@@ -789,7 +788,7 @@ uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
 uint64_t HELPER(madb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float64 ret = float64_muladd(f2, f3, f1, 0, &env->fpu_status);
+    float64 ret = float64_muladd(f3, f2, f1, 0, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
 }
@@ -798,7 +797,7 @@ uint64_t HELPER(madb)(CPUS390XState *env, uint64_t f1,
 uint64_t HELPER(mseb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float32 ret = float32_muladd(f2, f3, f1, float_muladd_negate_c,
+    float32 ret = float32_muladd(f3, f2, f1, float_muladd_negate_c,
                                  &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
@@ -808,7 +807,7 @@ uint64_t HELPER(mseb)(CPUS390XState *env, uint64_t f1,
 uint64_t HELPER(msdb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float64 ret = float64_muladd(f2, f3, f1, float_muladd_negate_c,
+    float64 ret = float64_muladd(f3, f2, f1, float_muladd_negate_c,
                                  &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
@@ -897,6 +896,19 @@ static const int fpc_to_rnd[8] = {
     float_round_to_odd,
 };
 
+void cpu_s390x_load_fpc(CPUS390XState *env, uint32_t fpc)
+{
+    /*
+     * Mimic kernel fpu_lfpc_safe(): a corrupt signal frame value that would
+     * trigger a specification exception instead results in FPC being set to 0.
+     */
+    if (fpc_to_rnd[fpc & 0x7] == -1 || fpc & 0x03030088u) {
+        fpc = 0;
+    }
+    env->fpc = fpc;
+    set_float_rounding_mode(fpc_to_rnd[fpc & 0x7], &env->fpu_status);
+}
+
 /* set fpc */
 void HELPER(sfpc)(CPUS390XState *env, uint64_t fpc)
 {
@@ -904,12 +916,7 @@ void HELPER(sfpc)(CPUS390XState *env, uint64_t fpc)
         (!s390_has_feat(S390_FEAT_FLOATING_POINT_EXT) && fpc & 0x4)) {
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, GETPC());
     }
-
-    /* Install everything in the main FPC.  */
-    env->fpc = fpc;
-
-    /* Install the rounding mode in the shadow fpu_status.  */
-    set_float_rounding_mode(fpc_to_rnd[fpc & 0x7], &env->fpu_status);
+    cpu_s390x_load_fpc(env, fpc);
 }
 
 /* set fpc and signal */

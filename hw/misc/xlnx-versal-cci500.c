@@ -743,11 +743,11 @@ static const VMStateDescription vmstate_cci500 = {
     }
 };
 
-static void cci500_class_init(ObjectClass *klass, void *data)
+static void cci500_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cci500_reset;
+    device_class_set_legacy_reset(dc, cci500_reset);
     dc->realize = cci500_realize;
     dc->vmsd = &vmstate_cci500;
 }

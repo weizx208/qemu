@@ -1,14 +1,6 @@
-if not have_tools or targetos == 'windows'
+if not have_tools or host_os == 'windows'
   subdir_done()
 endif
-
-foreach cflag: qemu_ldflags
-  if cflag.startswith('-fsanitize') and \
-     not cflag.contains('safe-stack') and not cflag.contains('cfi-icall')
-    message('Sanitizers are enabled ==> Disabled the qemu-iotests.')
-    subdir_done()
-  endif
-endforeach
 
 bash = find_program('bash', required: false, version: '>= 4.0')
 if not bash.found()
@@ -21,7 +13,10 @@ qemu_iotests_env = {'PYTHON': python.full_path()}
 qemu_iotests_formats = {
   'qcow2': 'quick',
   'raw': 'slow',
+  'parallels': 'thorough',
   'qed': 'thorough',
+  'vdi': 'thorough',
+  'vhdx': 'thorough',
   'vmdk': 'thorough',
   'vpc': 'thorough'
 }

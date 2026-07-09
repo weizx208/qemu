@@ -267,11 +267,11 @@ static const VMStateDescription vmstate_npi_nir = {
     }
 };
 
-static void npi_nir_class_init(ObjectClass *klass, void *data)
+static void npi_nir_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = npi_nir_reset;
+    device_class_set_legacy_reset(dc, npi_nir_reset);
     dc->realize = npi_nir_realize;
     dc->vmsd = &vmstate_npi_nir;
 }

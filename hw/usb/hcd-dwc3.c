@@ -37,8 +37,6 @@
 #include "hw/usb/hcd-dwc3.h"
 #include "qapi/error.h"
 
-#include "hw/fdt_generic_util.h"
-
 #ifndef USB_DWC3_ERR_DEBUG
 #define USB_DWC3_ERR_DEBUG 0
 #endif
@@ -345,6 +343,8 @@ REG32(GFLADJ, 0x530)
     FIELD(GFLADJ, GFLADJ_REFCLK_FLADJ, 8, 14)
     FIELD(GFLADJ, GFLADJ_30MHZ_SDBND_SEL, 7, 1)
     FIELD(GFLADJ, GFLADJ_30MHZ, 0, 6)
+REG32(GUSB2RHBCTL, 0x540)
+    FIELD(GUSB2RHBCTL, OVRD_L1TIMEOUT, 0, 4)
 
 #define DWC3_GLOBAL_OFFSET 0xC100
 static void reset_csr(USBDWC3 * s)
@@ -562,6 +562,9 @@ static const RegisterAccessInfo usb_dwc3_regs_info[] = {
         .rsvd = 0x40,
         .ro = 0x400040,
         .unimp = 0xffffffff,
+    },{ .name = "GUSB2RHBCTL",  .addr = A_GUSB2RHBCTL,
+        .rsvd = 0xfffffff0,
+        .unimp = 0xffffffff,
     }
 };
 
@@ -660,7 +663,7 @@ static void usb_dwc3_init(Object *obj)
                              (Object **)&s->sysbus_xhci.xhci.dma_mr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->sysbus_xhci.xhci.attrs,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
@@ -668,36 +671,10 @@ static void usb_dwc3_init(Object *obj)
     s->cfg.mode = HOST_MODE;
 }
 
-static bool dwc3_parse_reg(FDTGenericMMap *obj,
-                           FDTGenericRegPropInfo reg, Error **errp)
-{
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    /* For backwards compatibility, ignore the first reg map.  */
-    if (reg.n == 2) {
-        MemoryRegion *mr_parent = (MemoryRegion *)
-                object_dynamic_cast(reg.parents[1], TYPE_MEMORY_REGION);
-        if (!mr_parent) {
-            /* evil */
-            mr_parent = get_system_memory();
-        }
-        memory_region_add_subregion_overlap(mr_parent, reg.a[1],
-                    sysbus_mmio_get_region(sbd, 0), reg.p[1]);
-    } else {
-        ObjectClass *klass = object_class_by_name(TYPE_USB_DWC3);
-        FDTGenericMMapClass *parent_fmc;
-
-        parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
-        return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
-    }
-
-    return false;
-}
-
 static const VMStateDescription vmstate_usb_dwc3 = {
     .name = "usb-dwc3",
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, USBDWC3, USB_DWC3_R_MAX),
         VMSTATE_UINT8(cfg.mode, USBDWC3),
         VMSTATE_UINT32(cfg.dwc_usb3_user, USBDWC3),
@@ -705,20 +682,16 @@ static const VMStateDescription vmstate_usb_dwc3 = {
     }
 };
 
-static Property usb_dwc3_properties[] = {
+static const Property usb_dwc3_properties[] = {
     DEFINE_PROP_UINT32("DWC_USB3_USERID", USBDWC3, cfg.dwc_usb3_user,
                        0x12345678),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void usb_dwc3_class_init(ObjectClass *klass, void *data)
+static void usb_dwc3_class_init(ObjectClass *klass, const void *data)
 {
-    FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    fmc->parse_reg = dwc3_parse_reg;
-
-    dc->reset = usb_dwc3_reset;
+    device_class_set_legacy_reset(dc, usb_dwc3_reset);
     dc->realize = usb_dwc3_realize;
     dc->vmsd = &vmstate_usb_dwc3;
     device_class_set_props(dc, usb_dwc3_properties);
@@ -730,10 +703,6 @@ static const TypeInfo usb_dwc3_info = {
     .instance_size = sizeof(USBDWC3),
     .class_init    = usb_dwc3_class_init,
     .instance_init = usb_dwc3_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_FDT_GENERIC_MMAP },
-        { },
-    },
 };
 
 static void usb_dwc3_register_types(void)

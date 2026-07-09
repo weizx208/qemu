@@ -45,7 +45,7 @@ static int dummyi2cdev_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static void dummyi2cdev_class_init(ObjectClass *klass, void *data)
+static void dummyi2cdev_class_init(ObjectClass *klass, const void *data)
 {
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 

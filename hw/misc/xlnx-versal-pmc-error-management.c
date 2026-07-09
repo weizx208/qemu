@@ -1220,9 +1220,8 @@ static void pmc_global_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property err_management_props[] = {
+static const Property err_management_props[] = {
     DEFINE_PROP_BOOL("ssit", PmcErrMngmnt, ssit, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pmc_global = {
@@ -1235,11 +1234,11 @@ static const VMStateDescription vmstate_pmc_global = {
     }
 };
 
-static void pmc_global_class_init(ObjectClass *klass, void *data)
+static void pmc_global_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pmc_global_reset;
+    device_class_set_legacy_reset(dc, pmc_global_reset);
     dc->realize = pmc_global_realize;
     dc->vmsd = &vmstate_pmc_global;
     device_class_set_props(dc, err_management_props);

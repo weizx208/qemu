@@ -219,8 +219,11 @@ Below is the list of TCG VCPU features and their descriptions.
 ``pauth-qarma3``
   When ``pauth`` is enabled, select the architected QARMA3 algorithm.
 
-Without either ``pauth-impdef`` or ``pauth-qarma3`` enabled,
-the architected QARMA5 algorithm is used.  The architected QARMA5
+``pauth-qarma5``
+  When ``pauth`` is enabled, select the architected QARMA5 algorithm.
+
+Without ``pauth-impdef``, ``pauth-qarma3`` or ``pauth-qarma5`` enabled,
+the QEMU impdef algorithm is used.  The architected QARMA5
 and QARMA3 algorithms have good cryptographic properties, but can
 be quite slow to emulate.  The impdef algorithm used by QEMU is
 non-cryptographic but significantly faster.
@@ -314,6 +317,11 @@ SVE CPU Property Parsing Semantics
      "SVE CPU Property Parsing Semantics"), then if later an ``sve=on`` is
      provided an error will be generated.  To avoid this error, one must
      enable at least one vector length prior to enabling SVE.
+
+  10) Enabling SVE (with ``sve=on`` or by default) enables all the SVE
+      sub-features that the CPU supports (for example, it may also
+      enable SVE2). There are not generally any lower-level controls
+      for disabling specific SVE sub-features.
 
 SVE CPU Property Examples
 -------------------------
@@ -426,6 +434,11 @@ At least one vector length must be enabled when ``sme`` is enabled,
 and all vector lengths must be powers of 2.  The maximum vector
 length supported by qemu is 2048 bits.  Otherwise, there are no
 additional constraints on the set of vector lengths supported by SME.
+
+As with SVE, ``sme=on`` enables all the SME sub-features the CPU
+supports (for example, it may also enable SME2), and there are
+no lower-level controls for fine-grained disabling of specific
+SME sub-features.
 
 SME User-mode Default Vector Length Property
 --------------------------------------------

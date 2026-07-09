@@ -110,10 +110,9 @@ static void xlnx_exitfn(PCIDevice *d)
     pci_bridge_exitfn(d);
 }
 
-static Property xlnx_props[] = {
+static const Property xlnx_props[] = {
     DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
                     QEMU_PCIE_SLTCAP_PCP_BITNR, true),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xlnx = {
@@ -129,7 +128,7 @@ static const VMStateDescription vmstate_xlnx = {
     }
 };
 
-static void xlnx_class_init(ObjectClass *klass, void *data)
+static void xlnx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -142,7 +141,7 @@ static void xlnx_class_init(ObjectClass *klass, void *data)
     k->revision = PCI_DEVICE_ID_REV;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Xilinx PCIe Root Port";
-    dc->reset = xlnx_reset;
+    device_class_set_legacy_reset(dc, xlnx_reset);
     dc->vmsd = &vmstate_xlnx;
     device_class_set_props(dc, xlnx_props);
 }

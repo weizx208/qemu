@@ -270,7 +270,7 @@ static void mock_target_init(Object *obj)
     timer_init_ns(&s->qtimer, QEMU_CLOCK_VIRTUAL, mock_target_timer_elapsed, s);
 }
 
-static Property remote_i3c_props[] = {
+static const Property remote_i3c_props[] = {
     /* The size of the internal buffer. */
     DEFINE_PROP_UINT32("buf-size", MockTargetState, cfg.buf_size, 0x100),
     /*
@@ -278,10 +278,9 @@ static Property remote_i3c_props[] = {
      * 1 second. Disabled if the IBI magic number is 0.
      */
     DEFINE_PROP_UINT8("ibi-magic-num", MockTargetState, cfg.ibi_magic, 0x00),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void mock_target_class_init(ObjectClass *klass, void *data)
+static void mock_target_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I3CTargetClass *k = I3C_TARGET_CLASS(klass);

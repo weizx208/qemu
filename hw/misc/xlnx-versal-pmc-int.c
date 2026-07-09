@@ -1221,11 +1221,11 @@ static const VMStateDescription vmstate_pmc_int_regs = {
     }
 };
 
-static void pmc_int_regs_class_init(ObjectClass *klass, void *data)
+static void pmc_int_regs_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pmc_int_regs_reset;
+    device_class_set_legacy_reset(dc, pmc_int_regs_reset);
     dc->realize = pmc_int_regs_realize;
     dc->vmsd = &vmstate_pmc_int_regs;
 }

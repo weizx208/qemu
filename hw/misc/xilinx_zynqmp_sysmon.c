@@ -35,7 +35,7 @@
 #define XILINX_PSSYSMON_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_PSSYSMON "xlnx,zynqmp_sysmon"
+#define TYPE_XILINX_PSSYSMON "xlnx-zynqmp_sysmon"
 
 #define XILINX_PSSYSMON(obj) \
      OBJECT_CHECK(PSSYSMON, (obj), TYPE_XILINX_PSSYSMON)
@@ -487,11 +487,11 @@ static const VMStateDescription vmstate_pssysmon = {
     }
 };
 
-static void pssysmon_class_init(ObjectClass *klass, void *data)
+static void pssysmon_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pssysmon_reset;
+    device_class_set_legacy_reset(dc, pssysmon_reset);
     dc->realize = pssysmon_realize;
     dc->vmsd = &vmstate_pssysmon;
 }

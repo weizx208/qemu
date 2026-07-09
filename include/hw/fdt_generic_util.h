@@ -1,33 +1,7 @@
 #ifndef FDT_GENERIC_UTIL_H
 #define FDT_GENERIC_UTIL_H
 
-#include "qemu/help-texts.h"
-#include "fdt_generic.h"
-#include "exec/memory.h"
 #include "qom/object.h"
-
-/* create a fdt_generic machine. the top level cpu irqs are required for
- * systems instantiating interrupt devices. The client is responsible for
- * destroying the returned FDTMachineInfo (using fdt_init_destroy_fdti)
- */
-
-FDTMachineInfo *fdt_generic_create_machine(void *fdt, qemu_irq *cpu_irq);
-
-/* get an irq for a device. The interrupt parent of a device is idenitified
- * and the specified irq (by the interrupts device-tree property) is retrieved
- */
-
-qemu_irq *fdt_get_irq(FDTMachineInfo *fdti, char *node_path, int irq_idx,
-                      bool *map_mode);
-
-/* same as above, but poulates err with non-zero if something goes wrong, and
- * populates info with a human readable string giving some basic information
- * about the interrupt connection found (or not found). Both arguments are
- * optional (i.e. can be NULL)
- */
-
-qemu_irq *fdt_get_irq_info(FDTMachineInfo *fdti, char *node_path, int irq_idx,
-                           char * info, bool *map_mode);
 
 #define TYPE_FDT_GENERIC_INTC "fdt-generic-intc"
 
@@ -91,7 +65,7 @@ typedef struct FDTGenericIntcClass {
 #define TYPE_FDT_GENERIC_MMAP "fdt-generic-mmap"
 
 #define FDT_GENERIC_MMAP_CLASS(klass) \
-     OBJECT_CLASS_CHECK(FDTGenericMMapClass, (klass), TYPE_FDT_GENERIC_MMAP)
+    OBJECT_CLASS_CHECK(FDTGenericMMapClass, (klass), TYPE_FDT_GENERIC_MMAP)
 #define FDT_GENERIC_MMAP_GET_CLASS(obj) \
     OBJECT_GET_CLASS(FDTGenericMMapClass, (obj), TYPE_FDT_GENERIC_MMAP)
 #define FDT_GENERIC_MMAP(obj) \
@@ -238,42 +212,5 @@ typedef struct FDTGenericGPIOClass {
     const FDTGenericGPIOSet *controller_gpios;
     const FDTGenericGPIOSet *client_gpios;
 } FDTGenericGPIOClass;
-
-#define TYPE_FDT_GENERIC_PROPS "fdt-generic-props"
-
-#define FDT_GENERIC_PROPS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(FDTGenericPropsClass, (klass), \
-                        TYPE_FDT_GENERIC_PROPS)
-#define FDT_GENERIC_PROPS_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(FDTGenericPropsClass, (obj), \
-                     TYPE_FDT_GENERIC_PROPS)
-
-typedef struct FDTGenericPropsClass {
-    /*< private >*/
-    InterfaceClass parent_class;
-
-    /*< public >*/
-    void (*set_props)(Object *obj, Error **errp);
-} FDTGenericPropsClass;
-
-
-#define TYPE_FDT_GENERIC_HELPER "fdt-generic-helper"
-
-#define FDT_GENERIC_HELPER_CLASS(klass) \
-    OBJECT_CLASS_CHECK(FDTGenericHelperClass, (klass), \
-                       TYPE_FDT_GENERIC_HELPER)
-#define FDT_GENERIC_HELPER_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(FDTGenericHelperClass, (obj), \
-                     TYPE_FDT_GENERIC_HELPER)
-
-typedef struct FDTGenericHelperClass {
-    /*< private >*/
-    InterfaceClass parent_class;
-
-    /*< public >*/
-
-    /* Return true if the device is ready to be realized */
-    bool (*ready_to_realize)(DeviceState *dev);
-} FDTGenericHelperClass;
 
 #endif /* FDT_GENERIC_UTIL_H */

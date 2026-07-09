@@ -197,11 +197,11 @@ static const VMStateDescription vmstate_cpm_pcsr = {
     }
 };
 
-static void cpm_pcsr_class_init(ObjectClass *klass, void *data)
+static void cpm_pcsr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cpm_pcsr_reset;
+    device_class_set_legacy_reset(dc, cpm_pcsr_reset);
     dc->realize = cpm_pcsr_realize;
     dc->vmsd = &vmstate_cpm_pcsr;
 }

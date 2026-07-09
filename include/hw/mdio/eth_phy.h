@@ -150,14 +150,12 @@ typedef struct EthPhy {
     const uint16_t *regs_readonly_mask; /* 0=writable, 1=read-only */
 
     bool link;
-
-    PhyPartInfo *part;
 } EthPhy;
 
 typedef struct EthPhyClass {
     MDIOSlaveClass parent_class;
 
-    PhyPartInfo *part;
+    const PhyPartInfo *part;
 } EthPhyClass;
 
 #endif

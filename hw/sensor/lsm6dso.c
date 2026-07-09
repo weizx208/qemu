@@ -353,12 +353,12 @@ static void lsm6dso_initfn(Object *obj)
     qdev_prop_set_uint8(DEVICE(t), "dcr", 0x44);
 }
 
-static void lsm6dso_class_init(ObjectClass *klass, void *data)
+static void lsm6dso_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I3CTargetClass *k = I3C_TARGET_CLASS(klass);
 
-    dc->reset = lsm6dso_reset;
+    device_class_set_legacy_reset(dc, lsm6dso_reset);
     k->event = lsm6dso_event;
     k->recv = lsm6dso_recv;
     k->send = lsm6dso_send;

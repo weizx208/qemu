@@ -29,10 +29,9 @@
 #include "qemu/help-texts.h"
 #include "qemu/etrace.h"
 #include "qemu/timer.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "qemu/log.h"
 
 /* Still under development.  */

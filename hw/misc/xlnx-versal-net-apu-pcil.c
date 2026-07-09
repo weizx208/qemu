@@ -2149,7 +2149,7 @@ static void apu_pcil_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void apu_pcil_reset_hold(Object *obj)
+static void apu_pcil_reset_hold(Object *obj, ResetType type)
 {
     APU_PCIL *s = XILINX_APU_PCIL(obj);
     size_t i;
@@ -2171,7 +2171,7 @@ static void apu_pcil_reset_hold(Object *obj)
     apu_pcil_imr_update_irq(s);
 }
 
-static void apu_pcil_reset_exit(Object *obj)
+static void apu_pcil_reset_exit(Object *obj, ResetType type)
 {
     APU_PCIL *s = XILINX_APU_PCIL(obj);
     size_t i;
@@ -2309,7 +2309,7 @@ static const VMStateDescription vmstate_apu_pcil = {
     }
 };
 
-static Property apu_pcil_properties[] = {
+static const Property apu_pcil_properties[] = {
     DEFINE_PROP_UINT32("cluster-mask", APU_PCIL, cluster_mask,
                        (1 << APU_PCIL_MAX_CLUSTER) - 1),
     DEFINE_PROP_UINT32("core-mask", APU_PCIL, core_mask,
@@ -2346,7 +2346,6 @@ static Property apu_pcil_properties[] = {
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
     DEFINE_PROP_LINK("core-15", APU_PCIL, core[15].pchan,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const FDTGenericGPIOSet apu_pcil_gpios[] = {
@@ -2368,7 +2367,7 @@ static const FDTGenericGPIOSet apu_pcil_gpios[] = {
     { },
 };
 
-static void apu_pcil_class_init(ObjectClass *klass, void *data)
+static void apu_pcil_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

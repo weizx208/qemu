@@ -26,10 +26,9 @@
 #include "hw/arm/linux-boot-if.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 #include "hw/fdt_generic_util.h"
-#include "hw/fdt_generic_devices.h"
 
 static int gic_pre_save(void *opaque)
 {
@@ -65,7 +64,7 @@ static const VMStateDescription vmstate_gic_irq_state = {
     .name = "arm_gic_irq_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(enabled, gic_irq_state),
         VMSTATE_UINT8(pending, gic_irq_state),
         VMSTATE_UINT8(active, gic_irq_state),
@@ -82,7 +81,7 @@ static const VMStateDescription vmstate_gic_virt_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gic_virt_state_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         /* Virtual interface */
         VMSTATE_UINT32_ARRAY(h_hcr, GICState, GIC_NCPU),
         VMSTATE_UINT32_ARRAY(h_misr, GICState, GIC_NCPU),
@@ -107,7 +106,7 @@ static const VMStateDescription vmstate_gic = {
     .minimum_version_id = 12,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(ctlr, GICState),
         VMSTATE_UINT32_SUB_ARRAY(cpu_ctlr, GICState, 0, GIC_NCPU),
         VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
@@ -125,7 +124,7 @@ static const VMStateDescription vmstate_gic = {
         VMSTATE_UINT32_2DARRAY(nsapr, GICState, GIC_NR_APRS, GIC_NCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_gic_virt_state,
         NULL
     }
@@ -201,10 +200,6 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 {
     GICState *s = ARM_GIC_COMMON(dev);
     int num_irq = s->num_irq;
-
-    if (!s->num_cpu) {
-        s->num_cpu = fdt_generic_num_cpus;
-    }
 
     if (s->num_cpu > GIC_NCPU) {
         error_setg(errp, "requested %u CPUs exceeds GIC maximum %d",
@@ -283,7 +278,7 @@ static inline void arm_gic_common_reset_irq_state(GICState *s, int cidx,
     }
 }
 
-static void arm_gic_common_reset_hold(Object *obj)
+static void arm_gic_common_reset_hold(Object *obj, ResetType type)
 {
     GICState *s = ARM_GIC_COMMON(obj);
     int i, j;
@@ -356,7 +351,7 @@ static int arm_gic_common_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
                                       Error **errp)
 {
     GICState *gs = ARM_GIC_COMMON(obj);
-    int cpu = 0;
+    int cpu = 0, match = 0;
     uint32_t idx;
 
     if (ncells != 3) {
@@ -385,23 +380,16 @@ static int arm_gic_common_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
             if (cells[2] & 1 << (cpu + 8)) {
                 *irqs = qdev_get_gpio_in(DEVICE(obj),
                                          gs->num_irq - 16 + idx + cpu * 32);
+                match++;
+                irqs++;
             }
-            irqs++;
         }
-        return cpu;
+        return match;
     default:
         error_setg(errp, "Invalid cell 0 value in interrupt binding: %d",
                    cells[0]);
         return 0;
     }
-}
-
-static void arm_gic_common_fdt_set_props(Object *obj, Error **errp)
-{
-    object_property_set_bool(obj, "has-security-extensions", true, errp);
-    object_property_set_bool(obj, "has-virtualization-extensions", true, errp);
-    object_property_set_int(obj, "num-cpu", 0, errp);
-    object_property_set_int(obj, "num-irq", 96, errp);
 }
 
 static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
@@ -421,8 +409,9 @@ static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
     }
 }
 
-static Property arm_gic_common_properties[] = {
+static const Property arm_gic_common_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", GICState, num_cpu, 1),
+    DEFINE_PROP_UINT32("first-cpu-index", GICState, first_cpu_index, 0),
     DEFINE_PROP_UINT32("num-irq", GICState, num_irq, 32),
     /* Revision can be 1 or 2 for GIC architecture specification
      * versions 1 or 2, or 0 to indicate the legacy 11MPCore GIC.
@@ -436,16 +425,14 @@ static Property arm_gic_common_properties[] = {
     /* True if the GIC should implement the virtualization extensions */
     DEFINE_PROP_BOOL("has-virtualization-extensions", GICState, virt_extn, 0),
     DEFINE_PROP_UINT32("num-priority-bits", GICState, n_prio_bits, 8),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void arm_gic_common_class_init(ObjectClass *klass, void *data)
+static void arm_gic_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
-    FDTGenericPropsClass *fprops = FDT_GENERIC_PROPS_CLASS(klass);
 
     rc->phases.hold = arm_gic_common_reset_hold;
     dc->realize = arm_gic_common_realize;
@@ -453,7 +440,6 @@ static void arm_gic_common_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_gic;
     fgic->get_irq = arm_gic_common_fdt_get_irq;
     albifc->arm_linux_init = arm_gic_common_linux_init;
-    fprops->set_props = arm_gic_common_fdt_set_props;
 }
 
 static const TypeInfo arm_gic_common_type = {
@@ -463,11 +449,10 @@ static const TypeInfo arm_gic_common_type = {
     .class_size = sizeof(ARMGICCommonClass),
     .class_init = arm_gic_common_class_init,
     .abstract = true,
-    .interfaces = (InterfaceInfo []) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_ARM_LINUX_BOOT_IF },
         { TYPE_FDT_GENERIC_INTC },
         { TYPE_FDT_GENERIC_GPIO },
-        { TYPE_FDT_GENERIC_PROPS },
         { },
     },
 };

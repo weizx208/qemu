@@ -66,10 +66,14 @@
  * function. The coroutine yields after scheduling the BH and is reentered when
  * the wrapped function returns.
  *
- * If the first parameter of the function is a BlockDriverState, BdrvChild or
- * BlockBackend pointer, the AioContext lock for it is taken in the wrapper.
+ * A no_co_wrapper_bdrv_rdlock function is a no_co_wrapper function that
+ * automatically takes the graph rdlock when calling the wrapped function. In
+ * the same way, no_co_wrapper_bdrv_wrlock functions automatically take the
+ * graph wrlock.
  */
 #define no_co_wrapper
+#define no_co_wrapper_bdrv_rdlock
+#define no_co_wrapper_bdrv_wrlock
 
 #include "block/blockjob.h"
 
@@ -211,8 +215,17 @@ typedef enum {
      */
     BDRV_REQ_NO_WAIT = 0x400,
 
+    /*
+     * Used between blk_co_start_request() and blk_end_request() to avoid
+     * that the request waits in a drained BlockBackend until the drained
+     * section ends. Waiting would cause a deadlock because drain waits for
+     * blk_end_request() to be called, but the request never completes
+     * because it waits for the drain to end.
+     */
+    BDRV_REQ_NO_QUEUE = 0x800,
+
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x7ff,
+    BDRV_REQ_MASK               = 0xfff,
 } BdrvRequestFlags;
 
 #define BDRV_O_NO_SHARE    0x0001 /* don't share permissions */
@@ -239,6 +252,8 @@ typedef enum {
                                       read-write fails */
 #define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
 
+#define BDRV_O_CBW_DISCARD_SOURCE 0x80000 /* for copy-before-write filter */
+
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
 
@@ -251,6 +266,7 @@ typedef enum {
 #define BDRV_OPT_AUTO_READ_ONLY "auto-read-only"
 #define BDRV_OPT_DISCARD        "discard"
 #define BDRV_OPT_FORCE_SHARE    "force-share"
+#define BDRV_OPT_ACTIVE         "active"
 
 
 #define BDRV_SECTOR_BITS   9
@@ -287,6 +303,8 @@ typedef enum {
  *                       layer rather than any backing, set by block layer
  * BDRV_BLOCK_EOF: the returned pnum covers through end of file for this
  *                 layer, set by block layer
+ * BDRV_BLOCK_COMPRESSED: the underlying data is compressed; only valid for
+ *                        the formats supporting compression: qcow, qcow2
  *
  * Internal flags:
  * BDRV_BLOCK_RAW: for use by passthrough drivers, such as raw, to request
@@ -322,6 +340,18 @@ typedef enum {
 #define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_EOF          0x20
 #define BDRV_BLOCK_RECURSE      0x40
+#define BDRV_BLOCK_COMPRESSED   0x80
+
+/*
+ * Block status hints: the bitwise-or of these flags emphasize what
+ * the caller hopes to learn, and some drivers may be able to give
+ * faster answers by doing less work when the hint permits.
+ */
+#define BDRV_WANT_ZERO          BDRV_BLOCK_ZERO
+#define BDRV_WANT_OFFSET_VALID  BDRV_BLOCK_OFFSET_VALID
+#define BDRV_WANT_ALLOCATED     BDRV_BLOCK_ALLOCATED
+#define BDRV_WANT_PRECISE       (BDRV_WANT_ZERO | BDRV_WANT_OFFSET_VALID | \
+                                 BDRV_WANT_OFFSET_VALID)
 
 typedef QTAILQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 
@@ -346,7 +376,6 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_CHANGE,
     BLOCK_OP_TYPE_COMMIT_SOURCE,
     BLOCK_OP_TYPE_COMMIT_TARGET,
-    BLOCK_OP_TYPE_DATAPLANE,
     BLOCK_OP_TYPE_DRIVE_DEL,
     BLOCK_OP_TYPE_EJECT,
     BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT,

@@ -170,7 +170,7 @@ static void pmx_iou_secure_slcr_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void pmx_iou_secure_slcr_reset_hold(Object *obj)
+static void pmx_iou_secure_slcr_reset_hold(Object *obj, ResetType type)
 {
     PMX_IOU_SECURE_SLCR *s = XILINX_PMX_IOU_SECURE_SLCR(obj);
 
@@ -225,7 +225,7 @@ static const VMStateDescription vmstate_pmx_iou_secure_slcr = {
     }
 };
 
-static void pmx_iou_secure_slcr_class_init(ObjectClass *klass, void *data)
+static void pmx_iou_secure_slcr_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -31,6 +31,7 @@
 #include "hw/sysbus.h"
 #include "hw/register.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -40,7 +41,7 @@
 #include "hw/qdev-properties.h"
 
 #include "hw/stream.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/zynqmp_aes_key.h"
 #include "hw/fdt_generic_util.h"
 #include "hw/misc/xlnx-aes.h"
@@ -50,8 +51,8 @@
 #define XILINX_AES_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_AES "xlnx,versal-aes"
-#define TYPE_XILINX_PMC_KEY_SINK "xlnx.pmc-key-sink"
+#define TYPE_XILINX_AES "xlnx-versal-aes"
+#define TYPE_XILINX_PMC_KEY_SINK "xlnx-pmc-key-sink"
 #define TYPE_PMXC_AES "xlnx-pmxc-aes"
 
 #define XILINX_AES(obj) \
@@ -1412,23 +1413,20 @@ static const VMStateDescription vmstate_aes = {
     }
 };
 
-static Property aes_properties[] = {
+static const Property aes_properties[] = {
     DEFINE_PROP_STRING("family-key-id", Zynq3AES, family_key_id),
     DEFINE_PROP_STRING("puf-key-id",    Zynq3AES, puf_key_id),
     DEFINE_PROP_BOOL("integrated-endianness-swap", Zynq3AES, endianness_swap,
                      false),
-    DEFINE_PROP_LINK("asu-aes", pmxc_aes, asu, TYPE_PMXC_KEY_XFER_IF,
-                     PmxcKeyXferIf *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void aes_class_init(ObjectClass *klass, void *data)
+static void aes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ZynqMPAESKeySinkClass *ksc = ZYNQMP_AES_KEY_SINK_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 
-    dc->reset = aes_reset;
+    device_class_set_legacy_reset(dc, aes_reset);
     dc->realize = aes_realize;
     dc->vmsd = &vmstate_aes;
     device_class_set_props(dc, aes_properties);
@@ -1437,16 +1435,24 @@ static void aes_class_init(ObjectClass *klass, void *data)
     ssc->push = aes_stream_push;
 }
 
-static void pmxc_aes_class_init(ObjectClass *klass, void *data)
+static const Property pmxc_aes_properties[] = {
+    DEFINE_PROP_LINK("asu-aes", pmxc_aes, asu, TYPE_PMXC_KEY_XFER_IF,
+                     PmxcKeyXferIf *),
+};
+
+static void pmxc_aes_class_init(ObjectClass *klass, const void *data)
 {
     PmxcKeyXferIfClass *ktc = PMXC_KEY_XFER_IF_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, pmxc_aes_properties);
     ktc->asu_ready = pmxc_asu_state;
 }
 
-static void pmc_key_sink_class_init(ObjectClass *klass, void *data)
+static void pmc_key_sink_class_init(ObjectClass *klass, const void *data)
 {
     ZynqMPAESKeySinkClass *c = ZYNQMP_AES_KEY_SINK_CLASS(klass);
+
     c->update = pmc_key_sink_update;
 }
 

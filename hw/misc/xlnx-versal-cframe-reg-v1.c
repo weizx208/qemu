@@ -845,7 +845,7 @@ static void cframe_reg_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void cframe_reg_reset_hold(Object *obj)
+static void cframe_reg_reset_hold(Object *obj, ResetType type)
 {
     CFRAME_REG *s = XILINX_CFRAME_REG(obj);
 
@@ -1024,7 +1024,7 @@ static const VMStateDescription vmstate_cframe_reg = {
     }
 };
 
-static Property cframe_regs_props[] = {
+static const Property cframe_regs_props[] = {
     /* Kept for backwards compatibility */
     DEFINE_PROP_LINK("cfu", CFRAME_REG, cfg.cfu_fdro,
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
@@ -1044,7 +1044,6 @@ static Property cframe_regs_props[] = {
                        cfg.blktype_num_frames[5], 0),
     DEFINE_PROP_UINT32("blktype6-frames", CFRAME_REG,
                        cfg.blktype_num_frames[6], 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void cframe_bcast_reg_init(Object *obj)
@@ -1061,7 +1060,7 @@ static void cframe_bcast_reg_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem_fdri);
 }
 
-static Property cframe_bcast_regs_props[] = {
+static const Property cframe_bcast_regs_props[] = {
     DEFINE_PROP_LINK("cframe0", CFRAME_BCAST_REG, cfg.cframe[0],
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
     DEFINE_PROP_LINK("cframe1", CFRAME_BCAST_REG, cfg.cframe[1],
@@ -1092,10 +1091,9 @@ static Property cframe_bcast_regs_props[] = {
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
     DEFINE_PROP_LINK("cframe14", CFRAME_BCAST_REG, cfg.cframe[14],
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void cframe_reg_class_init(ObjectClass *klass, void *data)
+static void cframe_reg_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1109,7 +1107,7 @@ static void cframe_reg_class_init(ObjectClass *klass, void *data)
     xcic->cfi_transfer_packet = cframe_reg_cfi_transfer_packet;
 }
 
-static void cframe_bcast_reg_class_init(ObjectClass *klass, void *data)
+static void cframe_bcast_reg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

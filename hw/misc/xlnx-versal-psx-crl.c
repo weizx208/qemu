@@ -292,8 +292,8 @@ typedef struct PSX_CRL {
 } PSX_CRL;
 
 #define PROPAGATE_GPIO(reg, f, irq) { \
-    bool val = ARRAY_FIELD_EX32(s->regs, reg, f); \
-    qemu_set_irq(irq, val); \
+    bool val_ = ARRAY_FIELD_EX32(s->regs, reg, f); \
+    qemu_set_irq(irq, val_); \
 }
 
 static void crl_rst_update(PSX_CRL *s)
@@ -542,7 +542,7 @@ static void psx_crl_reset_enter(Object *obj, ResetType type)
     s->in_reset_enter = false;
 }
 
-static void psx_crl_reset_hold(Object *obj)
+static void psx_crl_reset_hold(Object *obj, ResetType type)
 {
     PSX_CRL *s = XILINX_PSX_CRL(obj);
 
@@ -648,7 +648,7 @@ static const FDTGenericGPIOSet crl_gpios[] = {
     { },
 };
 
-static void psx_crl_class_init(ObjectClass *klass, void *data)
+static void psx_crl_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

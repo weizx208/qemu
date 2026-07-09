@@ -886,8 +886,6 @@ static void zdma_populate_regs(DeviceState *owner, RegisterInfo *reg_info,
         int index = (regs_offset + rae[i].addr) / 4;
         RegisterInfo *r = &reg_info[index];
 
-        object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);
-
         *r = (RegisterInfo) {
             .data = (uint8_t *)&reg_data[index],
             .data_size = sizeof(uint32_t),
@@ -909,10 +907,7 @@ static void zdma_common_realize(DeviceState *dev, Error **errp)
     }
     address_space_init(&s->dma_as, s->dma_mr, "zdma-dma");
 
-    s->attr = MEMTXATTRS_UNSPECIFIED;
-    if (s->attr_ptr) {
-        s->attr = *s->attr_ptr;
-    }
+    s->attr = hwdtb_memattrs_get(s->attr_ptr);
 
     sysbus_init_mmio(sbd, &s->reg_array->mem);
     sysbus_init_irq(sbd, &s->irq_zdma_ch_imr);
@@ -971,14 +966,16 @@ static void zdma_init(Object *obj)
     XlnxZDMABase *s = XLNX_ZDMA_BASE(obj);
     XlnxZDMA *sv1 = XLNX_ZDMA(obj);
 
-    s->reg_array = g_new0(RegisterInfoArray, 1);
+    s->reg_array = REGISTER_ARRAY(object_new(TYPE_REGISTER_ARRAY));
+    object_property_add_child(obj, "reg-array[*]", OBJECT(s->reg_array));
+    object_unref(OBJECT(s->reg_array));
     s->reg_array->r = g_new0(RegisterInfo *, ZDMA_R_MAX);
     s->reg_array->num_elements = ZDMA_R_MAX;
 
     memory_region_init_io(&s->reg_array->mem, OBJECT(sv1), &zdma_ops, sv1,
                           TYPE_XLNX_ZDMA, ZDMA_R_MAX * 4);
 
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_ptr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
@@ -989,14 +986,16 @@ static void zdma_v2_init(Object *obj)
     XlnxZDMABase *s = XLNX_ZDMA_BASE(obj);
     XlnxZDMAV2 *sv2 = XLNX_ZDMA_V2(obj);
 
-    s->reg_array = g_new0(RegisterInfoArray, 1);
+    s->reg_array = REGISTER_ARRAY(object_new(TYPE_REGISTER_ARRAY));
+    object_property_add_child(obj, "reg-array[*]", OBJECT(s->reg_array));
+    object_unref(OBJECT(s->reg_array));
     s->reg_array->r = g_new0(RegisterInfo *, ZDMA_V2_R_MAX);
     s->reg_array->num_elements = ZDMA_V2_R_MAX;
 
     memory_region_init_io(&s->reg_array->mem, OBJECT(sv2), &zdma_ops, sv2,
                           TYPE_XLNX_ZDMA_V2, ZDMA_V2_R_MAX * 4);
 
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_ptr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
@@ -1006,7 +1005,7 @@ static const VMStateDescription vmstate_zdma = {
     .name = TYPE_XLNX_ZDMA,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, XlnxZDMA, ZDMA_R_MAX),
         VMSTATE_UINT32(parent_obj.state, XlnxZDMA),
         VMSTATE_UINT32_ARRAY(parent_obj.dsc_src.words, XlnxZDMA, 4),
@@ -1028,30 +1027,29 @@ static const VMStateDescription vmstate_zdma_v2 = {
     }
 };
 
-static Property zdma_props[] = {
+static const Property zdma_props[] = {
     DEFINE_PROP_UINT32("bus-width", XlnxZDMABase, cfg.bus_width, 64),
     DEFINE_PROP_LINK("dma", XlnxZDMABase, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_BOOL("has-parity", XlnxZDMABase, cfg.has_parity, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void zdma_class_init(ObjectClass *klass, void *data)
+static void zdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = zdma_reset;
+    device_class_set_legacy_reset(dc, zdma_reset);
     dc->realize = zdma_realize;
     device_class_set_props(dc, zdma_props);
     dc->vmsd = &vmstate_zdma;
 }
 
-static void zdma_v2_class_init(ObjectClass *klass, void *data)
+static void zdma_v2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = zdma_v2_realize;
-    dc->reset = zdma_v2_reset;
+    device_class_set_legacy_reset(dc, zdma_v2_reset);
     device_class_set_props(dc, zdma_props);
     dc->vmsd = &vmstate_zdma_v2;
 }

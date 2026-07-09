@@ -759,15 +759,14 @@ static void pmc_anlg_init(Object *obj)
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_out(DEVICE(obj), &s->irq_glitch_detected, 1);
-    qdev_init_gpio_out(DEVICE(obj), &s->irq_pmc_anlg_imr, 1);
+    sysbus_init_irq(sbd, &s->irq_glitch_detected);
+    sysbus_init_irq(sbd, &s->irq_pmc_anlg_imr);
 }
 
-static Property pmc_anlg_properties[] = {
+static const Property pmc_anlg_properties[] = {
     DEFINE_PROP_LINK("tamper-sink", PmcAnalog, tamper_sink,
                      TYPE_OBJECT, Object *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pmc_anlg = {
@@ -780,11 +779,11 @@ static const VMStateDescription vmstate_pmc_anlg = {
     }
 };
 
-static void pmc_anlg_class_init(ObjectClass *klass, void *data)
+static void pmc_anlg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pmc_anlg_reset;
+    device_class_set_legacy_reset(dc, pmc_anlg_reset);
     dc->realize = pmc_anlg_realize;
     dc->vmsd = &vmstate_pmc_anlg;
 

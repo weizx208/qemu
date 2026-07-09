@@ -153,12 +153,12 @@ static void i2cWire_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static void i2cWire_class_init(ObjectClass *klass, void *data)
+static void i2cWire_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    dc->reset = i2cWire_reset;
+    device_class_set_legacy_reset(dc, i2cWire_reset);
     k->decode_address = i2cWire_decode_addr;
     k->recv = i2cWire_recv;
     k->send = i2cWire_send;

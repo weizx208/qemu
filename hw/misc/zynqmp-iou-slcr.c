@@ -1285,19 +1285,18 @@ static const FDTGenericGPIOSet zynqmp_iou_slcr_controller_gpios [] = {
     { },
 };
 
-static Property zynqmp_iou_slcr_props[] = {
+static const Property zynqmp_iou_slcr_props[] = {
     DEFINE_PROP_BOOL("mio-bank0-1.8v", IOU_SLCR, cfg.mio_bank0v, false),
     DEFINE_PROP_BOOL("mio-bank1-1.8v", IOU_SLCR, cfg.mio_bank1v, false),
     DEFINE_PROP_BOOL("mio-bank2-1.8v", IOU_SLCR, cfg.mio_bank2v, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void iou_slcr_class_init(ObjectClass *klass, void *data)
+static void iou_slcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = iou_slcr_reset;
+    device_class_set_legacy_reset(dc, iou_slcr_reset);
     dc->vmsd = &vmstate_iou_slcr;
     device_class_set_props(dc, zynqmp_iou_slcr_props);
 

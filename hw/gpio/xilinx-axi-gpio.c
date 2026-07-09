@@ -271,11 +271,11 @@ static const VMStateDescription vmstate_gpio = {
     }
 };
 
-static void xlnx_axi_gpio_class_init(ObjectClass *klass, void *data)
+static void xlnx_axi_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xlnx_axi_gpio_reset;
+    device_class_set_legacy_reset(dc, xlnx_axi_gpio_reset);
     dc->vmsd = &vmstate_gpio;
 }
 

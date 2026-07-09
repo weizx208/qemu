@@ -1080,7 +1080,7 @@ static void pmx_efuse_ctrl_reset_enter(Object *obj, ResetType type)
     efuse_data_sync(s);
 }
 
-static void pmx_efuse_ctrl_reset_hold(Object *obj)
+static void pmx_efuse_ctrl_reset_hold(Object *obj, ResetType type)
 {
     XlnxPmxEFuseCtrl *s = XLNX_PMX_EFUSE_CTRL(obj);
 
@@ -1228,7 +1228,7 @@ static const VMStateDescription vmstate_pmx_efuse_ctrl = {
     }
 };
 
-static Property efuse_ctrl_props[] = {
+static const Property efuse_ctrl_props[] = {
     DEFINE_PROP_BOOL("dna-lock",
                      XlnxPmxEFuseCtrl, ac_dna, false),
     DEFINE_PROP_BOOL("factory-lock",
@@ -1253,10 +1253,9 @@ static Property efuse_ctrl_props[] = {
     DEFINE_PROP_LINK("mapping", XlnxPmxEFuseCtrl, mapping,
                      TYPE_XLNX_EFUSE_MAP_IF, XlnxEfuseMapIf *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pmx_efuse_ctrl_class_init(ObjectClass *klass, void *data)
+static void pmx_efuse_ctrl_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

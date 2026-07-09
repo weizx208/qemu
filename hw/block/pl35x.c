@@ -29,8 +29,8 @@
 #include "hw/block/flash.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-#include "sysemu/block-backend.h"
-#include "exec/address-spaces.h"
+#include "system/block-backend.h"
+#include "system/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -276,9 +276,8 @@ static void pl35x_initfn(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property pl35x_properties[] = {
+static const Property pl35x_properties[] = {
     DEFINE_PROP_UINT8("x", PL35xState, x, 3),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pl35x = {
@@ -292,7 +291,7 @@ static const VMStateDescription vmstate_pl35x = {
     }
 };
 
-static void pl35x_class_init(ObjectClass *klass, void *data)
+static void pl35x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

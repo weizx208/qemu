@@ -13219,11 +13219,11 @@ static const VMStateDescription vmstate_gty_npi_slave = {
     }
 };
 
-static void gty_npi_slave_class_init(ObjectClass *klass, void *data)
+static void gty_npi_slave_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = gty_npi_slave_reset;
+    device_class_set_legacy_reset(dc, gty_npi_slave_reset);
     dc->realize = gty_npi_slave_realize;
     dc->vmsd = &vmstate_gty_npi_slave;
 }

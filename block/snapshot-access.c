@@ -22,7 +22,7 @@
 
 #include "qemu/osdep.h"
 
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/cutils.h"
 #include "block/block_int.h"
 
@@ -41,11 +41,11 @@ snapshot_access_co_preadv_part(BlockDriverState *bs,
 
 static int coroutine_fn GRAPH_RDLOCK
 snapshot_access_co_block_status(BlockDriverState *bs,
-                                bool want_zero, int64_t offset,
+                                unsigned int mode, int64_t offset,
                                 int64_t bytes, int64_t *pnum,
                                 int64_t *map, BlockDriverState **file)
 {
-    return bdrv_co_snapshot_block_status(bs->file->bs, want_zero, offset,
+    return bdrv_co_snapshot_block_status(bs->file->bs, mode, offset,
                                          bytes, pnum, map, file);
 }
 
@@ -73,7 +73,7 @@ snapshot_access_co_pwritev_part(BlockDriverState *bs,
 }
 
 
-static void snapshot_access_refresh_filename(BlockDriverState *bs)
+static void GRAPH_RDLOCK snapshot_access_refresh_filename(BlockDriverState *bs)
 {
     pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
             bs->file->bs->filename);
@@ -85,6 +85,9 @@ static int snapshot_access_open(BlockDriverState *bs, QDict *options, int flags,
     bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                     BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
                     false, errp);
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!bs->file) {
         return -EINVAL;
     }

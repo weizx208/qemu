@@ -29,7 +29,8 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "sysemu/blockdev.h"
+#include "qapi/visitor.h"
+#include "system/blockdev.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -444,7 +445,7 @@ static RegisterAccessInfo bbram_ctrl_regs_info[] = {
     }
 };
 
-static void bbram_ctrl_reset_hold(Object *obj)
+static void bbram_ctrl_reset_hold(Object *obj, ResetType type)
 {
     XlnxBBRam *s = XLNX_BBRAM(obj);
     unsigned int i;
@@ -524,7 +525,7 @@ static void bbram_prop_release_drive(Object *obj, const char *name,
 }
 
 static const PropertyInfo bbram_prop_drive = {
-    .name  = "str",
+    .type  = "str",
     .description = "Node name or ID of a block device to use as BBRAM backend",
     .realized_set_allowed = true,
     .get = bbram_prop_get_drive,
@@ -549,7 +550,7 @@ static void bbram_prop_set_erase(Object *obj, Visitor *v,
 }
 
 static const PropertyInfo bbram_prop_erase = {
-    .name = "bool",
+    .type = "bool",
     .description = "Set true to erase entire bbram",
     .set = bbram_prop_set_erase,
     .realized_set_allowed = true,
@@ -559,22 +560,21 @@ static const VMStateDescription vmstate_bbram_ctrl = {
     .name = TYPE_XLNX_BBRAM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, XlnxBBRam, R_MAX),
         VMSTATE_END_OF_LIST(),
     }
 };
 
-static Property bbram_ctrl_props[] = {
+static const Property bbram_ctrl_props[] = {
     DEFINE_PROP("drive", XlnxBBRam, blk, bbram_prop_drive, BlockBackend *),
     DEFINE_PROP("erase", XlnxBBRam, ext_erase, bbram_prop_erase, bool),
     DEFINE_PROP_LINK("zynqmp-aes-key-sink-bbram", XlnxBBRam, aes,
                      TYPE_ZYNQMP_AES_KEY_SINK, ZynqMPAESKeySink *),
     DEFINE_PROP_UINT32("crc-zpads", XlnxBBRam, crc_zpads, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void bbram_ctrl_class_init(ObjectClass *klass, void *data)
+static void bbram_ctrl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

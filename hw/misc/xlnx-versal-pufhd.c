@@ -28,7 +28,7 @@
 #include "crypto/hash.h"
 #include "hw/qdev-properties.h"
 #include "hw/hw.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 
 #include "hw/misc/xlnx-aes.h"
 #include "xlnx-versal-pufhd.h"
@@ -420,7 +420,7 @@ static void versal_pufkey_to_id(const Versal_PufKey *key, Versal_PUFExtra *info)
     assert(n == (256 / 32));
 
     /* For simulation, ID is just sha256 of the 256-bit key */
-    qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA256, (const char *)key->u8,
+    qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_SHA256, (const char *)key->u8,
                        sizeof(key->u8), &hash, &hash_len, &error_abort);
     assert(n == (hash_len / 4));
 

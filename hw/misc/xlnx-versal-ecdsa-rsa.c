@@ -624,9 +624,8 @@ static void ecdsa_rsa_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_ecdsa_rsa_imr);
 }
 
-static Property ecdsa_rsa_properties[] = {
+static const Property ecdsa_rsa_properties[] = {
     DEFINE_PROP_UINT32("ram-nr-words", ECDSA_RSA, cfg.ram_nr_words, 144),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_ecdsa_rsa = {
@@ -639,11 +638,11 @@ static const VMStateDescription vmstate_ecdsa_rsa = {
     }
 };
 
-static void ecdsa_rsa_class_init(ObjectClass *klass, void *data)
+static void ecdsa_rsa_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ecdsa_rsa_reset;
+    device_class_set_legacy_reset(dc, ecdsa_rsa_reset);
     dc->realize = ecdsa_rsa_realize;
     dc->vmsd = &vmstate_ecdsa_rsa;
     device_class_set_props(dc, ecdsa_rsa_properties);

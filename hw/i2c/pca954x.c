@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "sysemu/blockdev.h"
+#include "system/blockdev.h"
 #include "hw/i2c/pca954x.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
@@ -244,16 +244,15 @@ static const VMStateDescription vmstate_PCA954X = {
     }
 };
 
-static Property pca954x_properties[] = {
+static const Property pca954x_properties[] = {
     /*
      * This property is deprecated and is kept for DTB retro-compatibility.
      * Don't use it.
      */
     DEFINE_PROP_UINT8("chip-enable", PCA954XState, chip_addr_lsb, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pca954x_class_init(ObjectClass *klass, void *data)
+static void pca954x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
@@ -264,7 +263,7 @@ static void pca954x_class_init(ObjectClass *klass, void *data)
     k->send = pca954x_send;
     k->decode_address = pca954x_decode_address;
 
-    dc->reset = pca954x_reset;
+    device_class_set_legacy_reset(dc, pca954x_reset);
     dc->vmsd = &vmstate_PCA954X;
     device_class_set_props(dc, pca954x_properties);
     sc->device = data;
@@ -290,7 +289,7 @@ static void pca954x_register_types(void)
             .class_init = pca954x_class_init,
             .class_data = &known_devices[i]
         };
-        type_register(&t);
+        type_register_static(&t);
     }
 }
 

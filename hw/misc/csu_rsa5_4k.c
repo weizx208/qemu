@@ -389,11 +389,11 @@ static const VMStateDescription vmstate_xlx_rsa = {
     }
 };
 
-static void xlx_rsa_class_init(ObjectClass *klass, void *data)
+static void xlx_rsa_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = csu_rsa_reset;
+    device_class_set_legacy_reset(dc, csu_rsa_reset);
     dc->vmsd = &vmstate_xlx_rsa;
 }
 

@@ -574,7 +574,7 @@ static void rpu_pcil_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void rpu_pcil_reset_hold(Object *obj)
+static void rpu_pcil_reset_hold(Object *obj, ResetType type)
 {
     RPU_PCIL *s = XILINX_RPU_PCIL(obj);
 
@@ -652,7 +652,7 @@ static const FDTGenericGPIOSet rpu_pcil_controller_gpios[] = {
     { },
 };
 
-static void rpu_pcil_class_init(ObjectClass *klass, void *data)
+static void rpu_pcil_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

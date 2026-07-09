@@ -27,8 +27,8 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
-#include "sysemu/kvm.h"
-#include "sysemu/qtest.h"
+#include "system/kvm.h"
+#include "system/qtest.h"
 
 #include "hw/fdt_generic_util.h"
 
@@ -61,7 +61,7 @@ static const uint8_t gic_id_gicv2[] = {
 static inline int gic_get_current_cpu(GICState *s)
 {
     if (!qtest_enabled() && (s->num_cpu > 1) && (current_cpu)) {
-        return current_cpu->cpu_index % s->num_cpu;
+        return current_cpu->cpu_index - s->first_cpu_index;
     }
     return 0;
 }
@@ -1315,12 +1315,15 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
+                int mask = (irq < GIC_INTERNAL) ? (1 << cpu)
+                                                : GIC_DIST_TARGET(irq + i);
+
                 if (s->security_extn && !attrs.secure &&
                     !GIC_DIST_TEST_GROUP(irq + i, 1 << cpu)) {
                     continue; /* Ignore Non-secure access of Group0 IRQ */
                 }
 
-                GIC_DIST_SET_PENDING(irq + i, GIC_DIST_TARGET(irq + i));
+                GIC_DIST_SET_PENDING(irq + i, mask);
             }
         }
     } else if (offset < 0x300) {
@@ -1414,6 +1417,13 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 value = ALL_CPU_MASK;
             }
             s->irq_target[irq] = value & ALL_CPU_MASK;
+            if (irq >= GIC_INTERNAL && s->irq_state[irq].pending) {
+                /*
+                 * Changing the target of an interrupt that is currently
+                 * pending updates the set of CPUs it is pending on.
+                 */
+                s->irq_state[irq].pending = value & ALL_CPU_MASK;
+            }
         }
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
@@ -2164,6 +2174,16 @@ static void arm_gic_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
         if (i >= s->num_cpu) {
             break;
         }
+
+        if (qdev_get_gpio_out_connector(DEVICE(obj), "irq", i) != NULL) {
+            /*
+             * This function is legacy behaviour and can conflict with actual
+             * hwdtb connections. Do nothing if a connection already exists for
+             * this GPIO.
+             */
+            continue;
+        }
+
         qdev_connect_gpio_out_named(DEVICE(obj), "irq", i,
                                     qdev_get_gpio_in(DEVICE(cs), 0));
         i++;
@@ -2195,7 +2215,7 @@ static const FDTGenericGPIOSet arm_gic_client_gpios [] = {
     { },
 };
 
-static void arm_gic_class_init(ObjectClass *klass, void *data)
+static void arm_gic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ARMGICClass *agc = ARM_GIC_CLASS(klass);

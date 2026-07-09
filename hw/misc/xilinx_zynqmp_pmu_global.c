@@ -40,7 +40,7 @@
 #define XILINX_PMU_GLOBAL_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_PMU_GLOBAL "xlnx,pmu_global"
+#define TYPE_XILINX_PMU_GLOBAL "xlnx-pmu_global"
 
 #define XILINX_PMU_GLOBAL(obj) \
      OBJECT_CHECK(PMU_GLOBAL, (obj), TYPE_XILINX_PMU_GLOBAL)
@@ -2162,18 +2162,17 @@ static const FDTGenericGPIOSet pmu_global_client_gpios[] = {
     { },
 };
 
-static Property pmu_global_properties[] = {
+static const Property pmu_global_properties[] = {
     DEFINE_PROP_BOOL("fw-is-present", PMU_GLOBAL, fw_is_present, false),
     DEFINE_PROP_BOOL("ignore-pwr-req", PMU_GLOBAL, ignore_pwr_req, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pmu_global_class_init(ObjectClass *klass, void *data)
+static void pmu_global_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = pmu_global_reset;
+    device_class_set_legacy_reset(dc, pmu_global_reset);
     dc->vmsd = &vmstate_pmu_global;
     device_class_set_props(dc, pmu_global_properties);
     fggc->controller_gpios = pmu_gpios;

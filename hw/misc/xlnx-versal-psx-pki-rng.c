@@ -926,7 +926,7 @@ static void pki_drng_regen(XlnxPsxPkiDrng *rng)
     size_t rnd_len = sizeof(rng->random);
 
     rng->rnd_get = 0;
-    qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA256,
+    qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_SHA256,
                        (char *)&rng->state, sizeof(rng->state),
                        &rnd, &rnd_len, &error_abort);
     pki_drng_count(rng);
@@ -981,7 +981,7 @@ static void pki_drng_reseed(XlnxPsxPkiDrng *rng)
 
     seed = (uint8_t *)rng->state.seed;
     seed_len = sizeof(rng->state.seed);
-    qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA384,
+    qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_SHA384,
                        data.ch, nr, &seed, &seed_len, &error_abort);
 
     /* Invalidate generation buffer */
@@ -1414,7 +1414,7 @@ static void psx_pki_rng_reset_enter(Object *obj, ResetType type)
     s->dirty = false;
 }
 
-static void psx_pki_rng_reset_hold(Object *obj)
+static void psx_pki_rng_reset_hold(Object *obj, ResetType type)
 {
     XlnxPsxPkiRng *s = XLNX_PSX_PKI_RNG(obj);
 
@@ -1579,16 +1579,16 @@ static const MemoryRegionOps psx_pki_rng_regs_ops = {
 
 static void psx_pki_rng_realize(DeviceState *dev, Error **errp)
 {
-    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA384)) {
+    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALGO_SHA384)) {
         g_autofree char *path = object_get_canonical_path(OBJECT(dev));
 
-        error_setg(errp, "%s: Need QCRYPTO_HASH_ALG_SHA384 support", path);
+        error_setg(errp, "%s: Need QCRYPTO_HASH_ALGO_SHA384 support", path);
         return;
     }
-    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
+    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALGO_SHA256)) {
         g_autofree char *path = object_get_canonical_path(OBJECT(dev));
 
-        error_setg(errp, "%s: Need QCRYPTO_HASH_ALG_SHA256 support", path);
+        error_setg(errp, "%s: Need QCRYPTO_HASH_ALGO_SHA256 support", path);
         return;
     }
 }
@@ -1630,14 +1630,13 @@ static const VMStateDescription vmstate_psx_pki_rng = {
     }
 };
 
-static Property psx_pki_rng_props[] = {
+static const Property psx_pki_rng_props[] = {
     DEFINE_PROP_UINT64("iseed-nonce", XlnxPsxPkiRng,
                        iseed_nonce, 0xcafebeef1badf00dULL),
     DEFINE_PROP_BOOL("byte-fifo", XlnxPsxPkiRng, byte_fifo, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void psx_pki_rng_class_init(ObjectClass *klass, void *data)
+static void psx_pki_rng_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

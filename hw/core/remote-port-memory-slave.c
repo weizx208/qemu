@@ -10,14 +10,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
-#include "qapi/error.h"
 #include "hw/qdev-core.h"
-#include "hw/sysbus.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -226,7 +221,7 @@ static void rp_memory_slave_unrealize(DeviceState *dev)
     address_space_destroy(&s->as);
 }
 
-static void rp_memory_slave_class_init(ObjectClass *oc, void *data)
+static void rp_memory_slave_class_init(ObjectClass *oc, const void *data)
 {
     RemotePortDeviceClass *rpdc = REMOTE_PORT_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);

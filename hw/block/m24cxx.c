@@ -21,8 +21,8 @@
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
 #include "hw/hw.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-backend.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/block/m24cxx.h"
@@ -216,13 +216,12 @@ static const VMStateDescription vmstate_m24cxx = {
     }
 };
 
-static Property m24cxx_properties[] = {
+static const Property m24cxx_properties[] = {
     DEFINE_PROP_UINT16("size", M24CXXState, size, 1024),
     DEFINE_PROP_DRIVE("drive", M24CXXState, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void m24cxx_class_init(ObjectClass *klass, void *data)
+static void m24cxx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
@@ -233,7 +232,7 @@ static void m24cxx_class_init(ObjectClass *klass, void *data)
     k->decode_address = m24cxx_decode_address;
 
     dc->realize = m24cxx_realize;
-    dc->reset = m24cxx_reset;
+    device_class_set_legacy_reset(dc, m24cxx_reset);
     dc->vmsd = &vmstate_m24cxx;
     device_class_set_props(dc, m24cxx_properties);
 }

@@ -18,17 +18,18 @@
 #CONFIG_QXL=n
 #CONFIG_SEV=n
 #CONFIG_SGA=n
+#CONFIG_TDX=n
 #CONFIG_TEST_DEVICES=n
 #CONFIG_TPM_CRB=n
 #CONFIG_TPM_TIS_ISA=n
 #CONFIG_VTD=n
 #CONFIG_SGX=n
 
-include remote-port-x86.mak
+# Boards are selected by default, uncomment to keep out of the build.
+# CONFIG_ISAPC=n
+# CONFIG_I440FX=n
+# CONFIG_Q35=n
+# CONFIG_MICROVM=n
+# CONFIG_NITRO_ENCLAVE=n
 
-# Boards:
-#
-CONFIG_ISAPC=y
-CONFIG_I440FX=y
-CONFIG_Q35=y
-CONFIG_MICROVM=y
+include remote-port-x86.mak

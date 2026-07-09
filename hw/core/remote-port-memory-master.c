@@ -8,12 +8,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
 #include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
 
@@ -43,70 +40,6 @@
 
 #define RP_MAX_ACCESS_SIZE 4096
 
-static void rp_mm_serbs_timer_config(xlnx_serbs_if *serbs, int id, int timems,
-                                     bool enable)
-{
-    RemotePortMemoryMaster *s = REMOTE_PORT_MEMORY_MASTER(serbs);
-
-    s->serbs_id = id;
-    s->rp_timeout = enable ? timems : 0;
-}
-
-static void rp_mm_serbs_timout_set(xlnx_serbs_if *serbs, int id, bool level)
-{
-    RemotePortMemoryMaster *s = REMOTE_PORT_MEMORY_MASTER(serbs);
-
-    s->rp_timeout_err = level;
-}
-
-static int rp_mm_get_timeout(MemoryTransaction *tr)
-{
-    RemotePortMap *map = tr->opaque;
-    RemotePortMemoryMaster *s;
-
-    if (!map || !map->parent ||
-        !object_dynamic_cast(OBJECT(map->parent),
-                             TYPE_REMOTE_PORT_MEMORY_MASTER)) {
-        return 0;
-    }
-    s = REMOTE_PORT_MEMORY_MASTER(map->parent);
-    return s->rp_timeout;
-}
-
-static bool rp_mm_timeout_err_state_get(MemoryTransaction *tr)
-{
-    RemotePortMap *map = tr->opaque;
-    RemotePortMemoryMaster *s;
-
-    if (!map || !map->parent ||
-        !object_dynamic_cast(OBJECT(map->parent),
-                             TYPE_REMOTE_PORT_MEMORY_MASTER)) {
-        return false;
-    }
-
-    s = REMOTE_PORT_MEMORY_MASTER(map->parent);
-    return s->rp_timeout_err;
-}
-
-static void rp_mm_timeout_err_state_set(MemoryTransaction *tr, bool level)
-{
-    RemotePortMap *map = tr->opaque;
-    RemotePortMemoryMaster *s;
-
-    if (!map || !map->parent ||
-        !object_dynamic_cast(OBJECT(map->parent),
-                             TYPE_REMOTE_PORT_MEMORY_MASTER)) {
-        return;
-    }
-
-    s = REMOTE_PORT_MEMORY_MASTER(map->parent);
-    if (s->serbsIf) {
-        s->rp_timeout_err = level;
-        xlnx_serbs_if_timeout_set(s->serbsIf, s->serbs_id, s->rp_timeout_err);
-     }
-
-}
-
 MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
                                        struct rp_peer_state *peer,
                                        MemoryTransaction *tr,
@@ -124,12 +57,8 @@ MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
     struct rp_encode_busaccess_in in = {0};
     int i;
     int len;
-    int rp_timeout = rp_mm_get_timeout(tr);
     MemTxResult ret;
 
-    if (rp_timeout && rp_mm_timeout_err_state_get(tr)) {
-        return MEMTX_ERROR;
-    }
     DB_PRINT_L(0, "addr: %" HWADDR_PRIx " data: %" PRIx64 "\n",
                addr, tr->data.u64);
 
@@ -162,22 +91,9 @@ MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
     trace_remote_port_memory_master_tx_busaccess(rp_cmd_to_string(in.cmd),
         in.id, in.flags, in.dev, in.addr, in.size, in.attr);
 
-    rp_rsp_mutex_lock(rp);
     rp_write(rp, (void *) &pay, len);
 
-    if (!rp_timeout) {
-        rsp_slot = rp_dev_wait_resp(rp, in.dev, in.id);
-    } else {
-        rsp_slot = rp_dev_timed_wait_resp(rp, in.dev, in.id, rp_timeout);
-        if (rsp_slot->valid == false) {
-            /*
-             * Timeout error
-             */
-            rp_rsp_mutex_unlock(rp);
-            rp_mm_timeout_err_state_set(tr, true);
-            return MEMTX_ERROR;
-        }
-    }
+    rsp_slot = rp_dev_wait_resp(rp, in.dev, in.id);
     rsp = &rsp_slot->rsp;
 
     /* We dont support out of order answers yet.  */
@@ -195,7 +111,7 @@ MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
         break;
     }
 
-    if (ret == MEMTX_OK && !tr->rw) {
+    if (!tr->rw) {
         data = rp_busaccess_rx_dataptr(peer, &rsp->pkt->busaccess_ext_base);
         /* Data up to 8 bytes is return as values.  */
         if (tr->size <= 8) {
@@ -212,32 +128,7 @@ MemTxResult rp_mm_access_with_def_attr(RemotePort *rp, uint32_t rp_dev,
         rsp->pkt->hdr.flags, rsp->pkt->hdr.dev, rsp->pkt->busaccess.addr,
         rsp->pkt->busaccess.len, rsp->pkt->busaccess.attributes);
 
-    if (rp_timeout) {
-        for (int i = 0; i < ARRAY_SIZE(rp->dev_state[rp_dev].rsp_queue); i++) {
-            if (rp->dev_state[rp_dev].rsp_queue[i].used &&
-                rp->dev_state[rp_dev].rsp_queue[i].valid) {
-                rp_resp_slot_done(rp, &rp->dev_state[rp_dev].rsp_queue[i]);
-            }
-        }
-    } else {
-        rp_resp_slot_done(rp, rsp_slot);
-    }
-    rp_rsp_mutex_unlock(rp);
-
-    /*
-     * For strongly ordered or transactions that don't allow Early Acking,
-     * we need to drain the pending RP processing queue here. This is
-     * because RP handles responses in parallel with normal requests so
-     * they may get reordered. This becomes visible for example with reads
-     * to read-to-clear registers that clear interrupts. Even though the
-     * lowering of the interrupt-wires arrives to us before the read-resp,
-     * we may handle the response before the wire update, resulting in
-     * spurious interrupts.
-     *
-     * This has some room for optimization but for now we use the big hammer
-     * and drain the entire qeueue.
-     */
-    rp_process(rp);
+    rp_resp_slot_done(rp, rsp_slot);
 
     /* Reads are sync-points, roll the sync timer.  */
     rp_restart_sync_timer(rp);
@@ -323,18 +214,12 @@ static void rp_memory_master_init(Object *obj)
                              (Object **)&rpms->rp,
                              qdev_prop_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
-    object_property_add_link(obj, "serbs-if", TYPE_XLNX_SERBS_IF,
-                             (Object **)&rpms->serbsIf,
-                             qdev_prop_allow_set_link,
-                             OBJ_PROP_LINK_STRONG);
 }
 
 static bool rp_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
                          Error **errp)
 {
     RemotePortMemoryMaster *s = REMOTE_PORT_MEMORY_MASTER(obj);
-    FDTGenericMMapClass *parent_fmc =
-        FDT_GENERIC_MMAP_CLASS(REMOTE_PORT_MEMORY_MASTER_PARENT_CLASS);
     int i;
 
     /* Initialize rp_ops from template.  */
@@ -355,10 +240,10 @@ static bool rp_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
         g_free(name);
     }
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
-static Property rp_properties[] = {
+static const Property rp_properties[] = {
     DEFINE_PROP_UINT32("map-num", RemotePortMemoryMaster, map_num, 0),
     DEFINE_PROP_UINT64("map-offset", RemotePortMemoryMaster, map_offset, 0),
     DEFINE_PROP_UINT64("map-size", RemotePortMemoryMaster, map_size, 0),
@@ -366,19 +251,15 @@ static Property rp_properties[] = {
     DEFINE_PROP_BOOL("relative", RemotePortMemoryMaster, relative, false),
     DEFINE_PROP_UINT32("max-access-size", RemotePortMemoryMaster,
                        max_access_size, RP_MAX_ACCESS_SIZE),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void rp_memory_master_class_init(ObjectClass *oc, void *data)
+static void rp_memory_master_class_init(ObjectClass *oc, const void *data)
 {
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
-    xlnx_serbs_if_class *sc = XLNX_SERBS_IF_CLASS(oc);
     device_class_set_props(dc, rp_properties);
     dc->realize = rp_memory_master_realize;
     fmc->parse_reg = rp_parse_reg;
-    sc->timer_config = rp_mm_serbs_timer_config;
-    sc->timeout_set = rp_mm_serbs_timout_set;
 }
 
 static const TypeInfo rp_info = {
@@ -390,7 +271,6 @@ static const TypeInfo rp_info = {
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_FDT_GENERIC_MMAP },
         { TYPE_REMOTE_PORT_DEVICE },
-        { TYPE_XLNX_SERBS_IF },
         { },
     },
 };

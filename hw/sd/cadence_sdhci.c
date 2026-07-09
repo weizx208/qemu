@@ -159,19 +159,19 @@ static void cadence_sdhci_realize(DeviceState *dev, Error **errp)
 static const VMStateDescription vmstate_cadence_sdhci = {
     .name = TYPE_CADENCE_SDHCI,
     .version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CadenceSDHCIState, CADENCE_SDHCI_NUM_REGS),
         VMSTATE_END_OF_LIST(),
     },
 };
 
-static void cadence_sdhci_class_init(ObjectClass *classp, void *data)
+static void cadence_sdhci_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
 
     dc->desc = "Cadence SD/SDIO/eMMC Host Controller (SD4HC)";
     dc->realize = cadence_sdhci_realize;
-    dc->reset = cadence_sdhci_reset;
+    device_class_set_legacy_reset(dc, cadence_sdhci_reset);
     dc->vmsd = &vmstate_cadence_sdhci;
 }
 

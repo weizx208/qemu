@@ -18,7 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/irq.h"
 
 #include "cpu.h"
@@ -26,7 +26,7 @@
 
 static void cpu_set_off(CPUState *cpu, run_on_cpu_data data)
 {
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     cpu->halted = 1;
     cpu->exception_index = EXCP_HLT;
@@ -38,7 +38,7 @@ static void cpu_set_off(CPUState *cpu, run_on_cpu_data data)
 
 static void cpu_set_on(CPUState *cpu, run_on_cpu_data data)
 {
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     cpu->halted = 0;
 
@@ -52,7 +52,7 @@ static void cpu_reset_enter(CPUState *cpu, run_on_cpu_data data)
 #ifdef TARGET_ARM
     ARMCPU *arm_cpu = ARM_CPU(cpu);
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
     qemu_set_irq(arm_cpu->wfi, 0);
 #endif
 }
@@ -80,6 +80,7 @@ static void cpu_exec_pin_update(CPUState *cpu)
         if (async) {
             async_run_on_cpu(cpu, cpu_set_off, RUN_ON_CPU_NULL);
         } else {
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_EXITTB);
             cpu_interrupt(cpu, CPU_INTERRUPT_HALT);
         }
     } else {
@@ -99,7 +100,7 @@ void cpu_reset_gpio(void *opaque, int irq, int level)
     static int lock_count;
     bool async = runstate_is_running();
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     g_assert(lock_count == 0);
     lock_count++;
@@ -150,7 +151,7 @@ void cpu_halt_gpio(void *opaque, int irq, int level)
     CPUState *cpu = CPU(opaque);
     bool changed;
 
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
 
     changed = cpu->halt_pin != level;
 
@@ -162,6 +163,6 @@ void cpu_halt_gpio(void *opaque, int irq, int level)
 
 void cpu_halt_update(CPUState *cpu)
 {
-    assert(qemu_mutex_iothread_locked());
+    assert(bql_locked());
     cpu_exec_pin_update(cpu); /* TBD: _sync not working */
 }

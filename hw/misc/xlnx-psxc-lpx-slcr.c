@@ -8138,7 +8138,7 @@ static void psxc_lpx_slcr_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void psxc_lpx_slcr_reset_hold(Object *obj)
+static void psxc_lpx_slcr_reset_hold(Object *obj, ResetType type)
 {
     XlnxPsxcLpxSlcr *s = XILINX_PSXC_LPX_SLCR(obj);
     size_t i;
@@ -8155,7 +8155,7 @@ static void psxc_lpx_slcr_reset_hold(Object *obj)
     }
 }
 
-static void psxc_lpx_slcr_reset_exit(Object *obj)
+static void psxc_lpx_slcr_reset_exit(Object *obj, ResetType type)
 {
     XlnxPsxcLpxSlcr *s = XILINX_PSXC_LPX_SLCR(obj);
     size_t i;
@@ -8342,7 +8342,7 @@ static const VMStateDescription vmstate_psxc_lpx_slcr = {
     }
 };
 
-static Property psxc_lpx_slcr_properties[] = {
+static const Property psxc_lpx_slcr_properties[] = {
     DEFINE_PROP_UINT32("num-apu-per-cluster", XlnxPsxcLpxSlcr,
                        num_apu_per_cluster, LPX_SLCR_MAX_APU_CORE_PER_CLUSTER),
     DEFINE_PROP_UINT32("num-apu-cluster", XlnxPsxcLpxSlcr, num_apu_cluster,
@@ -8368,7 +8368,6 @@ static Property psxc_lpx_slcr_properties[] = {
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
     DEFINE_PROP_LINK("core-9", XlnxPsxcLpxSlcr, rpu_pcil_pchan[9].iface,
                      TYPE_ARM_PCHANNEL_IF, ARMPChannelIf *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const FDTGenericGPIOSet psxc_lpx_slcr_gpios[] = {
@@ -8396,7 +8395,7 @@ static const FDTGenericGPIOSet psxc_lpx_slcr_gpios[] = {
     { },
 };
 
-static void psxc_lpx_slcr_class_init(ObjectClass *klass, void *data)
+static void psxc_lpx_slcr_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

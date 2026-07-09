@@ -1521,7 +1521,7 @@ static void xilinx_asu_aes_reset_enter(Object *obj, ResetType type)
     s->cm_enabled = true;
 }
 
-static void xilinx_asu_aes_reset_hold(Object *obj)
+static void xilinx_asu_aes_reset_hold(Object *obj, ResetType type)
 {
     XilinxAsuAesState *s = XILINX_ASU_AES(obj);
 
@@ -1541,17 +1541,16 @@ static void xilinx_asu_aes_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq);
 }
 
-static Property xilinx_asu_aes_properties[] = {
+static const Property xilinx_asu_aes_properties[] = {
     DEFINE_PROP_LINK("stream-connected-aes",
                      XilinxAsuAesState, sink,
                      TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("keyvault",
                      XilinxAsuAesState, kv,
                      TYPE_XILINX_ASU_KV, XilinxAsuKvState *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void xilinx_asu_aes_class_init(ObjectClass *klass, void *data)
+static void xilinx_asu_aes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

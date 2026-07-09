@@ -352,7 +352,7 @@ static int si5341_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static Property si5341_properties[] = {
+static const Property si5341_properties[] = {
     DEFINE_PROP_UINT8("default-clock-sel", Si5341State,
                       default_clock_sel, SI5341_INPUT_XA_XB),
     DEFINE_PROP_ARRAY("input-rates", Si5341State, input_rate_count,
@@ -364,10 +364,9 @@ static Property si5341_properties[] = {
                       output_synth_sel, qdev_prop_uint32, uint32_t),
     DEFINE_PROP_ARRAY("output-rates", Si5341State, output_rate_count,
                       output_rates, qdev_prop_uint32, uint32_t),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void si5341_class_init(ObjectClass *klass, void *data)
+static void si5341_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
@@ -375,7 +374,7 @@ static void si5341_class_init(ObjectClass *klass, void *data)
     k->recv = si5341_read;
     k->send = si5341_write;
     k->event = si5341_event;
-    dc->reset = si5341_reset;
+    device_class_set_legacy_reset(dc, si5341_reset);
     device_class_set_props(dc, si5341_properties);
 }
 

@@ -399,11 +399,10 @@ static void asu_trng_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_intr);
 }
 
-static Property asu_trng_props[] = {
+static const Property asu_trng_props[] = {
     DEFINE_PROP_UINT64("forced-prng", XlnxAsuTRng, trng.entropy.trss_seed, 0),
     DEFINE_PROP_STRING("prng-type", XlnxAsuTRng, trng.prng.type),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_asu_trng = {
@@ -416,7 +415,7 @@ static const VMStateDescription vmstate_asu_trng = {
     }
 };
 
-static void asu_trng_class_init(ObjectClass *klass, void *data)
+static void asu_trng_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

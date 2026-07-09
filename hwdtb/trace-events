@@ -1,0 +1,48 @@
+hwdtb_node_parse(const char *path) "%s"
+hwdtb_node_parse_connection(const char *path, const char *kind, size_t index, const char *target, const char *tuple) "%s: %s[%zu] -> %s[%s]"
+hwdtb_node_parse_conn_map_resolve(const char *path, const char *map_path, const char *kind, const char *src_tuple, const char *target, const char *target_tuple) "%s: %s/%s[%s] -> %s[%s]"
+hwdtb_node_phandle(const char *path, uint32_t phandle) "%s: %" PRIu32
+
+hwdtb_node_clock_connect(const char *path, const char *in_clk, const char *src_path, const char *out_clk) "%s: [%s] <- %s[%s]"
+hwdtb_node_resolve_candidates(const char *path, const char *candidates) "%s: %s"
+hwdtb_node_resolve_success(const char *path, const char *type) "%s -> %s"
+hwdtb_node_resolve_failure(const char *path) "%s"
+
+hwdtb_node_memory_region_create(const char *path, uint64_t size) "%s: size: 0x%" PRIx64
+hwdtb_node_memory_region_create_ram(const char *path, uint64_t size) "%s: size: 0x%" PRIx64
+hwdtb_node_memory_region_create_ram_from_file(const char *path, uint64_t size, const char *filename) "%s: size: 0x%" PRIx64 ", path: %s"
+hwdtb_node_memory_region_create_alias(const char *path, uint64_t size, const char *aliased) "%s: size: 0x%" PRIx64 ", alias of %s"
+
+hwdtb_node_set_prop_str(const char *path, const char *prop, const char *val) "%s/%s = %s"
+hwdtb_node_set_prop_link(const char *path, const char *prop, const char *val) "%s/%s = %s"
+hwdtb_node_set_prop_link_proxy(const char *path, const char *prop, const char *val) "%s/%s = %s"
+hwdtb_node_set_prop_uint(const char *path, const char *prop, uint64_t val) "%s/%s = %" PRIu64
+hwdtb_node_set_prop_int(const char *path, const char *prop, int64_t val) "%s/%s = %" PRId64
+hwdtb_node_set_prop_bool(const char *path, const char *prop, bool val) "%s/%s = %d"
+hwdtb_node_set_prop_drive(const char *path, const char *prop, const char *val) "%s/%s = %s"
+hwdtb_node_set_prop_nic(const char *path, const char *val) "%s/nic = %s"
+hwdtb_node_set_prop_chr(const char *path, const char *val) "%s/chardev = %s"
+hwdtb_node_set_prop_chr_failure(const char *path) "%s/chardev: no available chardev"
+hwdtb_node_remote_port_dev_bind(const char *path, size_t slot, const char *parent, uint32_t chan) "%s: binding slot %zu to %s[%" PRIu32 "]"
+
+hwdtb_node_auto_parent_cpu_to_cluster(const char *cpu, const char *cpu_type) "%s: auto cluster for type %s"
+hwdtb_node_realize_auto_cpu_cluster(const char *cpu_type, uint32_t cluster_id) "cpu type: %s, cluster id: %" PRIu32
+hwdtb_node_realize(const char *path) "%s"
+hwdtb_node_parent_ssi_target(const char *path, const char *parent, const char *bus, int cs) "%s: parent: %s, bus: %s, cs line: %d"
+hwdtb_node_parent_i2c_target(const char *path, const char *parent, const char *bus, int addr) "%s: parent: %s, bus: %s, address: 0x%x"
+hwdtb_node_parent_i3c_target(const char *path, const char *parent, const char *bus) "%s: parent: %s, bus: %s"
+hwdtb_node_parent_mdio_phy(const char *path, const char *parent, uint8_t reg) "%s: parent: %s, reg: 0x%" PRIx8
+
+hwdtb_node_memory_region_alias_sbd_region(const char *path, const char *sbd, size_t idx) "%s: alias of %s[%zu]"
+hwdtb_node_memory_region_map(const char *path, const char *parent, uint64_t addr) "%s: mapping on %s at 0x%" PRIx64
+hwdtb_node_sysbus_dev_map(const char *path, size_t idx, const char *parent, uint64_t addr) "%s: mapping region %zu on %s at 0x%" PRIx64
+
+hwdtb_node_gpio_resolve_legacy_map(const char *path, size_t old_idx, const char *dir, const char *name, size_t new_idx) "%s: %zu -> %s:%s[%zu]"
+hwdtb_node_gpio_resolve_legacy_intc(const char *path) "%s"
+hwdtb_node_gpio_resolve(const char *path, const char *dir, const char *name, size_t idx) "%s: %s:%s[%zu]"
+hwdtb_node_legacy_gpio_deambiguous(const char *path, const char *name, size_t idx, const char *new_dir) "%s: [%s, %zu] new direction: %s"
+hwdtb_node_legacy_gpio_reverse(const char *path, const char *ctrl_name, size_t ctrl_idx, const char *client_path, const char *client_name, size_t client_idx) "%s: [%s,%zu] <--reversed-- %s[%s,%zu]"
+
+hwdtb_node_connect_gpio(const char *path, const char *src_descr, const char *target, const char *target_descr) "%s: [%s] -> %s[%s]"
+
+hwdtb_node_legacy_armv8_timer_connect(const char *cpu, size_t irq_idx, const char *gic, size_t gic_idx) "%s[%zu] -> %s[%zu]"

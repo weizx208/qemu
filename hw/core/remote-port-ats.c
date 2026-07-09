@@ -23,14 +23,10 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
-#include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/qdev-core.h"
-#include "hw/sysbus.h"
-#include "migration/vmstate.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
 
@@ -111,7 +107,6 @@ static void rp_ats_invalidate(RemotePortATS *s, IOMMUTLBEntry *iotlb)
                              0);
     assert(enclen == pktlen);
 
-    rp_rsp_mutex_lock(s->rp);
     rp_write(s->rp, (void *) &pkt, enclen);
 
     rsp_slot = rp_dev_wait_resp(s->rp, s->rp_dev, id);
@@ -121,7 +116,6 @@ static void rp_ats_invalidate(RemotePortATS *s, IOMMUTLBEntry *iotlb)
     assert(rsp->pkt->hdr.id == id);
 
     rp_resp_slot_done(s->rp, rsp_slot);
-    rp_rsp_mutex_unlock(s->rp);
 }
 
 static void rp_ats_cache_insert(RemotePortATS *s,
@@ -130,7 +124,7 @@ static void rp_ats_cache_insert(RemotePortATS *s,
                                 hwaddr mask,
                                 AddressSpace *target_as)
 {
-    IOMMUTLBEntry *iotlb;
+    IOMMUTLBEntry *new_iotlb;
 
     /*
      * Invalidate all current translations that collide with the new one and
@@ -185,12 +179,12 @@ static void rp_ats_cache_insert(RemotePortATS *s,
         }
     }
 
-    iotlb = g_new0(IOMMUTLBEntry, 1);
-    iotlb->iova = iova;
-    iotlb->translated_addr = translated_addr;
-    iotlb->addr_mask = mask;
-    iotlb->target_as = target_as;
-    g_array_append_val(s->cache, iotlb);
+    new_iotlb = g_new0(IOMMUTLBEntry, 1);
+    new_iotlb->iova = iova;
+    new_iotlb->translated_addr = translated_addr;
+    new_iotlb->addr_mask = mask;
+    new_iotlb->target_as = target_as;
+    g_array_append_val(s->cache, new_iotlb);
 }
 
 static void rp_ats_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
@@ -358,12 +352,11 @@ static void rp_ats_unrealize(DeviceState *dev)
     g_array_free(s->cache, true);
 }
 
-static Property rp_properties[] = {
+static const Property rp_properties[] = {
     DEFINE_PROP_UINT32("rp-chan0", RemotePortATS, rp_dev, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void rp_ats_class_init(ObjectClass *oc, void *data)
+static void rp_ats_class_init(ObjectClass *oc, const void *data)
 {
     RemotePortDeviceClass *rpdc = REMOTE_PORT_DEVICE_CLASS(oc);
     RemotePortATSCacheClass *atscc = REMOTE_PORT_ATS_CACHE_CLASS(oc);

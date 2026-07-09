@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/target_page.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "alpha_sys.h"
@@ -124,9 +125,7 @@ static void clipper_init(MachineState *machine)
     pci_vga_init(pci_bus);
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
-    for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
-    }
+    pci_init_nic_devices(pci_bus, mc->default_nic);
 
     /* Super I/O */
     isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
@@ -146,7 +145,7 @@ static void clipper_init(MachineState *machine)
     }
     size = load_elf(palcode_filename, NULL, cpu_alpha_superpage_to_phys,
                     NULL, &palcode_entry, NULL, NULL, NULL,
-                    0, EM_ALPHA, 0, 0);
+                    ELFDATA2LSB, EM_ALPHA, 0, 0);
     if (size < 0) {
         error_report("could not load palcode '%s'", palcode_filename);
         exit(1);
@@ -165,7 +164,7 @@ static void clipper_init(MachineState *machine)
 
         size = load_elf(kernel_filename, NULL, cpu_alpha_superpage_to_phys,
                         NULL, &kernel_entry, &kernel_low, NULL, NULL,
-                        0, EM_ALPHA, 0, 0);
+                        ELFDATA2LSB, EM_ALPHA, 0, 0);
         if (size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
@@ -183,7 +182,7 @@ static void clipper_init(MachineState *machine)
             long initrd_base;
             int64_t initrd_size;
 
-            initrd_size = get_image_size(initrd_filename);
+            initrd_size = get_image_size(initrd_filename, NULL);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
@@ -193,7 +192,7 @@ static void clipper_init(MachineState *machine)
             /* Put the initrd image as high in memory as possible.  */
             initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
             load_image_targphys(initrd_filename, initrd_base,
-                                ram_size - initrd_base);
+                                ram_size - initrd_base, NULL);
 
             address_space_stq(&address_space_memory, param_offset + 0x100,
                               initrd_base + 0xfffffc0000000000ULL,

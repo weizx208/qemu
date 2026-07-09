@@ -913,7 +913,7 @@ static void psxc_afi_fs_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void psxc_afi_fs_reset_hold(Object *obj)
+static void psxc_afi_fs_reset_hold(Object *obj, ResetType type)
 {
     PSXC_AFI_FS *s = XILINX_PSXC_AFI_FS(obj);
 
@@ -985,7 +985,7 @@ static const VMStateDescription vmstate_psxc_afi_fs = {
     }
 };
 
-static void psxc_afi_fs_class_init(ObjectClass *klass, void *data)
+static void psxc_afi_fs_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

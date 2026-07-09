@@ -230,7 +230,7 @@ static void cpm5_crx_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void cpm5_crx_reset_hold(Object *obj)
+static void cpm5_crx_reset_hold(Object *obj, ResetType type)
 {
     CPM5_CRX *s = XILINX_CPM5_CRX(obj);
 
@@ -283,7 +283,7 @@ static const VMStateDescription vmstate_cpm5_crx = {
     }
 };
 
-static void cpm5_crx_class_init(ObjectClass *klass, void *data)
+static void cpm5_crx_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -74,7 +74,7 @@ typedef struct ExtPhy {
 typedef struct ExtPhyClass {
     MDIOSlaveClass parent_class;
 
-    ExtPhyPartInfo *part;
+    const ExtPhyPartInfo *part;
 } ExtPhyClass;
 
 #endif

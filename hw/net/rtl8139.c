@@ -48,20 +48,19 @@
  *  2011-Mar-22  Benjamin Poirier:  Implemented VLAN offloading
  */
 
-/* For crc32 */
-
 #include "qemu/osdep.h"
-#include <zlib.h>
+#include <zlib.h> /* for crc32 */
 
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qemu/bswap.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qom/object.h"
 
 /* debug RTL8139 card */
@@ -1818,7 +1817,7 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
 
     PCIDevice *d = PCI_DEVICE(s);
     int txsize = s->TxStatus[descriptor] & 0x1fff;
-    uint8_t txbuffer[0x2000];
+    QEMU_UNINITIALIZED uint8_t txbuffer[0x2000];
 
     DPRINTF("+++ transmit reading %d bytes from host memory at 0x%08x\n",
         txsize, s->TxAddr[descriptor]);
@@ -2133,6 +2132,26 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     hlen, ip->ip_sum);
             }
 
+            /*
+             * The code in this function triggers a GCC bug where an
+             * interaction between -fsanitize=address and -Wstringop-overflow
+             * results in a false-positive stringop-overflow warning that is
+             * only emitted when the address sanitizer is enabled:
+             *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114494
+             *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99673
+             * GCC incorrectly thinks that the eth_payload_data buffer has
+             * the type and size of the first field in 'struct ip_header', i.e.
+             * one byte, and then complains about all other attempts to access
+             * data in the buffer.
+             *
+             * Work around this by disabling the warning when building with
+             * GCC and the address sanitizer is enabled.
+             */
+#pragma GCC diagnostic push
+#if !defined(__clang__) && defined(QEMU_SANITIZE_ADDRESS)
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
             if ((txdw0 & CP_TX_LGSEN) && ip_protocol == IP_PROTO_TCP)
             {
                 /* Large enough for the TCP header? */
@@ -2316,6 +2335,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                 /* restore IP header */
                 memcpy(eth_payload_data, saved_ip_header, hlen);
             }
+
+#pragma GCC diagnostic pop
+
         }
 
 skip_offload:
@@ -2738,7 +2760,11 @@ static void rtl8139_io_writeb(void *opaque, uint8_t addr, uint32_t val)
             }
 
             break;
-
+        case RxConfig:
+            DPRINTF("RxConfig write(b) val=0x%02x\n", val);
+            rtl8139_RxConfig_write(s,
+                (rtl8139_RxConfig_read(s) & 0xFFFFFF00) | val);
+            break;
         default:
             DPRINTF("not implemented write(b) addr=0x%x val=0x%02x\n", addr,
                 val);
@@ -3150,7 +3176,7 @@ static const VMStateDescription vmstate_rtl8139_hotplug_ready ={
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = rtl8139_hotplug_ready_needed,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }
 };
@@ -3173,7 +3199,7 @@ static const VMStateDescription vmstate_rtl8139 = {
     .minimum_version_id = 3,
     .post_load = rtl8139_post_load,
     .pre_save  = rtl8139_pre_save,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, RTL8139State),
         VMSTATE_PARTIAL_BUFFER(phys, RTL8139State, 6),
         VMSTATE_BUFFER(mult, RTL8139State),
@@ -3257,7 +3283,7 @@ static const VMStateDescription vmstate_rtl8139 = {
         VMSTATE_UINT32_V(cplus_enabled, RTL8139State, 4),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * const []) {
         &vmstate_rtl8139_hotplug_ready,
         NULL
     }
@@ -3408,12 +3434,11 @@ static void rtl8139_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property rtl8139_properties[] = {
+static const Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void rtl8139_class_init(ObjectClass *klass, void *data)
+static void rtl8139_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -3425,7 +3450,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_REALTEK_8139;
     k->revision = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    dc->reset = rtl8139_reset;
+    device_class_set_legacy_reset(dc, rtl8139_reset);
     dc->vmsd = &vmstate_rtl8139;
     device_class_set_props(dc, rtl8139_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
@@ -3437,7 +3462,7 @@ static const TypeInfo rtl8139_info = {
     .instance_size = sizeof(RTL8139State),
     .class_init    = rtl8139_class_init,
     .instance_init = rtl8139_instance_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

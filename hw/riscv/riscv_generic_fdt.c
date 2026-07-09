@@ -28,22 +28,20 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/boards.h"
-#include "sysemu/device_tree.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
+#include "system/device_tree.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/riscv/boot.h"
 
-#include "hw/fdt_generic_util.h"
-#include "hw/fdt_generic_devices.h"
+#include "qemu/hwdtb.h"
 
 static void riscv_fdt_init(MachineState *machine)
 {
-    FDTMachineInfo *fdti;
     void *fdt = NULL;
     int fdt_size;
 
@@ -59,10 +57,7 @@ static void riscv_fdt_init(MachineState *machine)
         exit(1);
     }
 
-    /* Instantiate peripherals from the FDT.  */
-    fdti = fdt_generic_create_machine(fdt, NULL);
-    fdt_init_destroy_fdti(fdti);
-    return;
+    hwdtb_create_machine_oneshot(machine, fdt);
 }
 
 static void riscv_fdt_machine_init(MachineClass *mc)

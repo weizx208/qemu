@@ -200,7 +200,7 @@ static size_t pmx_efuse_mapping_pmx_get_bit_idx(XlnxEfuseMapIf *iface,
     return 0;
 }
 
-static void pmx_efuse_mapping_pmx_class_init(ObjectClass *c, void *data)
+static void pmx_efuse_mapping_pmx_class_init(ObjectClass *c, const void *data)
 {
     XlnxEfuseMapIfClass *xpefmic = XLNX_EFUSE_MAP_IF_CLASS(c);
 

@@ -39,8 +39,8 @@
 #define ARM_CCI400_ERR_DEBUG 0
 #endif
 
-#define TYPE_ARM_CCI400 "arm,cci-400"
-#define TYPE_ARM_CCI400_IOMMU_MEMORY_REGION "arm,cci-400-iommu-memory-region"
+#define TYPE_ARM_CCI400 "arm-cci-400"
+#define TYPE_ARM_CCI400_IOMMU_MEMORY_REGION "arm-cci-400-iommu-memory-region"
 
 #define ARM_CCI400(obj) \
      OBJECT_CHECK(CCI, (obj), TYPE_ARM_CCI400)
@@ -648,19 +648,19 @@ static const FDTGenericGPIOSet gpio_sets[] = {
     { },
 };
 
-static void cci400_class_init(ObjectClass *klass, void *data)
+static void cci400_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = cci400_reset;
+    device_class_set_legacy_reset(dc, cci400_reset);
     dc->realize = cci400_realize;
     dc->vmsd = &vmstate_cci400;
     fggc->controller_gpios = gpio_sets;
 }
 
 static void cci400_iommu_memory_region_class_init(ObjectClass *klass,
-                                                   void *data)
+                                                  const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

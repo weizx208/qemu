@@ -31,6 +31,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
@@ -42,7 +43,7 @@
 #define XILINX_CRL_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_CRL "xlnx,versal-crl"
+#define TYPE_XILINX_CRL "xlnx.versal-crl"
 
 #define XILINX_CRL(obj) \
      OBJECT_CHECK(Zynq3CRL, (obj), TYPE_XILINX_CRL)
@@ -315,8 +316,8 @@ static uint64_t ir_disable_prew(RegisterInfo *reg, uint64_t val64)
 }
 
 #define PROPAGATE_GPIO(reg, f, irq) { \
-    bool val = ARRAY_FIELD_EX32(s->regs, reg, f); \
-    qemu_set_irq(irq, val); \
+    bool val_ = ARRAY_FIELD_EX32(s->regs, reg, f); \
+    qemu_set_irq(irq, val_); \
 }
 
 static void crl_update_gpios(Zynq3CRL *s)
@@ -674,12 +675,12 @@ static const FDTGenericGPIOSet crl_gpios[] = {
     { },
 };
 
-static void crl_class_init(ObjectClass *klass, void *data)
+static void crl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = crl_reset;
+    device_class_set_legacy_reset(dc, crl_reset);
     dc->realize = crl_realize;
     dc->vmsd = &vmstate_crl;
     fggc->controller_gpios = crl_gpios;

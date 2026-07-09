@@ -21,15 +21,13 @@
 #define MICROBLAZE_CPU_H
 
 #include "cpu-qom.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
-
-/* MicroBlaze is always in-order. */
-#define TCG_GUEST_DEFAULT_MO  TCG_MO_ALL
+#include "exec/cpu-interrupt.h"
+#include "hwdtb/memattrs.h"
 
 typedef struct CPUArchState CPUMBState;
-typedef struct DynamicMBGDBXMLInfo DynamicMBGDBXMLInfo;
-
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
@@ -58,8 +56,6 @@ typedef struct DynamicMBGDBXMLInfo DynamicMBGDBXMLInfo;
 #define SR_EDR   0xd
 
 /* MSR flags.  */
-#define MSR_PVR_SHIFT 10
-
 #define MSR_BE  (1<<0) /* 0x001 */
 #define MSR_IE  (1<<1) /* 0x002 */
 #define MSR_C   (1<<2) /* 0x004 */
@@ -70,7 +66,7 @@ typedef struct DynamicMBGDBXMLInfo DynamicMBGDBXMLInfo;
 #define MSR_DCE (1<<7) /* 0x080 */
 #define MSR_EE  (1<<8) /* 0x100 */
 #define MSR_EIP (1<<9) /* 0x200 */
-#define MSR_PVR (1 << MSR_PVR_SHIFT)
+#define MSR_PVR (1<<10) /* 0x400 */
 #define MSR_CC  (1<<31)
 
 /* Machine State Register (MSR) Fields */
@@ -92,6 +88,7 @@ typedef struct DynamicMBGDBXMLInfo DynamicMBGDBXMLInfo;
 #define          ESR_ESS_FSL_OFFSET     5
 
 #define          ESR_ESS_MASK  (0x7f << 5)
+#define          ESR_ESS_DEC_OF  (1 << 11) /* DEC: 0=DBZ, 1=OF */
 
 #define          ESR_EC_FSL             0
 #define          ESR_EC_UNALIGNED_DATA  1
@@ -232,18 +229,11 @@ typedef struct DynamicMBGDBXMLInfo DynamicMBGDBXMLInfo;
 #define CC_NE  1
 #define CC_EQ  0
 
-#undef NB_MEM_ATTR
-#define NB_MEM_ATTR     2
-#define MEM_ATTR_NS 0
-#define MEM_ATTR_SEC 1
-
 #define STREAM_EXCEPTION (1 << 0)
 #define STREAM_ATOMIC    (1 << 1)
 #define STREAM_TEST      (1 << 2)
 #define STREAM_CONTROL   (1 << 3)
 #define STREAM_NONBLOCK  (1 << 4)
-
-#define TARGET_INSN_START_EXTRA_WORDS 1
 
 /* use-non-secure property masks */
 #define USE_NON_SECURE_M_AXI_DP_MASK 0x1
@@ -260,7 +250,7 @@ struct CPUArchState {
     uint32_t pc;
     uint32_t msr;    /* All bits of MSR except MSR[C] and MSR[CC] */
     uint32_t msr_c;  /* MSR[C], in low bit; other bits must be 0 */
-    target_ulong ear;
+    uint64_t ear;
     uint32_t esr;
     uint32_t fsr;
     uint32_t btr;
@@ -271,7 +261,7 @@ struct CPUArchState {
 
     /* lwx/swx reserved address */
 #define RES_ADDR_NONE 0xffffffff /* Use 0xffffffff to indicate no reservation */
-    target_ulong res_addr;
+    uint32_t res_addr;
     uint32_t res_val;
 
     /* Internal flags.  */
@@ -306,11 +296,7 @@ struct CPUArchState {
     /* These fields are preserved on reset.  */
     /* MicroBlaze does not have state that affects the memory attributes so
      * we end up only needing one instance.  */
-    MemTxAttrs *memattr_p;
-};
-
-struct DynamicMBGDBXMLInfo {
-    char *xml;
+    HwDtbMemTxAttrs *memattr_p;
 };
 
 /*
@@ -372,8 +358,6 @@ struct ArchCPU {
     bool ns_axi_dc;
     bool ns_axi_ic;
 
-    DynamicMBGDBXMLInfo dyn_xml;
-
     MicroBlazeCPUConfig cfg;
 };
 
@@ -403,10 +387,8 @@ G_NORETURN void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
-int mb_cpu_gdb_read_stack_protect(CPUArchState *cpu, GByteArray *buf, int reg);
-int mb_cpu_gdb_write_stack_protect(CPUArchState *cpu, uint8_t *buf, int reg);
-void mb_gen_dynamic_xml(MicroBlazeCPU *cpu);
-const char *mb_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname);
+int mb_cpu_gdb_read_stack_protect(CPUState *cs, GByteArray *buf, int reg);
+int mb_cpu_gdb_write_stack_protect(CPUState *cs, uint8_t *buf, int reg);
 
 static inline uint32_t mb_cpu_read_msr(const CPUMBState *env)
 {
@@ -425,6 +407,8 @@ static inline void mb_cpu_write_msr(CPUMBState *env, uint32_t val)
 }
 
 void mb_tcg_init(void);
+void mb_translate_code(CPUState *cs, TranslationBlock *tb,
+                       int *max_insns, vaddr pc, void *host_pc);
 
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
 
@@ -434,17 +418,14 @@ void mb_tcg_init(void);
 #define MMU_USER_IDX    2
 /* See NB_MMU_MODES in cpu-defs.h. */
 
-#include "exec/cpu-all.h"
-
 /* Ensure there is no overlap between the two masks. */
 QEMU_BUILD_BUG_ON(MSR_TB_MASK & IFLAGS_TB_MASK);
 
-static inline void cpu_get_tb_cpu_state(CPUMBState *env, vaddr *pc,
-                                        uint64_t *cs_base, uint32_t *flags)
+static inline bool mb_cpu_is_big_endian(CPUState *cs)
 {
-    *pc = env->pc;
-    *flags = (env->iflags & IFLAGS_TB_MASK) | (env->msr & MSR_TB_MASK);
-    *cs_base = (*flags & IMM_FLAG ? env->imm : 0);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+
+    return !cpu->cfg.endi;
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -457,21 +438,6 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                int mmu_idx, MemTxAttrs attrs,
                                MemTxResult response, uintptr_t retaddr);
 #endif
-
-static inline int cpu_mmu_index(CPUMBState *env, bool ifetch)
-{
-    MicroBlazeCPU *cpu = env_archcpu(env);
-
-    /* Are we in nommu mode?.  */
-    if (!(env->msr & MSR_VM) || !cpu->cfg.use_mmu) {
-        return MMU_NOMMU_IDX;
-    }
-
-    if (env->msr & MSR_UM) {
-        return MMU_USER_IDX;
-    }
-    return MMU_KERNEL_IDX;
-}
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_mb_cpu;

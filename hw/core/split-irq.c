@@ -49,28 +49,35 @@ static void split_irq_realize(DeviceState *dev, Error **errp)
 {
     SplitIRQ *s = SPLIT_IRQ(dev);
 
-    if (s->num_lines < 1 || s->num_lines >= MAX_SPLIT_LINES) {
-        error_setg(errp,
-                   "IRQ splitter number of lines %d is not between 1 and %d",
-                   s->num_lines, MAX_SPLIT_LINES);
+    if (s->num_lines < 1) {
+        error_setg(errp, "IRQ splitter number of lines %d is lower than 1",
+                   s->num_lines);
         return;
     }
 
+    s->out_irq = g_new0(qemu_irq, s->num_lines);
     qdev_init_gpio_out(dev, s->out_irq, s->num_lines);
 }
 
-static Property split_irq_properties[] = {
+static void split_irq_unrealize(DeviceState *dev)
+{
+    SplitIRQ *s = SPLIT_IRQ(dev);
+
+    g_free(s->out_irq);
+}
+
+static const Property split_irq_properties[] = {
     DEFINE_PROP_UINT16("num-lines", SplitIRQ, num_lines, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void split_irq_class_init(ObjectClass *klass, void *data)
+static void split_irq_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     /* No state to reset or migrate */
     device_class_set_props(dc, split_irq_properties);
     dc->realize = split_irq_realize;
+    dc->unrealize = split_irq_unrealize;
 
     /* Reason: Needs to be wired up to work */
     dc->user_creatable = false;

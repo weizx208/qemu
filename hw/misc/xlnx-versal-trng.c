@@ -208,7 +208,7 @@ static void trng_reset_enter(Object *obj, ResetType type)
     s->count = 0;
 }
 
-static void trng_reset_hold(Object *obj)
+static void trng_reset_hold(Object *obj, ResetType type)
 {
     TRNG *s = XILINX_TRNG(obj);
 
@@ -262,15 +262,15 @@ static inline void trng_reseed(TRNG *s, bool ext)
     }
 
     if (tst) {
-            uint64_t tst;
+            uint64_t t;
 
             /* Fold the 64-bit test seed into 32 bits.  */
-            tst = s->tst_seed[0] + s->tst_seed[1];
-            tst = tst ^ (tst >> 32);
-            tst &= UINT32_MAX;
+            t = s->tst_seed[0] + s->tst_seed[1];
+            t = t ^ (t >> 32);
+            t &= UINT32_MAX;
 
             /* Add it into the mix.  */
-            s->seed += (uint32_t) tst;
+            s->seed += (uint32_t) t;
     }
 
     srand(s->seed);
@@ -518,14 +518,14 @@ static const VMStateDescription vmstate_trng = {
     .name = TYPE_XILINX_TRNG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(out, TRNG, 7),
         VMSTATE_UINT32_ARRAY(regs, TRNG, R_MAX),
         VMSTATE_END_OF_LIST(),
     }
 };
 
-static void trng_class_init(ObjectClass *klass, void *data)
+static void trng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     TRNGClass *tc = XILINX_TRNG_CLASS(klass);

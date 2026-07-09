@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
@@ -840,11 +841,11 @@ static const VMStateDescription vmstate_lpd_slcr = {
     }
 };
 
-static void lpd_slcr_class_init(ObjectClass *klass, void *data)
+static void lpd_slcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = lpd_slcr_reset;
+    device_class_set_legacy_reset(dc, lpd_slcr_reset);
     dc->realize = lpd_slcr_realize;
     dc->vmsd = &vmstate_lpd_slcr;
 }

@@ -251,7 +251,7 @@ static void mmi_crx_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void mmi_crx_reset_hold(Object *obj)
+static void mmi_crx_reset_hold(Object *obj, ResetType type)
 {
     MMI_CRX *s = XILINX_MMI_CRX(obj);
 
@@ -299,7 +299,7 @@ static const VMStateDescription vmstate_mmi_crx = {
     }
 };
 
-static void mmi_crx_class_init(ObjectClass *klass, void *data)
+static void mmi_crx_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

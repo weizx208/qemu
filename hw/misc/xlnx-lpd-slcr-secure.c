@@ -195,11 +195,11 @@ static const VMStateDescription vmstate_lpd_slcr_secure = {
     }
 };
 
-static void lpd_slcr_secure_class_init(ObjectClass *klass, void *data)
+static void lpd_slcr_secure_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = lpd_slcr_secure_reset;
+    device_class_set_legacy_reset(dc, lpd_slcr_secure_reset);
     dc->realize = lpd_slcr_secure_realize;
     dc->vmsd = &vmstate_lpd_slcr_secure;
 }

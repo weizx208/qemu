@@ -193,7 +193,7 @@ static void ufs_scsi_init(Object *obj)
     QTAILQ_INIT(&s->taskQ);
 }
 
-static void ufs_scsi_class_init(ObjectClass *klass, void *data)
+static void ufs_scsi_class_init(ObjectClass *klass, const void *data)
 {
    DeviceClass *dc = DEVICE_CLASS(klass);
    ufs_scsi_if_class *usc = UFS_SCSI_IF_CLASS(klass);

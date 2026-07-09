@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
@@ -47,7 +48,7 @@
     }                                       \
 } while (0)
 
-#define TYPE_XILINX_WWDT "xlnx,versal-wwdt"
+#define TYPE_XILINX_WWDT "xlnx-versal-wwdt"
 
 /* Masks for LBE field in ENABLE_AND_STATUS_REG */
 /* Basic WWDT mode */
@@ -1049,14 +1050,13 @@ static void wwdt_reset(DeviceState *dev)
 static WWDT *wwdt_from_mr(void *mr_accessor)
 {
     RegisterInfoArray *reg_array = mr_accessor;
-    Object *obj;
+    DeviceState *dev;
 
     assert(reg_array != NULL);
 
-    obj = reg_array->mem.owner;
-    assert(obj);
+    dev = register_array_get_owner(reg_array);
 
-    return XLNX_WWDT(obj);
+    return XLNX_WWDT(dev);
 }
 
 static MemTxResult wwdt_write(void *opaque, hwaddr addr, uint64_t val,
@@ -1131,9 +1131,8 @@ static void wwdt_init(Object *obj)
     s->sst_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, wwdt_sst_time_elapsed, s);
 }
 
-static Property wwdt_properties[] = {
+static const Property wwdt_properties[] = {
     DEFINE_PROP_UINT64("pclk", WWDT, pclk, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const FDTGenericGPIOSet wwdt_client_gpios[] = {
@@ -1157,12 +1156,12 @@ static const VMStateDescription vmstate_wwdt = {
     }
 };
 
-static void wwdt_class_init(ObjectClass *klass, void *data)
+static void wwdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = wwdt_reset;
+    device_class_set_legacy_reset(dc, wwdt_reset);
     dc->realize = wwdt_realize;
     dc->vmsd = &vmstate_wwdt;
     device_class_set_props(dc, wwdt_properties);

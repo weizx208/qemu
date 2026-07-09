@@ -16,7 +16,7 @@
 #include "hw/hw.h"
 #include "hw/stream.h"
 #include "qemu/bitops.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/register.h"
 
 #include "crypto/keccak_sponge.h"
@@ -322,12 +322,12 @@ static const VMStateDescription vmstate_sha3 = {
     }
 };
 
-static void sha3_class_init(ObjectClass *klass, void *data)
+static void sha3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 
-    dc->reset = xlx_sha3_reset;
+    device_class_set_legacy_reset(dc, xlx_sha3_reset);
     dc->vmsd = &vmstate_sha3;
 
     ssc->push = xlx_sha3_stream_push;

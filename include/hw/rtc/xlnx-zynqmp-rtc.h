@@ -33,7 +33,7 @@
 #include "qemu/timer.h"
 
 #define TYPE_XLNX_ZYNQMP_RTC "xlnx-zynmp.rtc"
-#define TYPE_XLNX_ZYNQMP_ALIAS_RTC "xlnx,zynqmp-rtc"
+#define TYPE_XLNX_ZYNQMP_ALIAS_RTC "xlnx-zynqmp-rtc"
 
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPRTC, XLNX_ZYNQMP_RTC)
 
@@ -88,12 +88,9 @@ struct XlnxZynqMPRTC {
     QEMUTimer *alarm;
     QEMUTimer *sec_tick;
 
-    struct tm current_tm;
-
     struct {
         char *version;
     } cfg;
-
     uint32_t tick_offset;
     uint32_t guest_offset;
 

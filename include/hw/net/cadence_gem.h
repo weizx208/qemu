@@ -32,6 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(CadenceGEMState, CADENCE_GEM)
 #include "net/net.h"
 #include "hw/sysbus.h"
 #include "hw/mdio/mdio.h"
+#include "hwdtb/memattrs.h"
 
 #define CADENCE_GEM_MAXREG        (0x00000f00 / 4) /* Last valid GEM address */
 
@@ -50,8 +51,8 @@ struct CadenceGEMState {
     SysBusDevice parent_obj;
 
     /*< public >*/
-    MemTxAttrs *attr_r;
-    MemTxAttrs *attr_w;
+    HwDtbMemTxAttrs *attr_r;
+    HwDtbMemTxAttrs *attr_w;
     MemoryRegion iomem;
     MemoryRegion *dma_mr;
     AddressSpace dma_as;
@@ -65,6 +66,7 @@ struct CadenceGEMState {
     uint8_t num_type2_screeners;
     uint32_t revision;
     uint16_t jumbo_max_len;
+    bool pcs_enabled;
     bool has_usxgmii;
 
     /* GEM registers backing store */
@@ -84,6 +86,9 @@ struct CadenceGEMState {
     uint16_t phy_regs[32];
 
     uint8_t phy_loop; /* Are we in phy loopback? */
+
+    bool phy_connected; /* true if connected */
+    struct CadenceGEMState *phy_consumer;
 
     /* The current DMA descriptor pointers */
     uint32_t rx_desc_addr[MAX_PRIORITY_QUEUES];

@@ -14,7 +14,7 @@ typedef struct pca954x_type {
 typedef struct PCA954X_class {
     I2CSlaveClass parent_class;
 
-    pca954x_type *device;
+    const pca954x_type *device;
 } PCA954XClass;
 
 typedef struct {

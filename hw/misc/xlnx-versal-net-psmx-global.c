@@ -2763,7 +2763,7 @@ static void psmx_global_reg_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void psmx_global_reg_reset_hold(Object *obj)
+static void psmx_global_reg_reset_hold(Object *obj, ResetType type)
 {
     PSMX_GLOBAL_REG *s = XILINX_PSMX_GLOBAL_REG(obj);
 
@@ -2868,7 +2868,7 @@ static const FDTGenericGPIOSet psmx_global_controller_gpios[] = {
     { },
 };
 
-static void psmx_global_reg_class_init(ObjectClass *klass, void *data)
+static void psmx_global_reg_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

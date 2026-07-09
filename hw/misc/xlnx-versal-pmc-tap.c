@@ -41,7 +41,7 @@
 #define XILINX_PMC_TAP_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_PMC_TAP "xlnx,pmc-tap"
+#define TYPE_XILINX_PMC_TAP "xlnx-pmc-tap"
 
 #define XILINX_PMC_TAP(obj) \
      OBJECT_CHECK(PMC_TAP, (obj), TYPE_XILINX_PMC_TAP)
@@ -702,7 +702,7 @@ typedef struct PMC_TAP {
     MemoryRegion iomem;
     qemu_irq irq_sec_dbg_int;
     qemu_irq irq_pmc_tap_int;
-    CharBackend chr;
+    CharFrontend chr;
 
     uint8_t platform;
     uint8_t pver;
@@ -1979,7 +1979,7 @@ static const VMStateDescription vmstate_pmc_tap = {
     }
 };
 
-static Property pmc_tap_props[] = {
+static const Property pmc_tap_props[] = {
         DEFINE_PROP_CHR("chardev", PMC_TAP, chr),
         DEFINE_PROP_UINT32("slr-type", PMC_TAP, slr_type,
                            PMC_TAP_SLR_TYPE_MONO),
@@ -1988,14 +1988,13 @@ static Property pmc_tap_props[] = {
         DEFINE_PROP_UINT8("platform-ver", PMC_TAP, pver, 0),
         DEFINE_PROP_UINT32("idcode", PMC_TAP, idcode, 0),
         DEFINE_PROP_UINT8("silicon-rev", PMC_TAP, siliconRev, 0xFF),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pmc_tap_class_init(ObjectClass *klass, void *data)
+static void pmc_tap_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pmc_tap_reset;
+    device_class_set_legacy_reset(dc, pmc_tap_reset);
     dc->realize = pmc_tap_realize;
     dc->vmsd = &vmstate_pmc_tap;
     device_class_set_props(dc, pmc_tap_props);

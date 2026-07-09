@@ -25,6 +25,7 @@
 #include "hw/register.h"
 #include "hw/ptimer.h"
 #include "hw/stream.h"
+#include "hwdtb/memattrs.h"
 
 #define TYPE_XLNX_CSU_DMA "xlnx.csu_dma"
 #define TYPE_XLNX_CSU_DMA_ALIAS "zynqmp.csu-dma"
@@ -34,8 +35,8 @@
 typedef struct XlnxCSUDMA {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    MemTxAttrs *attr_r;
-    MemTxAttrs *attr_w;
+    HwDtbMemTxAttrs *attr_r;
+    HwDtbMemTxAttrs *attr_w;
     MemoryRegion *dma_mr;
     AddressSpace dma_as;
     qemu_irq irq;

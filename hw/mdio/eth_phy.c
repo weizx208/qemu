@@ -44,9 +44,10 @@
 static void eth_phy_reset(DeviceState *dev)
 {
     EthPhy *s = ETHPHY(dev);
+    EthPhyClass *k = ETHPHY_GET_CLASS(dev);
 
     /* If AutoNegotiation is supported */
-    if (s->part->autoneg) {
+    if (k->part->autoneg) {
         /* Show as AutoNeg capable & show as its completed autoneg */
         s->regs[PHY_STATUS] |= M(PHY_STAT_AUTONEG_CAP) |
                                M(PHY_STAT_AUTONEG_COMP) |
@@ -63,7 +64,7 @@ static void eth_phy_reset(DeviceState *dev)
         s->regs[PHY_1000T_STATUS] |= 0x7C00;
 
         /* Support all modes in gmii mode*/
-        if (s->part->gmii) {
+        if (k->part->gmii) {
             s->regs[PHY_EXT_STATUS] |=  M(PHY_EXT_STAT_1000BT_HD) |
                                         M(PHY_EXT_STAT_1000BT_FD) |
                                         M(PHY_EXT_STAT_1000BX_HD) |
@@ -176,33 +177,31 @@ static void eth_phy_mdio_transfer(MDIOSlave *slave, MDIOFrame *frame)
     set_frame_phy_status(slave, frame);
 }
 
-static void eth_phy_init(Object *Obj)
+static void eth_phy_init(Object *obj)
 {
-    EthPhy *s = ETHPHY(Obj);
-    EthPhyClass *k = ETHPHY_GET_CLASS(Obj);
+    EthPhy *s = ETHPHY(obj);
+    EthPhyClass *k = ETHPHY_GET_CLASS(obj);
 
-    s->part = k->part;
     /* PHY Id. */
-    s->regs[PHY_ID1] = s->part->phy_id1;
-    s->regs[PHY_ID2] = s->part->phy_id2;
-
+    s->regs[PHY_ID1] = k->part->phy_id1;
+    s->regs[PHY_ID2] = k->part->phy_id2;
     s->regs_readonly_mask = default_readonly_mask;
 }
 
-static void eth_phy_class_init(ObjectClass *klass, void *data)
+static void eth_phy_class_init(ObjectClass *klass, const void *data)
 {
     MDIOSlaveClass *sc = MDIO_SLAVE_CLASS(klass);
 
     sc->transfer = eth_phy_mdio_transfer;
 }
 
-static void phy_class_init(ObjectClass *klass, void *data)
+static void phy_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     EthPhyClass *k = ETHPHY_CLASS(klass);
 
     k->part = data;
-    dc->reset = eth_phy_reset;
+    device_class_set_legacy_reset(dc, eth_phy_reset);
 }
 
 static const TypeInfo eth_phy_info = {
@@ -229,7 +228,7 @@ static void eth_phy_register_types(void)
             .class_init = phy_class_init,
             .class_data = (void *)&devices[i],
         };
-        type_register(&ti);
+        type_register_static(&ti);
     }
 }
 

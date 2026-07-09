@@ -59,7 +59,7 @@ static void mdio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void mdio_class_init(ObjectClass *klass, void *data)
+static void mdio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 

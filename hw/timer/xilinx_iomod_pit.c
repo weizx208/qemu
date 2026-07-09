@@ -27,6 +27,7 @@
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
@@ -78,13 +79,12 @@ typedef struct XilinxPIT {
     const char *prefix;
 } XilinxPIT;
 
-static Property xlx_iom_properties[] = {
+static const Property xlx_iom_properties[] = {
     DEFINE_PROP_UINT32("frequency", XilinxPIT, frequency, 66*1000000),
     DEFINE_PROP_BOOL("use-pit", XilinxPIT, cfg.use, 0),
     DEFINE_PROP_UINT32("pit-size", XilinxPIT, cfg.size, 1),
     DEFINE_PROP_BOOL("pit-readable", XilinxPIT, cfg.readable, 1),
     DEFINE_PROP_BOOL("pit-interrupt", XilinxPIT, cfg.interrupt, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static uint64_t pit_ctr_pr(RegisterInfo *reg, uint64_t val)
@@ -259,11 +259,11 @@ static const VMStateDescription vmstate_xlx_iom = {
     }
 };
 
-static void xlx_iom_class_init(ObjectClass *klass, void *data)
+static void xlx_iom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = iom_pit_reset;
+    device_class_set_legacy_reset(dc, iom_pit_reset);
     dc->realize = xlx_iom_realize;
     device_class_set_props(dc, xlx_iom_properties);
     dc->vmsd = &vmstate_xlx_iom;

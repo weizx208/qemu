@@ -11,8 +11,8 @@
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "exec/replay-core.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/qtest.h"
+#include "exec/icount.h"
+#include "system/qtest.h"
 #include "block/aio.h"
 #include "hw/clock.h"
 
@@ -441,7 +441,7 @@ const VMStateDescription vmstate_ptimer = {
     .name = "ptimer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(enabled, ptimer_state),
         VMSTATE_UINT64(limit, ptimer_state),
         VMSTATE_UINT64(delta, ptimer_state),

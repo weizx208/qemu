@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
@@ -232,29 +233,29 @@ typedef struct PSM_LOCAL_REG {
 } PSM_LOCAL_REG;
 
 #define PROPAGATE_FIELD1(s, sreg, sf, dreg, df, irq) {           \
-    unsigned int val = ARRAY_FIELD_EX32((s)->regs, sreg, sf);    \
-    ARRAY_FIELD_DP32((s)->regs, dreg, df, val);                  \
-    qemu_set_irq(irq, val);                                      \
+    unsigned int val_ = ARRAY_FIELD_EX32((s)->regs, sreg, sf);   \
+    ARRAY_FIELD_DP32((s)->regs, dreg, df, val_);                 \
+    qemu_set_irq(irq, val_);                                     \
 }
 
 #define PROPAGATE_FIELD(s, sreg, sf, dreg, df, irq) {            \
-    unsigned int val = ARRAY_FIELD_EX32((s)->regs, sreg, sf);    \
-    unsigned int i;                                              \
+    unsigned int val_ = ARRAY_FIELD_EX32((s)->regs, sreg, sf);   \
+    unsigned int i_;                                             \
                                                                  \
-    ARRAY_FIELD_DP32((s)->regs, dreg, df, val);                  \
+    ARRAY_FIELD_DP32((s)->regs, dreg, df, val_);                 \
     assert(ARRAY_SIZE(irq) == R_ ## sreg ## _ ## sf ## _LENGTH); \
-    for (i = 0; i < R_ ## sreg ## _ ## sf ## _LENGTH; i++) {     \
-        qemu_set_irq(irq[i], (val >> i) & 1);                    \
+    for (i_ = 0; i_ < R_ ## sreg ## _ ## sf ## _LENGTH; i_++) {  \
+        qemu_set_irq(irq[i_], (val_ >> i_) & 1);                 \
     }                                                            \
 }
 
 #define PROPAGATE_REG32(s, reg, irq) {                           \
-    unsigned int val = (s)->regs[R_ ## reg];                     \
-    unsigned int i;                                              \
+    unsigned int val_ = (s)->regs[R_ ## reg];                    \
+    unsigned int i_;                                             \
                                                                  \
     assert(ARRAY_SIZE(irq) == sizeof((s)->regs[0]) * 8);         \
-    for (i = 0; i < sizeof((s)->regs[0]) * 8; i++) {             \
-        qemu_set_irq(irq[i], (val >> i) & 1);                    \
+    for (i_ = 0; i_ < sizeof((s)->regs[0]) * 8; i_++) {          \
+        qemu_set_irq(irq[i_], (val_ >> i_) & 1);                 \
     }                                                            \
 }
 
@@ -684,12 +685,12 @@ static const FDTGenericGPIOSet psm_local_reg_client_gpios[] = {
     { },
 };
 
-static void psm_local_reg_class_init(ObjectClass *klass, void *data)
+static void psm_local_reg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = psm_local_reg_reset;
+    device_class_set_legacy_reset(dc, psm_local_reg_reset);
     dc->vmsd = &vmstate_psm_local_reg;
     fggc->controller_gpios = psm_local_reg_gpios;
     fggc->client_gpios = psm_local_reg_client_gpios;

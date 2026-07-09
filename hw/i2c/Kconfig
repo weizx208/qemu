@@ -50,7 +50,15 @@ config PMBUS
     bool
     select SMBUS
 
+config BCM2835_I2C
+    bool
+    select I2C
+
 config TPS6598X
     bool
     default y if I2C_DEVICES
+    select I2C
+
+config XLNX_AXI_IIC
+    bool
     select I2C

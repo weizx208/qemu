@@ -73,6 +73,9 @@ static const MemoryRegionOps avr_mask_ops = {
     .impl = {
         .max_access_size = 1,
     },
+    .valid = {
+        .max_access_size = 1,
+    },
 };
 
 static void avr_mask_init(Object *dev)
@@ -90,11 +93,11 @@ static void avr_mask_init(Object *dev)
     s->val = 0x00;
 }
 
-static void avr_mask_class_init(ObjectClass *klass, void *data)
+static void avr_mask_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = avr_mask_reset;
+    device_class_set_legacy_reset(dc, avr_mask_reset);
 }
 
 static const TypeInfo avr_mask_info = {

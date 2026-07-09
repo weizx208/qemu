@@ -39,7 +39,7 @@
 #define XILINX_FPD_SLCR_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_FPD_SLCR "xlnx,versal-fpd-slcr"
+#define TYPE_XILINX_FPD_SLCR "xlnx-versal-fpd-slcr"
 
 #define XILINX_FPD_SLCR(obj) \
      OBJECT_CHECK(FPD_SLCR, (obj), TYPE_XILINX_FPD_SLCR)
@@ -394,11 +394,11 @@ static const VMStateDescription vmstate_fpd_slcr = {
     }
 };
 
-static void fpd_slcr_class_init(ObjectClass *klass, void *data)
+static void fpd_slcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = fpd_slcr_reset;
+    device_class_set_legacy_reset(dc, fpd_slcr_reset);
     dc->vmsd = &vmstate_fpd_slcr;
 }
 

@@ -30,7 +30,7 @@
 #include "target/riscv/cpu.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "hw/fdt_generic_util.h"
 
 static bool addr_between(uint32_t addr, uint32_t base, uint32_t num)
@@ -190,8 +190,13 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
         uint32_t irq = (addr - plic->priority_base) >> 2;
-
-        if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
+        if (irq == 0) {
+            /* IRQ 0 source prioority is reserved */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Invalid source priority write 0x%"
+                          HWADDR_PRIx "\n", __func__, addr);
+            return;
+        } else if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
             /*
              * if "num_priorities + 1" is power-of-2, make each register bit of
              * interrupt priority WARL (Write-Any-Read-Legal). Just filter
@@ -350,8 +355,10 @@ static void sifive_plic_irq_request(void *opaque, int irq, int level)
 {
     SiFivePLICState *s = opaque;
 
-    sifive_plic_set_pending(s, irq, level > 0);
-    sifive_plic_update(s);
+    if (level > 0) {
+        sifive_plic_set_pending(s, irq, true);
+        sifive_plic_update(s);
+    }
 }
 
 static void sifive_plic_realize(DeviceState *dev, Error **errp)
@@ -403,27 +410,11 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
-static bool sifive_plic_ready_to_realize(DeviceState *dev)
-{
-    SiFivePLICState *s = SIFIVE_PLIC(dev);
-    size_t i;
-
-    parse_hart_config(s);
-
-    for (i = 0; i < s->num_harts; i++) {
-        if (qemu_get_cpu(s->hartid_base + i) == NULL) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 static const VMStateDescription vmstate_sifive_plic = {
     .name = "riscv_sifive_plic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
             VMSTATE_VARRAY_UINT32(source_priority, SiFivePLICState,
                                   num_sources, 0,
                                   vmstate_info_uint32, uint32_t),
@@ -440,7 +431,7 @@ static const VMStateDescription vmstate_sifive_plic = {
         }
 };
 
-static Property sifive_plic_properties[] = {
+static const Property sifive_plic_properties[] = {
     DEFINE_PROP_STRING("hart-config", SiFivePLICState, hart_config),
     DEFINE_PROP_UINT32("hartid-base", SiFivePLICState, hartid_base, 0),
     /* number of interrupt sources including interrupt source 0 */
@@ -454,7 +445,6 @@ static Property sifive_plic_properties[] = {
     DEFINE_PROP_UINT32("context-base", SiFivePLICState, context_base, 0),
     DEFINE_PROP_UINT32("context-stride", SiFivePLICState, context_stride, 0),
     DEFINE_PROP_UINT32("aperture-size", SiFivePLICState, aperture_size, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static int sifive_plic_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
@@ -476,20 +466,18 @@ static const FDTGenericGPIOSet sifive_plic_client_gpios[] = {
     { },
 };
 
-static void sifive_plic_class_init(ObjectClass *klass, void *data)
+static void sifive_plic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
-    FDTGenericHelperClass *fghc = FDT_GENERIC_HELPER_CLASS(klass);
 
-    dc->reset = sifive_plic_reset;
+    device_class_set_legacy_reset(dc, sifive_plic_reset);
     device_class_set_props(dc, sifive_plic_properties);
     dc->realize = sifive_plic_realize;
     dc->vmsd = &vmstate_sifive_plic;
     fgic->get_irq = sifive_plic_fdt_get_irq;
     fggc->client_gpios = sifive_plic_client_gpios;
-    fghc->ready_to_realize = sifive_plic_ready_to_realize;
 }
 
 static const TypeInfo sifive_plic_info = {
@@ -500,7 +488,6 @@ static const TypeInfo sifive_plic_info = {
     .interfaces    = (InterfaceInfo []) {
         { TYPE_FDT_GENERIC_INTC },
         { TYPE_FDT_GENERIC_GPIO },
-        { TYPE_FDT_GENERIC_HELPER },
         { },
     },
 };

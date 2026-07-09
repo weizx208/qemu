@@ -269,11 +269,11 @@ static const VMStateDescription vmstate_cpm_crcpm = {
     }
 };
 
-static void cpm_crcpm_class_init(ObjectClass *klass, void *data)
+static void cpm_crcpm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cpm_crcpm_reset;
+    device_class_set_legacy_reset(dc, cpm_crcpm_reset);
     dc->realize = cpm_crcpm_realize;
     dc->vmsd = &vmstate_cpm_crcpm;
 }

@@ -356,14 +356,11 @@ bool xppu_parse_reg_common(XPPU *s, const char *tn, FDTGenericRegPropInfo reg,
     };
 
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ObjectClass *klass = object_class_by_name(tn);
-    FDTGenericMMapClass *parent_fmc;
     XPPUGranule ap;
     unsigned int i;
     char *name;
 
     ap = has_32b_aperture ? GRANULE_32B : GRANULE_64K;
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
 
     for (i = 1; i < reg.n && ap < NUM_GRANULE; i++, ap++) {
         s->ap[ap].parent = s;
@@ -380,5 +377,5 @@ bool xppu_parse_reg_common(XPPU *s, const char *tn, FDTGenericRegPropInfo reg,
         g_free(name);
     }
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }

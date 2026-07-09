@@ -558,11 +558,11 @@ static const VMStateDescription vmstate_cmt_xpll = {
     }
 };
 
-static void cmt_xpll_class_init(ObjectClass *klass, void *data)
+static void cmt_xpll_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cmt_xpll_reset;
+    device_class_set_legacy_reset(dc, cmt_xpll_reset);
     dc->realize = cmt_xpll_realize;
     dc->vmsd = &vmstate_cmt_xpll;
 }

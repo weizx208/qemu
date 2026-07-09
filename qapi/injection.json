@@ -10,6 +10,8 @@
 #
 # The return value from a read command
 #
+# @value: Integer value.
+#
 # Since: 2.6
 ##
 { 'struct': 'ReadValue',
@@ -18,10 +20,10 @@
 ##
 # @read_mem:
 #
-# Read a memory location from a CPU point of view. The @qom name of the CPU is
-# used if provided. The @cpu id is used if no @qom name are provided.
-# If both the @qom name or @cpu id are not provided the access is done from cpu
-# 0.
+# Read a memory location from a CPU point of view.  The @qom name of
+# the CPU is used if provided.  The @cpu id is used if no @qom name
+# are provided.  If both the @qom name or @cpu id are not provided
+# the access is done from cpu 0.
 #
 # @addr: The address to read.
 # @size: The size of the access.
@@ -39,18 +41,17 @@
 ##
 # @write_mem:
 #
-# Write a memory location from a CPU point of view. The @qom name of the CPU is
-# used if provided. The @cpu id is used if no @qom name are provided.
-# If both the @qom name or @cpu id are not provided the access is done from cpu
-# 0.
+# Write a memory location from a CPU point of view.  The @qom name
+# of the CPU is used if provided.  The @cpu id is used if no @qom
+# name are provided.  If both the @qom name or @cpu id are not
+# provided the access is done from cpu 0.
 #
 # @addr: The address to write.
 # @val: The value which will be written.
 # @size: The size of the access.
 # @cpu: The optional index of the CPU doing the access.
 # @qom: The optional qom name of the CPU doing the access.
-#
-# Returns: nothing in case of success
+# @debug: Do a debug access.
 #
 # Since: 2.6
 ##
@@ -63,10 +64,9 @@
 #
 # Trigger an event
 #
-# @time-ns:  The event will be triggered at t + time-ns on the guest clock.
+# @time-ns:  The event will be triggered at t + time-ns on the guest
+#     clock.
 # @event-id: The ID of the event.
-#
-# Returns: nothing in case of success
 #
 # Since: 2.6
 ##
@@ -79,6 +79,7 @@
 # Emitted when a fault event is triggered
 #
 # @event-id: The id of the event which has been triggered
+# @time-ns: The time when the event happened
 #
 # Since: 2.6
 ##
@@ -92,8 +93,6 @@
 # @gpio:        Name of the GPIO will be unnamed-gpio if omitted.
 # @num:         Number of the GPIO line.
 # @val:         Value (boolean) to be set for the GPIO.
-#
-# Returns: nothing in case of success
 #
 # Since: 2.6
 ##

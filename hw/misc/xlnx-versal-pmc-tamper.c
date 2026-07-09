@@ -131,11 +131,11 @@ static const VMStateDescription vmstate_pmc_tamper = {
     }
 };
 
-static void pmc_tamper_class_init(ObjectClass *klass, void *data)
+static void pmc_tamper_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pmc_tamper_reset;
+    device_class_set_legacy_reset(dc, pmc_tamper_reset);
     dc->realize = pmc_tamper_realize;
     dc->vmsd = &vmstate_pmc_tamper;
 }

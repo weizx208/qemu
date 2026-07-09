@@ -27,7 +27,7 @@
 #include "hw/i2c/i2c.h"
 #include "qemu/log.h"
 
-#define TYPE_TCA6416 "ti,tca6416"
+#define TYPE_TCA6416 "ti-tca6416"
 #define DEBUG_TCA6416     0
 
 #define TCA6416(obj)     \
@@ -107,7 +107,7 @@ static int tca6416_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static void tca6416_class_init(ObjectClass *klass, void *data)
+static void tca6416_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

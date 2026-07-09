@@ -102,13 +102,13 @@ static void sodimm_spd_init(Object *obj)
     qdev_prop_set_uint16(DEVICE(obj), "size", 512);
 }
 
-static void sodimm_spd_class_init(ObjectClass *klass, void *data)
+static void sodimm_spd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SodimmSPDClass *sc = SODIMM_SPD_CLASS(klass);
 
     strcpy(sc->manf_id, (char *) data);
-    dc->reset = sodimm_spd_reset;
+    device_class_set_legacy_reset(dc, sodimm_spd_reset);
 }
 
 static const char *dev_info[] = {

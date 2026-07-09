@@ -867,7 +867,7 @@ static void xilinx_asu_kv_reset_enter(Object *obj, ResetType type)
     s->irq_sta = false;
 }
 
-static void xilinx_asu_kv_reset_hold(Object *obj)
+static void xilinx_asu_kv_reset_hold(Object *obj, ResetType type)
 {
     XilinxAsuKvState *s = XILINX_ASU_KV(obj);
 
@@ -886,17 +886,16 @@ static void xilinx_asu_kv_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq);
 }
 
-static Property xilinx_asu_kv_properties[] = {
+static const Property xilinx_asu_kv_properties[] = {
     DEFINE_PROP_LINK("pmxc-aes", XilinxAsuKvState,
                     pmxc_aes, TYPE_PMXC_KEY_XFER_IF,
                     PmxcKeyXferIf *),
     DEFINE_PROP_LINK("aes-engine", XilinxAsuKvState,
                     aes_engine, TYPE_XILINX_ASU_AES,
                     XilinxAsuAesState *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void xilinx_asu_kv_class_init(ObjectClass *klass, void *data)
+static void xilinx_asu_kv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

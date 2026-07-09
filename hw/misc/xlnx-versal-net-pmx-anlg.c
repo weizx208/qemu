@@ -682,7 +682,7 @@ static void pmx_anlg_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void pmx_anlg_reset_hold(Object *obj)
+static void pmx_anlg_reset_hold(Object *obj, ResetType type)
 {
     PMX_ANLG *s = XILINX_PMX_ANLG(obj);
 
@@ -736,15 +736,14 @@ static void pmx_anlg_init(Object *obj)
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_out(DEVICE(obj), &s->irq_glitch_detected, 1);
+    sysbus_init_irq(sbd, &s->irq_glitch_detected);
     sysbus_init_irq(sbd, &s->irq_pmc_anlg_imr);
 }
 
-static Property pmx_anlg_properties[] = {
+static const Property pmx_anlg_properties[] = {
     DEFINE_PROP_LINK("tamper-sink", PMX_ANLG, tamper_sink,
                      TYPE_OBJECT, Object *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pmx_anlg = {
@@ -757,7 +756,7 @@ static const VMStateDescription vmstate_pmx_anlg = {
     }
 };
 
-static void pmx_anlg_class_init(ObjectClass *klass, void *data)
+static void pmx_anlg_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

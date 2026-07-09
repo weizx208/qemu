@@ -421,7 +421,7 @@ static void xilinx_psxc_rpu_cluster_core_reset_enter(Object *obj,
     s->pwrdwn = false;
 }
 
-static void xilinx_psxc_rpu_cluster_core_reset_hold(Object *obj)
+static void xilinx_psxc_rpu_cluster_core_reset_hold(Object *obj, ResetType type)
 {
     XilinxPsxcRpuClusterCoreState *s = XILINX_PSXC_RPU_CLUSTER_CORE(obj);
 
@@ -455,14 +455,13 @@ static void xilinx_psxc_rpu_cluster_core_realize(DeviceState *dev,
     s->slsplit = true;
 }
 
-static Property xilinx_psxc_rpu_cluster_core_properties[] = {
+static const Property xilinx_psxc_rpu_cluster_core_properties[] = {
     DEFINE_PROP_LINK("core", XilinxPsxcRpuClusterCoreState, core,
                      TYPE_ARM_CPU, DeviceState *),
     DEFINE_PROP_LINK("tcm-mr", XilinxPsxcRpuClusterCoreState, tcm_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_UINT32("version", XilinxPsxcRpuClusterCoreState, version,
                        XILINX_PSXC_RPU_CLUSTER_CORE_VERSAL_NET),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const FDTGenericGPIOSet xilinx_psxc_rpu_cluster_core_cntrl_gpio[] = {
@@ -490,7 +489,7 @@ static const FDTGenericGPIOSet xilinx_psxc_rpu_cluster_core_client_gpio[] = {
 };
 
 static void xilinx_psxc_rpu_cluster_core_class_init(ObjectClass *klass,
-                                                    void *data)
+                                                    const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

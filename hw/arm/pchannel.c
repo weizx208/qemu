@@ -34,22 +34,21 @@ static void arm_pchannel_dummy_reset(DeviceState *dev)
     s->pstate = s->reset_pstate;
 }
 
-static Property arm_pchannel_dummy_properties[] = {
+static const Property arm_pchannel_dummy_properties[] = {
     DEFINE_PROP_UINT32("pstate-reset-val", ARMPChannelDummyState,
                        reset_pstate, 0),
     DEFINE_PROP_UINT32("pstate-on", ARMPChannelDummyState, pstate_on, 0),
     DEFINE_PROP_UINT32("pactive-on", ARMPChannelDummyState, pactive_on, 0),
     DEFINE_PROP_UINT32("pactive-off", ARMPChannelDummyState, pactive_off, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void arm_pchannel_dummy_class_init(ObjectClass *klass, void *data)
+static void arm_pchannel_dummy_class_init(ObjectClass *klass, const void *data)
 {
     ARMPChannelIfClass *apcic = ARM_PCHANNEL_IF_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, arm_pchannel_dummy_properties);
-    dc->reset = arm_pchannel_dummy_reset;
+    device_class_set_legacy_reset(dc, arm_pchannel_dummy_reset);
     apcic->get_current_state = dummy_get_current_state;
     apcic->request_state_change = dummy_request_state_change;
 }

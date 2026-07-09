@@ -516,7 +516,7 @@ static size_t xlnx_sha3_common_stream_push(StreamSink *obj,
     return len;
 }
 
-static void xlnx_sha3_common_class_init(ObjectClass *klass, void *data)
+static void xlnx_sha3_common_class_init(ObjectClass *klass, const void *data)
 {
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 

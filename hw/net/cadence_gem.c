@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <zlib.h> /* For crc32 */
+#include <zlib.h> /* for crc32 */
 
 #include "hw/irq.h"
 #include "hw/net/cadence_gem.h"
@@ -33,11 +33,11 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "net/checksum.h"
 #include "net/eth.h"
-#include "exec/address-spaces.h"
 #include "hw/mdio/mdio_slave.h"
+#include "qemu/error-report.h"
 
 #define CADENCE_GEM_ERR_DEBUG 0
 #define DB_PRINT(...) do {\
@@ -1036,8 +1036,8 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
 
         /* Compare A, B, C */
         for (j = 0; j < 3; j++) {
-            uint32_t cr0, cr1, mask, compare;
-            uint16_t rx_cmp;
+            uint32_t cr0, cr1, mask, compare, disable_mask;
+            uint32_t rx_cmp;
             int offset;
             int cr_idx = extract32(reg, R_SCREENING_TYPE2_REG0_COMPARE_A_SHIFT + j * 6,
                                    R_SCREENING_TYPE2_REG0_COMPARE_A_LENGTH);
@@ -1073,9 +1073,25 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
                 break;
             }
 
-            rx_cmp = rxbuf_ptr[offset] << 8 | rxbuf_ptr[offset];
-            mask = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, MASK_VALUE);
-            compare = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE);
+            disable_mask =
+                FIELD_EX32(cr1, TYPE2_COMPARE_0_WORD_1, DISABLE_MASK);
+            if (disable_mask) {
+                /*
+                 * If disable_mask is set, mask_value is used as an
+                 * additional 2 byte Compare Value; that is equivalent
+                 * to using the whole cr0 register as the comparison value.
+                 * Load 32 bits of data from rx_buf, and set mask to
+                 * all-ones so we compare all 32 bits.
+                 */
+                rx_cmp = ldl_le_p(rxbuf_ptr + offset);
+                mask = 0xFFFFFFFF;
+                compare = cr0;
+            } else {
+                rx_cmp = lduw_le_p(rxbuf_ptr + offset);
+                mask = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, MASK_VALUE);
+                compare =
+                    FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE);
+            }
 
             if ((rx_cmp & mask) == (compare & mask)) {
                 matched = true;
@@ -1151,7 +1167,7 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
     DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", desc_addr);
 
     /* read current descriptor */
-    address_space_read(&s->dma_as, desc_addr, *s->attr_r,
+    address_space_read(&s->dma_as, desc_addr, hwdtb_memattrs_get(s->attr_r),
                      (uint8_t *)s->rx_desc[q],
                      sizeof(uint32_t) * gem_get_desc_len(s, true));
 
@@ -1278,7 +1294,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Copy packet data to emulated DMA buffer */
         address_space_write(&s->dma_as, rx_desc_get_buffer(s, s->rx_desc[q]) +
                                                                   rxbuf_offset,
-                            *s->attr_w, rxbuf_ptr,
+                            hwdtb_memattrs_get(s->attr_w), rxbuf_ptr,
                             MIN(bytes_to_copy, rxbufsize));
         rxbuf_ptr += MIN(bytes_to_copy, rxbufsize);
         bytes_to_copy -= MIN(bytes_to_copy, rxbufsize);
@@ -1317,7 +1333,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Descriptor write-back.  */
         desc_addr = gem_get_rx_desc_addr(s, q);
         address_space_write(&s->dma_as, desc_addr,
-                            *s->attr_w,
+                            hwdtb_memattrs_get(s->attr_w),
                             (uint8_t *)s->rx_desc[q],
                             sizeof(uint32_t) * gem_get_desc_len(s, true));
 
@@ -1431,7 +1447,7 @@ static void gem_transmit(CadenceGEMState *s)
 
         DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", packet_desc_addr);
         address_space_read(&s->dma_as, packet_desc_addr,
-                           *s->attr_r, (uint8_t *)desc,
+                           hwdtb_memattrs_get(s->attr_r), (uint8_t *)desc,
                            sizeof(uint32_t) * gem_get_desc_len(s, false));
         /* Handle all descriptors owned by hardware */
         while (tx_desc_get_used(desc) == 0) {
@@ -1466,7 +1482,7 @@ static void gem_transmit(CadenceGEMState *s)
              * contig buffer.
              */
             address_space_read(&s->dma_as, tx_desc_get_buffer(s, desc),
-                               *s->attr_r,
+                               hwdtb_memattrs_get(s->attr_r),
                                p, tx_desc_get_length(desc));
             p += tx_desc_get_length(desc);
             total_bytes += tx_desc_get_length(desc);
@@ -1480,12 +1496,12 @@ static void gem_transmit(CadenceGEMState *s)
                  * the processor.
                  */
                 address_space_read(&s->dma_as, desc_addr,
-                                   *s->attr_r,
+                                   hwdtb_memattrs_get(s->attr_r),
                                    (uint8_t *)desc_first,
                                    sizeof(desc_first));
                 tx_desc_set_used(desc_first);
                 address_space_write(&s->dma_as, desc_addr,
-                                   *s->attr_w,
+                                   hwdtb_memattrs_get(s->attr_w),
                                    (uint8_t *)desc_first,
                                     sizeof(desc_first));
                 /* Advance the hardware current descriptor past this packet */
@@ -1539,7 +1555,7 @@ static void gem_transmit(CadenceGEMState *s)
             }
             DB_PRINT("read descriptor 0x%" HWADDR_PRIx "\n", packet_desc_addr);
             address_space_read(&s->dma_as, packet_desc_addr,
-                               *s->attr_r, (uint8_t *)desc,
+                               hwdtb_memattrs_get(s->attr_r), (uint8_t *)desc,
                                sizeof(uint32_t) * gem_get_desc_len(s, false));
         }
 
@@ -1599,6 +1615,9 @@ static void gem_reset(DeviceState *d)
     s->regs[R_RXPARTIALSF] = 0x000003ff;
     s->regs[R_MODID] = s->revision;
     s->regs[R_DESCONF] = 0x02D00110;
+    if (!s->pcs_enabled) {
+        s->regs[R_DESCONF] |= 0x00000001;
+    }
     s->regs[R_DESCONF2] = 0x2ab10000 | s->jumbo_max_len;
     s->regs[R_DESCONF5] = 0x002f2045;
     s->regs[R_DESCONF6] = R_DESCONF6_DMA_ADDR_64B_MASK;
@@ -1636,17 +1655,12 @@ static void gem_reset(DeviceState *d)
 static uint16_t gem_phy_read(CadenceGEMState *s, unsigned reg_num)
 {
     DB_PRINT("reg: %d value: 0x%04x\n", reg_num, s->phy_regs[reg_num]);
-
-    assert(!s->mdio);
-
     return s->phy_regs[reg_num];
 }
 
 static void gem_phy_write(CadenceGEMState *s, unsigned reg_num, uint16_t val)
 {
     DB_PRINT("reg: %d value: 0x%04x\n", reg_num, val);
-
-    assert(!s->mdio);
 
     switch (reg_num) {
     case PHY_REG_CONTROL:
@@ -1672,28 +1686,39 @@ static void gem_phy_write(CadenceGEMState *s, unsigned reg_num, uint16_t val)
     s->phy_regs[reg_num] = val;
 }
 
-static inline void gem_internal_phy_access(CadenceGEMState *s)
+static void gem_internal_phy_access(CadenceGEMState *s)
 {
     uint32_t val = s->regs[R_PHYMNTNC];
     uint32_t phy_addr, reg_num;
+    CadenceGEMState *ps = s;
+    uint32_t op;
 
     phy_addr = FIELD_EX32(val, PHYMNTNC, PHY_ADDR);
+    op = FIELD_EX32(val, PHYMNTNC, OP);
 
-    if (phy_addr != s->phy_addr && phy_addr != 0) {
-        s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA, 0xffff);
+    /* Switch phy to consumer interface if there is an address match */
+    if (s->phy_consumer && phy_addr == s->phy_consumer->phy_addr) {
+        ps = s->phy_consumer;
+    }
+
+    if (!s->phy_connected || phy_addr != ps->phy_addr) {
+        /* phy not connected or no phy at this address */
+        if (op == MDIO_OP_READ) {
+            s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA, 0xffff);
+        }
         return;
     }
 
     reg_num = FIELD_EX32(val, PHYMNTNC, REG_ADDR);
 
-    switch (FIELD_EX32(val, PHYMNTNC, OP)) {
+    switch (op) {
     case MDIO_OP_READ:
         s->regs[R_PHYMNTNC] = FIELD_DP32(val, PHYMNTNC, DATA,
-                                         gem_phy_read(s, reg_num));
+                                         gem_phy_read(ps, reg_num));
         break;
 
     case MDIO_OP_WRITE:
-        gem_phy_write(s, reg_num, val);
+        gem_phy_write(ps, reg_num, val);
         break;
 
     default:
@@ -1991,15 +2016,18 @@ static void gem_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
     }
 
-    if (!s->attr_r) {
-        s->attr_r = MEMORY_TRANSACTION_ATTR(
-                      object_new(TYPE_MEMORY_TRANSACTION_ATTR));
-    }
-    if (!s->attr_w) {
+    gem_init_register_masks(s);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+
+    /*
+     * Prior 2026.2 "memattr-write" property can be left unset while "memattr"
+     * is set.  We keep that for backward compatibility.
+     */
+    if ((s->attr_r) && (!s->attr_w)) {
+        warn_report("Leaving \"memattr-write\" property unset while setting"
+                    "\"memattr\" is deprecated, the hwdtb need to be fixed.\n");
         s->attr_w = s->attr_r;
     }
-
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_gem_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id,
@@ -2023,12 +2051,11 @@ static void gem_init(Object *obj)
                           "enet", sizeof(s->regs));
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_r,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
-    object_property_add_link(obj, "memattr-write", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr-write", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&s->attr_w,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
@@ -2041,8 +2068,9 @@ static const VMStateDescription vmstate_cadence_gem = {
     .name = "cadence_gem",
     .version_id = 4,
     .minimum_version_id = 4,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, CadenceGEMState, CADENCE_GEM_MAXREG),
+        VMSTATE_UINT16_ARRAY(phy_regs, CadenceGEMState, 32),
         VMSTATE_UINT8(phy_loop, CadenceGEMState),
         VMSTATE_UINT32_ARRAY(rx_desc_addr, CadenceGEMState,
                              MAX_PRIORITY_QUEUES),
@@ -2053,7 +2081,7 @@ static const VMStateDescription vmstate_cadence_gem = {
     }
 };
 
-static Property gem_properties[] = {
+static const Property gem_properties[] = {
     DEFINE_NIC_PROPERTIES(CadenceGEMState, conf),
     DEFINE_PROP_UINT32("revision", CadenceGEMState, revision,
                        GEM_MODID_VALUE),
@@ -2066,21 +2094,26 @@ static Property gem_properties[] = {
                       num_type2_screeners, 4),
     DEFINE_PROP_UINT16("jumbo-max-len", CadenceGEMState,
                        jumbo_max_len, 10240),
+    DEFINE_PROP_BOOL("pcs-enabled", CadenceGEMState,
+                       pcs_enabled, false),
+    DEFINE_PROP_BOOL("phy-connected", CadenceGEMState, phy_connected, true),
+    DEFINE_PROP_LINK("phy-consumer", CadenceGEMState, phy_consumer,
+                     TYPE_CADENCE_GEM, CadenceGEMState *),
+
     DEFINE_PROP_LINK("dma", CadenceGEMState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_BOOL("has-usxgmii", CadenceGEMState,
                      has_usxgmii, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void gem_class_init(ObjectClass *klass, void *data)
+static void gem_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = gem_realize;
     device_class_set_props(dc, gem_properties);
     dc->vmsd = &vmstate_cadence_gem;
-    dc->reset = gem_reset;
+    device_class_set_legacy_reset(dc, gem_reset);
 }
 
 static const TypeInfo gem_info = {

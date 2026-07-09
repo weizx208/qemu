@@ -21,9 +21,9 @@
   <reg name="r11" bitsize="32"/>
   <reg name="r12" bitsize="32"/>
   <reg name="r13" bitsize="32"/>
-  <reg name="r14" bitsize="32" type="code_ptr"/>
-  <reg name="r15" bitsize="32" type="code_ptr"/>
-  <reg name="r16" bitsize="32" type="code_ptr"/>
+  <reg name="r14" bitsize="32"/>
+  <reg name="r15" bitsize="32"/>
+  <reg name="r16" bitsize="32"/>
   <reg name="r17" bitsize="32"/>
   <reg name="r18" bitsize="32"/>
   <reg name="r19" bitsize="32"/>

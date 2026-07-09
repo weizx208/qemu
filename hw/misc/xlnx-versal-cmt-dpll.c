@@ -469,11 +469,11 @@ static const VMStateDescription vmstate_cmt_dpll = {
     }
 };
 
-static void cmt_dpll_class_init(ObjectClass *klass, void *data)
+static void cmt_dpll_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cmt_dpll_reset;
+    device_class_set_legacy_reset(dc, cmt_dpll_reset);
     dc->vmsd = &vmstate_cmt_dpll;
 }
 

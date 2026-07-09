@@ -12,7 +12,7 @@
 #include "qemu/help-texts.h"
 #include "cpu.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/qmp/qjson.h"
+#include "qobject/qjson.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qapi-events-ui.h"
 #include "qapi/qapi-events-injection.h"
@@ -20,13 +20,12 @@
 #include "qapi/qapi-types-injection.h"
 #include "qapi/qapi-commands-injection.h"
 #include "qemu/timer.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/queue.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
-#include "exec/exec-all.h"
+#include "system/system.h"
+#include "system/runstate.h"
 
 typedef struct FaultEventEntry FaultEventEntry;
 static QLIST_HEAD(, FaultEventEntry) events = QLIST_HEAD_INITIALIZER(events);

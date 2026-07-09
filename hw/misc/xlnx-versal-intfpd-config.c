@@ -465,6 +465,12 @@ static void ir_status_postw(RegisterInfo *reg, uint64_t val64)
     bool afifs_timeout = ARRAY_FIELD_EX32(s->regs, IR_STATUS,
                          CORESW_AFIFS_SLAVE_MAINTIMEOUT);
 
+    /*
+     * s->AFIFSSerbs was a link property. The corresponding
+     * functionality has been removed from the remote-port code. The link has
+     * been removed from this device to keep backward compatibility with
+     * existing DTBs.
+     */
     if (!afifs_timeout && s->AFIFSSerbs) {
         xlnx_serbs_if_timeout_set(s->AFIFSSerbs, AFIFS_SERBS_ID, false);
     }
@@ -663,7 +669,7 @@ static void int_fpd_regs_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void int_fpd_regs_reset_hold(Object *obj)
+static void int_fpd_regs_reset_hold(Object *obj, ResetType type)
 {
     INT_FPD_REGS *s = XILINX_INT_FPD_REGS(obj);
 
@@ -730,10 +736,6 @@ static void int_fpd_regs_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_ir);
     sysbus_init_irq(sbd, &s->irq_ir_perr1);
     sysbus_init_irq(sbd, &s->irq_ir_perr);
-    object_property_add_link(obj, "afifs-serbs", TYPE_XLNX_SERBS_IF,
-                             (Object **)&s->AFIFSSerbs,
-                             qdev_prop_allow_set_link,
-                             OBJ_PROP_LINK_STRONG);
 }
 
 static const VMStateDescription vmstate_int_fpd_regs = {
@@ -746,12 +748,11 @@ static const VMStateDescription vmstate_int_fpd_regs = {
     }
 };
 
-static Property intfpd_properties[] = {
+static const Property intfpd_properties[] = {
     DEFINE_PROP_INT32("timeout", INT_FPD_REGS, tov, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void int_fpd_regs_class_init(ObjectClass *klass, void *data)
+static void int_fpd_regs_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

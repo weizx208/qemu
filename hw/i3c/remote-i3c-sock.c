@@ -35,7 +35,7 @@
  */
 typedef struct {
     DeviceState parent;
-    CharBackend chr;
+    CharFrontend chr;
 
     Fifo8 ibi_fifo;
     uint32_t in_event;
@@ -199,7 +199,7 @@ static int i3c_soc_ibi_finish(I3CBus *bus)
     size = cpu_to_le32(size);
     qemu_chr_fe_write_all(&s->chr, (uint8_t *)&size, 4);
     if (size > 0) {
-        buf = fifo8_pop_buf(&s->ibi_fifo, size, &pop_size);
+        buf = fifo8_pop_bufptr(&s->ibi_fifo, size, &pop_size);
         if (pop_size) {
             qemu_chr_fe_write_all(&s->chr, buf, pop_size);
         }
@@ -230,12 +230,11 @@ static void i3c_soc_unrealize(DeviceState *dev)
     fifo8_destroy(&s->ibi_fifo);
 }
 
-static Property i3c_soc_props[] = {
+static const Property i3c_soc_props[] = {
     DEFINE_PROP_CHR("chardev", I3CSoc, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void i3c_soc_class_init(ObjectClass *klass, void *data)
+static void i3c_soc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

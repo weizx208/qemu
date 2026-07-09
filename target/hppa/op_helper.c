@@ -20,11 +20,14 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/probe.h"
 #include "qemu/timer.h"
 #include "trace.h"
+#ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
+#endif
 
 G_NORETURN void HELPER(excp)(CPUHPPAState *env, int excp)
 {
@@ -42,24 +45,10 @@ G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void HELPER(tsv)(CPUHPPAState *env, target_ulong cond)
-{
-    if (unlikely((target_long)cond < 0)) {
-        hppa_dynamic_excp(env, EXCP_OVERFLOW, GETPC());
-    }
-}
-
-void HELPER(tcond)(CPUHPPAState *env, target_ulong cond)
-{
-    if (unlikely(cond)) {
-        hppa_dynamic_excp(env, EXCP_COND, GETPC());
-    }
-}
-
 static void atomic_store_mask32(CPUHPPAState *env, target_ulong addr,
                                 uint32_t val, uint32_t mask, uintptr_t ra)
 {
-    int mmu_idx = cpu_mmu_index(env, 0);
+    int mmu_idx = cpu_mmu_index(env_cpu(env), 0);
     uint32_t old, new, cmp, *haddr;
     void *vaddr;
 
@@ -86,7 +75,7 @@ static void atomic_store_mask64(CPUHPPAState *env, target_ulong addr,
                                 int size, uintptr_t ra)
 {
 #ifdef CONFIG_ATOMIC64
-    int mmu_idx = cpu_mmu_index(env, 0);
+    int mmu_idx = cpu_mmu_index(env_cpu(env), 0);
     uint64_t old, new, cmp, *haddr;
     void *vaddr;
 
@@ -235,7 +224,7 @@ static void do_stby_e(CPUHPPAState *env, target_ulong addr, target_ulong val,
     default:
         /* Nothing is stored, but protection is checked and the
            cacheline is marked dirty.  */
-        probe_write(env, addr, 0, cpu_mmu_index(env, 0), ra);
+        probe_write(env, addr, 0, cpu_mmu_index(env_cpu(env), 0), ra);
         break;
     }
 }
@@ -296,7 +285,7 @@ static void do_stdby_e(CPUHPPAState *env, target_ulong addr, uint64_t val,
     default:
         /* Nothing is stored, but protection is checked and the
            cacheline is marked dirty.  */
-        probe_write(env, addr, 0, cpu_mmu_index(env, 0), ra);
+        probe_write(env, addr, 0, cpu_mmu_index(env_cpu(env), 0), ra);
         break;
     }
 }
@@ -348,14 +337,14 @@ target_ulong HELPER(probe)(CPUHPPAState *env, target_ulong addr,
     }
 
     mmu_idx = PRIV_P_TO_MMU_IDX(level, env->psw & PSW_P);
-    excp = hppa_get_physical_address(env, addr, mmu_idx, 0, &phys,
-                                     &prot, NULL);
+    excp = hppa_get_physical_address(env, addr, mmu_idx, 0, 0, &phys, &prot);
     if (excp >= 0) {
+        cpu_restore_state(env_cpu(env), GETPC());
         hppa_set_ior_and_isr(env, addr, MMU_IDX_MMU_DISABLED(mmu_idx));
         if (excp == EXCP_DTLB_MISS) {
             excp = EXCP_NA_DTLB_MISS;
         }
-        hppa_dynamic_excp(env, excp, GETPC());
+        helper_excp(env, excp);
     }
     return (want & prot) != 0;
 #endif

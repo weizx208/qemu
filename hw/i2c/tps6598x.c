@@ -161,7 +161,7 @@ static const VMStateDescription vmstate_tps6598x = {
     }
 };
 
-static void tps6598x_class_init(ObjectClass *klass, void *data)
+static void tps6598x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass   *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k  = I2C_SLAVE_CLASS(klass);
@@ -170,7 +170,7 @@ static void tps6598x_class_init(ObjectClass *klass, void *data)
     k->recv  = tps6598x_recv;
     k->send  = tps6598x_send;
 
-    dc->reset = tps6598x_reset;
+    device_class_set_legacy_reset(dc, tps6598x_reset);
     dc->vmsd  = &vmstate_tps6598x;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }

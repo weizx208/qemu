@@ -198,7 +198,7 @@ static void xlnx_prng_ncs_finalize(Object *h)
     xlnx_prng_ncs_uninstantiate(XLNX_PRNG_IF(h));
 }
 
-static void xlnx_prng_ncs_class_init(ObjectClass *klass, void *data)
+static void xlnx_prng_ncs_class_init(ObjectClass *klass, const void *data)
 {
     XlnxPRngIfClass *ifc = XLNX_PRNG_IF_CLASS(klass);
 

@@ -32,7 +32,7 @@
 
 #define RMAX_XLNX_PSX_PKI_RNG ((0x1F08 / 4) + 1)
 
-#define TYPE_XLNX_PSX_PKI_RNG "xlnx,psx-pki-rng"
+#define TYPE_XLNX_PSX_PKI_RNG "xlnx-psx-pki-rng"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxPsxPkiRng, XLNX_PSX_PKI_RNG)
 
 typedef struct XlnxPsxPkiDrng {

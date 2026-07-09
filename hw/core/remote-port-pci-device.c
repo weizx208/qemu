@@ -8,15 +8,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "qemu/log.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/sysbus.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
 #include "hw/remote-port.h"
@@ -294,7 +289,7 @@ static void rp_pci_init(Object *obj)
     object_unref(tmp_obj);
 }
 
-static Property rp_properties[] = {
+static const Property rp_properties[] = {
     DEFINE_PROP_UINT32("rp-chan0", RemotePortPCIDevice, cfg.rp_dev, 0),
     DEFINE_PROP_UINT32("nr-io-bars", RemotePortPCIDevice, cfg.nr_io_bars, 0),
     DEFINE_PROP_UINT32("nr-mm-bars", RemotePortPCIDevice, cfg.nr_mm_bars, 0),
@@ -326,10 +321,9 @@ static Property rp_properties[] = {
 
     /* These are read-only.  */
     DEFINE_PROP_UINT32("nr-devs", RemotePortPCIDevice, cfg.nr_devs, 20),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void rp_pci_class_init(ObjectClass *oc, void *data)
+static void rp_pci_class_init(ObjectClass *oc, const void *data)
 {
     RemotePortDeviceClass *rpdc = REMOTE_PORT_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);

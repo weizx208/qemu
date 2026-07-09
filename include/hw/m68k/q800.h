@@ -26,7 +26,7 @@
 #include "hw/boards.h"
 #include "qom/object.h"
 #include "target/m68k/cpu-qom.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/m68k/q800-glue.h"
 #include "hw/misc/mac_via.h"
 #include "hw/net/dp8393x.h"
@@ -55,6 +55,7 @@ struct Q800MachineState {
     MOS6522Q800VIA1State via1;
     MOS6522Q800VIA2State via2;
     dp8393xState dp8393x;
+    MemoryRegion dp8393x_prom;
     ESCCState escc;
     OrIRQState escc_orgate;
     SysBusESPState esp;

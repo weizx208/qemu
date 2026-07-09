@@ -5061,16 +5061,15 @@ static const VMStateDescription vmstate_ddr_phy = {
     }
 };
 
-static Property ddr_phy_properties[] = {
+static const Property ddr_phy_properties[] = {
     DEFINE_PROP_BOOL("kria-sc-ddr-phy", DDR_PHY, kria_sc_ddr_phy, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ddr_phy_class_init(ObjectClass *klass, void *data)
+static void ddr_phy_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ddr_phy_reset;
+    device_class_set_legacy_reset(dc, ddr_phy_reset);
     dc->realize = ddr_phy_realize;
     dc->vmsd = &vmstate_ddr_phy;
     device_class_set_props(dc, ddr_phy_properties);

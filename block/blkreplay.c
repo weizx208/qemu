@@ -13,7 +13,7 @@
 #include "qemu/module.h"
 #include "block/block-io.h"
 #include "block/block_int.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "qapi/error.h"
 
 typedef struct Request {
@@ -63,9 +63,10 @@ static void block_request_create(uint64_t reqid, BlockDriverState *bs,
                                  Coroutine *co)
 {
     Request *req = g_new(Request, 1);
+    AioContext *ctx = qemu_coroutine_get_aio_context(co);
     *req = (Request) {
         .co = co,
-        .bh = aio_bh_new(bdrv_get_aio_context(bs), blkreplay_bh_cb, req),
+        .bh = aio_bh_new(ctx, blkreplay_bh_cb, req),
     };
     replay_block_event(req->bh, reqid);
 }
@@ -130,7 +131,13 @@ static int coroutine_fn GRAPH_RDLOCK blkreplay_co_flush(BlockDriverState *bs)
 static int blkreplay_snapshot_goto(BlockDriverState *bs,
                                    const char *snapshot_id)
 {
-    return bdrv_snapshot_goto(bs->file->bs, snapshot_id, NULL);
+    BlockDriverState *file_bs;
+
+    bdrv_graph_rdlock_main_loop();
+    file_bs = bs->file->bs;
+    bdrv_graph_rdunlock_main_loop();
+
+    return bdrv_snapshot_goto(file_bs, snapshot_id, NULL);
 }
 
 static BlockDriver bdrv_blkreplay = {

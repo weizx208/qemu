@@ -15,29 +15,45 @@ static void amd_ddr_memory_realize(DeviceState *dev, Error **errp)
 {
     AMDDDRMemory *s = AMD_DDR_MEMORY(dev);
     g_autofree char *name = NULL;
+    g_autoptr(GString) filename = NULL;
 
     if (s->size == 0) {
         error_setg(errp, "ddr-memory: size must be non-zero");
         return;
     }
 
-    if (s->max_ram_property < 1 && s->max_ram_property > 2) {
-        error_setg(errp, "ddr-memory: max-ram-property must be 1 or 2");
-        return;
+    if (s->shared == ON_OFF_AUTO_AUTO) {
+        s->shared = machine_path ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
 
     name = g_strdup_printf("ddr@0x%" PRIx64, (uint64_t)s->address);
-    memory_region_init_ram(&s->mr, OBJECT(dev), name, s->size, errp);
+
+    switch (s->shared) {
+    case ON_OFF_AUTO_OFF:
+        memory_region_init_ram(&s->mr, OBJECT(dev), name, s->size, errp);
+        break;
+
+    case ON_OFF_AUTO_ON:
+        filename = g_string_new("");
+
+        g_string_append_printf(filename, "%s%cqemu-memory-%s",
+                               machine_path ?: ".", G_DIR_SEPARATOR, name);
+        memory_region_init_ram_from_file(&s->mr, OBJECT(dev), name, s->size, 0,
+                                         RAM_SHARED, filename->str, 0, errp);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
-static Property amd_ddr_memory_props[] = {
+static const Property amd_ddr_memory_props[] = {
     DEFINE_PROP_UINT64("address", AMDDDRMemory, address, 0),
     DEFINE_PROP_UINT64("size", AMDDDRMemory, size, 0),
-    DEFINE_PROP_UINT8("max-ram-property", AMDDDRMemory, max_ram_property, 2),
-    DEFINE_PROP_END_OF_LIST(),
+    DEFINE_PROP_ON_OFF_AUTO("shared", AMDDDRMemory, shared, ON_OFF_AUTO_AUTO),
 };
 
-static void amd_ddr_memory_class_init(ObjectClass *klass, void *data)
+static void amd_ddr_memory_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

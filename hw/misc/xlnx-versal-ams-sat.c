@@ -33,10 +33,11 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "qapi/visitor.h"
 
 #include "xlnx-versal-ams.h"
 
-#define TYPE_XLNX_AMS_SAT "xlnx,ams-sat"
+#define TYPE_XLNX_AMS_SAT "xlnx-ams-sat"
 
 #ifndef XLNX_AMS_SAT_ERR_DEBUG
 #define XLNX_AMS_SAT_ERR_DEBUG 0
@@ -754,14 +755,14 @@ static void ams_sat_reset_enter(Object *obj, ResetType type)
     s->reg_reset = false;
 }
 
-static void ams_sat_reset_hold(Object *obj)
+static void ams_sat_reset_hold(Object *obj, ResetType type)
 {
     AMS_SAT *s = XLNX_AMS_SAT(obj);
 
     reg_isr_update_irq(s);
 }
 
-static void ams_sat_reset_exit(Object *obj)
+static void ams_sat_reset_exit(Object *obj, ResetType type)
 {
     AMS_SAT *s = XLNX_AMS_SAT(obj);
 
@@ -782,8 +783,8 @@ static void ams_sat_reset_pulse(AMS_SAT *s)
     Object *obj = OBJECT(s);
 
     ams_sat_reset_enter(obj, RESET_TYPE_COLD);
-    ams_sat_reset_hold(obj);
-    ams_sat_reset_exit(obj);
+    ams_sat_reset_hold(obj, RESET_TYPE_COLD);
+    ams_sat_reset_exit(obj, RESET_TYPE_COLD);
 }
 
 static void ams_sat_deep_sleep_update(AMS_SAT *s, bool on)
@@ -1405,7 +1406,7 @@ static void ams_sat_meas_cfgs_prop_add(ObjectClass *klass)
                                           "Satellite sensor config list");
 }
 
-static Property ams_sat_properties[] = {
+static const Property ams_sat_properties[] = {
     /* POR auto-calibration simulation by injecting guest read-only values */
 #define AMS_SAT_PROP_CALI_REG(prop, reg) \
     DEFINE_PROP_UINT32(prop, AMS_SAT, regs[R_ ## reg], 0)
@@ -1430,7 +1431,6 @@ static Property ams_sat_properties[] = {
     AMS_SAT_PROP_CALI_REG("tsens-meas", TSENS_MEAS),
 #undef AMS_SAT_PROP_CALI_REG
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_xlnx_ams_sat = {
@@ -1443,7 +1443,7 @@ static const VMStateDescription vmstate_xlnx_ams_sat = {
     }
 };
 
-static void xlnx_ams_sat_class_init(ObjectClass *klass, void *data)
+static void xlnx_ams_sat_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

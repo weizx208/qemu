@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/a9scu.h"
-#include "hw/fdt_generic_devices.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -108,10 +107,6 @@ static void a9_scu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!s->num_cpu) {
-        s->num_cpu = fdt_generic_num_cpus;
-    }
-
     memory_region_init_io(&s->iomem, OBJECT(s), &a9_scu_ops, s,
                           "a9-scu", 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -121,25 +116,24 @@ static const VMStateDescription vmstate_a9_scu = {
     .name = "a9-scu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, A9SCUState),
         VMSTATE_UINT32(status, A9SCUState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static Property a9_scu_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", A9SCUState, num_cpu, 0),
-    DEFINE_PROP_END_OF_LIST(),
+static const Property a9_scu_properties[] = {
+    DEFINE_PROP_UINT32("num-cpu", A9SCUState, num_cpu, 1),
 };
 
-static void a9_scu_class_init(ObjectClass *klass, void *data)
+static void a9_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, a9_scu_properties);
     dc->vmsd = &vmstate_a9_scu;
-    dc->reset = a9_scu_reset;
+    device_class_set_legacy_reset(dc, a9_scu_reset);
     dc->realize = a9_scu_realize;
 }
 

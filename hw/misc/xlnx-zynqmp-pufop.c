@@ -54,7 +54,7 @@
 #define ZYNQMP_PUFOP_ERR_DEBUG 0
 #endif
 
-#define TYPE_ZYNQMP_PUFOP "xlnx,zynqmp-pufop"
+#define TYPE_ZYNQMP_PUFOP "xlnx-zynqmp-pufop"
 
 #define ZYNQMP_PUFOP(obj) \
      OBJECT_CHECK(Zynqmp_PUFOP, (obj), TYPE_ZYNQMP_PUFOP)
@@ -292,14 +292,13 @@ static void zynqmp_pufop_hook_err_out(DeviceState *dev)
 {
     Zynqmp_PUFOP *s = ZYNQMP_PUFOP(dev);
 
-    static const char gpio_name[] = "puf-acc-err";
+    static const char gpio_name[] = "puf-acc-error";
     int gpio_indx = 0;
 
     if (!s->puf_acc_err_sink) {
         return;
     }
 
-    qdev_init_gpio_out_named(dev, &s->err_out, gpio_name, 1);
     qdev_connect_gpio_out_named(dev, gpio_name, gpio_indx,
                                 qdev_get_gpio_in_named(s->puf_acc_err_sink,
                                                        gpio_name, gpio_indx));
@@ -314,6 +313,7 @@ static void zynqmp_pufop_init(Object *obj)
 {
     Zynqmp_PUFOP *s = ZYNQMP_PUFOP(obj);
     RegisterInfoArray *reg_array;
+    static const char gpio_name[] = "puf-acc-error";
 
     memory_region_init(&s->iomem, obj, TYPE_ZYNQMP_PUFOP, R_MAX * 4);
     reg_array = register_init_block32(DEVICE(obj), zynqmp_pufop_regs_info,
@@ -324,6 +324,7 @@ static void zynqmp_pufop_init(Object *obj)
                                       R_MAX * 4);
     memory_region_add_subregion(&s->iomem, 0x00, &reg_array->mem);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->err_out, gpio_name, 1);
 }
 
 static const VMStateDescription zynqmp_pufop_vmstate = {
@@ -336,7 +337,7 @@ static const VMStateDescription zynqmp_pufop_vmstate = {
     }
 };
 
-static Property zynqmp_pufop_props[] = {
+static const Property zynqmp_pufop_props[] = {
     DEFINE_PROP_LINK("efuse",
                      Zynqmp_PUFOP, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
@@ -349,10 +350,9 @@ static Property zynqmp_pufop_props[] = {
                      Zynqmp_PUFOP, puf_acc_err_sink,
                      TYPE_DEVICE, DeviceState *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void zynqmp_pufop_class_init(ObjectClass *klass, void *data)
+static void zynqmp_pufop_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

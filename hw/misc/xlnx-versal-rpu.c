@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -936,19 +937,18 @@ static const FDTGenericGPIOSet rpu_client_gpios[] = {
     { },
 };
 
-static Property rpu_properties[] = {
+static const Property rpu_properties[] = {
     DEFINE_PROP_UINT32("tcm-size", RPU, cfg.tcm_size, 64 * 1024),
     DEFINE_PROP_UINT32("icache-size", RPU, cfg.icache_size, 64 * 1024),
     DEFINE_PROP_UINT32("dcache-size", RPU, cfg.dcache_size, 64 * 1024),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void rpu_class_init(ObjectClass *klass, void *data)
+static void rpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = rpu_reset;
+    device_class_set_legacy_reset(dc, rpu_reset);
     dc->realize = rpu_realize;
     dc->vmsd = &vmstate_rpu;
     device_class_set_props(dc, rpu_properties);

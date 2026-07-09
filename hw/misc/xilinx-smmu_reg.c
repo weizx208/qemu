@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
@@ -297,12 +298,12 @@ static const VMStateDescription vmstate_smmu_reg = {
     }
 };
 
-static void smmu_reg_class_init(ObjectClass *klass, void *data)
+static void smmu_reg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
 
-    dc->reset = smmu_reg_reset;
+    device_class_set_legacy_reset(dc, smmu_reg_reset);
     dc->vmsd = &vmstate_smmu_reg;
     fgic->get_irq = smmu_reg_fdt_get_irq;
 }

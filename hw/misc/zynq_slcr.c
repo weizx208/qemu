@@ -16,10 +16,11 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/sysbus.h"
-#include "hw/fdt_generic_devices.h"
-#include "sysemu/sysemu.h"
+#include "hw/irq.h"
+#include "system/device_tree.h"
+#include "system/system.h"
 #include "hw/core/cpu.h"
 #include "qapi/error.h"
 #include "qemu/option.h"
@@ -29,8 +30,9 @@
 #include "hw/registerfields.h"
 #include "hw/qdev-clock.h"
 #include "qom/object.h"
+#include "hw/qdev-properties.h"
+#include "qapi/error.h"
 #include "hw/boards.h"
-
 #include "qemu/config-file.h"
 
 #ifndef ZYNQ_SLCR_ERR_DEBUG
@@ -129,6 +131,7 @@ REG32(RST_REASON, 0x250)
 
 REG32(REBOOT_STATUS, 0x258)
 REG32(BOOT_MODE, 0x25c)
+    FIELD(BOOT_MODE, BOOT_MODE, 0, 4)
 
 REG32(APU_CTRL, 0x300)
 REG32(WDT_CLK_SEL, 0x304)
@@ -216,6 +219,7 @@ struct ZynqSLCRState {
     Clock *ps_clk;
     Clock *uart0_ref_clk;
     Clock *uart1_ref_clk;
+    uint8_t boot_mode;
 };
 
 /* Set up PS7 QSPI MIO registers based on the dtb */
@@ -531,7 +535,7 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     zynq_slcr_update_fpga_resets(s);
 }
 
-static void zynq_slcr_reset_hold(Object *obj)
+static void zynq_slcr_reset_hold(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
@@ -540,7 +544,7 @@ static void zynq_slcr_reset_hold(Object *obj)
     zynq_slcr_propagate_clocks(s);
 }
 
-static void zynq_slcr_reset_exit(Object *obj)
+static void zynq_slcr_reset_exit(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
@@ -710,31 +714,21 @@ static const MemoryRegionOps slcr_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void zynq_slcr_realize(DeviceState *dev, Error **errp)
-{
-    int i;
-    CPUState *env = first_cpu;
-
-    /* FIXME: Make this not suck */
-    for (i  = 0; i < fdt_generic_num_cpus && i < ZYNQ_SLCR_NUM_CPUS; ++i) {
-        Object *cpu_obj = OBJECT(env);
-        if (!cpu_obj->parent) {
-            char *cpu_child_name = g_strdup_printf("cpu-%d\n", i);
-            object_property_add_child(qdev_get_machine(), cpu_child_name,
-                                      cpu_obj);
-        }
-        qdev_connect_gpio_out(dev, i,
-                              qdev_get_gpio_in_named(DEVICE(env), "reset", 0));
-        env = CPU_NEXT(env);
-    }
-}
-
 static const ClockPortInitArray zynq_slcr_clocks = {
     QDEV_CLOCK_IN(ZynqSLCRState, ps_clk, zynq_slcr_ps_clk_callback, ClockUpdate),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart0_ref_clk),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart1_ref_clk),
     QDEV_CLOCK_END
 };
+
+static void zynq_slcr_realize(DeviceState *dev, Error **errp)
+{
+    ZynqSLCRState *s = ZYNQ_SLCR(dev);
+
+    if (s->boot_mode > 0xF) {
+        error_setg(errp, "Invalid boot mode %d specified", s->boot_mode);
+    }
+}
 
 static void zynq_slcr_init(Object *obj)
 {
@@ -753,14 +747,18 @@ static const VMStateDescription vmstate_zynq_slcr = {
     .name = "zynq_slcr",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, ZynqSLCRState, ZYNQ_SLCR_NUM_REGS),
         VMSTATE_CLOCK_V(ps_clk, ZynqSLCRState, 3),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void zynq_slcr_class_init(ObjectClass *klass, void *data)
+static const Property zynq_slcr_props[] = {
+    DEFINE_PROP_UINT8("boot-mode", ZynqSLCRState, boot_mode, 1),
+};
+
+static void zynq_slcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -770,6 +768,7 @@ static void zynq_slcr_class_init(ObjectClass *klass, void *data)
     rc->phases.enter = zynq_slcr_reset_init;
     rc->phases.hold  = zynq_slcr_reset_hold;
     rc->phases.exit  = zynq_slcr_reset_exit;
+    device_class_set_props(dc, zynq_slcr_props);
 }
 
 static const TypeInfo zynq_slcr_info = {

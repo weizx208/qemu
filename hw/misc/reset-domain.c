@@ -10,9 +10,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
-#include "sysemu/reset.h"
+#include "system/system.h"
+#include "system/runstate.h"
+#include "system/reset.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -48,18 +48,15 @@ typedef struct ResetDomain {
 static int qdev_reset_one(DeviceState *dev, void *opaque)
 {
     DeviceClass *klass = DEVICE_GET_CLASS(dev);
-    if (klass->reset) {
-        klass->reset(dev);
+    if (klass->legacy_reset) {
+        klass->legacy_reset(dev);
     }
     return 0;
 }
 
 static int qbus_reset_one(BusState *bus, void *opaque)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
-    if (bc->reset) {
-        bc->reset(bus);
-    }
+    bus_cold_reset(bus);
     return 0;
 }
 
@@ -137,7 +134,7 @@ static void reset_init(Object *obj)
     }
 }
 
-static Property reset_props[] = {
+static const Property reset_props[] = {
     /*
      * When we reset an MR, the MR may have aliasing regions pointing to other
      * memory-regions. If an alias is encounterd we recurse and start resetting
@@ -145,14 +142,13 @@ static Property reset_props[] = {
      * aliases. The max_alias_level controls the max depth of recursion.
      */
     DEFINE_PROP_UINT16("max-alias-depth", ResetDomain, cfg.max_alias_depth, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void reset_class_init(ObjectClass *klass, void *data)
+static void reset_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = reset_reset;
+    device_class_set_legacy_reset(dc, reset_reset);
     device_class_set_props(dc, reset_props);
 }
 

@@ -30,8 +30,6 @@
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
 
-#include "hw/fdt_generic_devices.h"
-
 #define PTIMER_POLICY                       \
     (PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |  \
      PTIMER_POLICY_CONTINUOUS_TRIGGER    |  \
@@ -254,9 +252,6 @@ static void arm_mptimer_realize(DeviceState *dev, Error **errp)
     ARMMPTimerState *s = ARM_MPTIMER(dev);
     int i;
 
-    if (!s->num_cpu) {
-        s->num_cpu = fdt_generic_num_cpus;
-    }
     if (s->num_cpu < 1 || s->num_cpu > ARM_MPTIMER_MAX_CPUS) {
         error_setg(errp, "num-cpu must be between 1 and %d",
                    ARM_MPTIMER_MAX_CPUS);
@@ -286,7 +281,7 @@ static const VMStateDescription vmstate_timerblock = {
     .name = "arm_mptimer_timerblock",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(control, TimerBlock),
         VMSTATE_UINT32(status, TimerBlock),
         VMSTATE_PTIMER(timer, TimerBlock),
@@ -298,25 +293,24 @@ static const VMStateDescription vmstate_arm_mptimer = {
     .name = "arm_mptimer",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_VARRAY_UINT32(timerblock, ARMMPTimerState, num_cpu,
                                      3, vmstate_timerblock, TimerBlock),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static Property arm_mptimer_properties[] = {
+static const Property arm_mptimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARMMPTimerState, num_cpu, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
-static void arm_mptimer_class_init(ObjectClass *klass, void *data)
+static void arm_mptimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = arm_mptimer_realize;
     dc->vmsd = &vmstate_arm_mptimer;
-    dc->reset = arm_mptimer_reset;
+    device_class_set_legacy_reset(dc, arm_mptimer_reset);
     device_class_set_props(dc, arm_mptimer_properties);
 }
 

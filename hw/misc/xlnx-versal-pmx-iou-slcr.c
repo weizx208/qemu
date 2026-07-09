@@ -36,7 +36,7 @@
 #define XILINX_PMX_IOU_SLCR_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_PMX_IOU_SLCR "xlnx,versal-pmx-iou-slcr"
+#define TYPE_XILINX_PMX_IOU_SLCR "xlnx-versal-pmx-iou-slcr"
 
 #define XILINX_PMX_IOU_SLCR(obj) \
      OBJECT_CHECK(PMX_IOU_SLCR, (obj), TYPE_XILINX_PMX_IOU_SLCR)
@@ -1732,11 +1732,11 @@ static const VMStateDescription vmstate_pmx_iou_slcr = {
     }
 };
 
-static void pmx_iou_slcr_class_init(ObjectClass *klass, void *data)
+static void pmx_iou_slcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = pmx_iou_slcr_reset;
+    device_class_set_legacy_reset(dc, pmx_iou_slcr_reset);
     dc->realize = pmx_iou_slcr_realize;
     dc->vmsd = &vmstate_pmx_iou_slcr;
 }

@@ -895,11 +895,11 @@ static const VMStateDescription vmstate_noc_ncrb = {
     }
 };
 
-static void noc_ncrb_class_init(ObjectClass *klass, void *data)
+static void noc_ncrb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = noc_ncrb_reset;
+    device_class_set_legacy_reset(dc, noc_ncrb_reset);
     dc->realize = noc_ncrb_realize;
     dc->vmsd = &vmstate_noc_ncrb;
 }

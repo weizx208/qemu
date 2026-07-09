@@ -417,7 +417,7 @@ static const VMStateDescription vmstate_asu_sha3 = {
     }
 };
 
-static void asu_sha3_class_init(ObjectClass *klass, void *data)
+static void asu_sha3_class_init(ObjectClass *klass, const void *data)
 {
     XlnxSha3CommonClass *cc = XLNX_SHA3_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -427,7 +427,7 @@ static void asu_sha3_class_init(ObjectClass *klass, void *data)
     cc->write_digest = asu_sha3_write_digest;
     cc->get_algorithm = asu_sha3_get_algorithm;
     dc->vmsd = &vmstate_asu_sha3;
-    dc->reset = asu_sha3_reset;
+    device_class_set_legacy_reset(dc, asu_sha3_reset);
 }
 
 static const TypeInfo asu_sha3_info = {

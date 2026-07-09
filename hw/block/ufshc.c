@@ -16,7 +16,7 @@
 #include "ufs-utp.h"
 #include "hw/irq.h"
 #include "trace.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/sysbus.h"
 #include "hw/block/ufs-dev.h"
 
@@ -1222,7 +1222,6 @@ static void ufshc_sysbus_realize(DeviceState *dev, Error **errp)
 
     object_property_set_link(OBJECT(s->ufsdev), "ufs-initiator",
                              OBJECT(&s->ufshc), NULL);
-    qdev_set_parent_bus(DEVICE(s->ufsdev), BUS(s->bus), NULL);
     object_property_set_link(OBJECT(&s->ufshc), "ufs-target",
                              OBJECT(s->ufsdev), NULL);
 
@@ -1284,7 +1283,7 @@ static void ufshc_sysbus_instance_init(Object *obj)
     s->bus = UFS_BUS(qbus_new(TYPE_UFS_BUS, DEVICE(obj), NULL));
 }
 
-static Property ufshc_props[] = {
+static const Property ufshc_props[] = {
     DEFINE_PROP_UINT8("num-tr-slots", UFSHCState, num_tr_slots, MAX_TR),
     DEFINE_PROP_UINT8("num-tmr-slots", UFSHCState, num_tmr_slots, MAX_TMR),
     DEFINE_PROP_BOOL("oods", UFSHCState, oods, false),
@@ -1293,10 +1292,9 @@ static Property ufshc_props[] = {
     DEFINE_PROP_UINT16("dc", UFSHCState, dc, 0),
     DEFINE_PROP_UINT16("mid", UFSHCState, mid, 0),
     DEFINE_PROP_UINT16("pid", UFSHCState, pid, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ufshc_class_init(ObjectClass *klass, void *data)
+static void ufshc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1311,7 +1309,7 @@ static void ufshc_class_init(ObjectClass *klass, void *data)
     uc->pwr_mode_status = ufshc_set_upmcrs;
 }
 
-static void ufshc_sysbus_class_init(ObjectClass *klass, void *data)
+static void ufshc_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

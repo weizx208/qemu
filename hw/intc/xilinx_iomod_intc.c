@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -101,7 +102,9 @@ typedef struct XilinxIntC {
 
     uint32_t irq_raw;
     uint32_t irq_mode;
-    uint32_t regs[R_MAX_1];
+    uint32_t regs0[R_MAX_0];
+    uint32_t regs1[R_MAX_1];
+    uint32_t regs2[R_MAX_2];
     uint32_t vectors[R_MAX_1];
     RegisterInfo regs_info0[R_MAX_0];
     RegisterInfo regs_info1[R_MAX_1];
@@ -112,7 +115,7 @@ typedef struct XilinxIntC {
     bool irq_output;
 } XilinxIntC;
 
-static Property xlx_iom_properties[] = {
+static const Property xlx_iom_properties[] = {
     DEFINE_PROP_BOOL("intc-use-ext-intr", XilinxIntC, cfg.use_ext_intr, 0),
     DEFINE_PROP_UINT32("intc-intr-size", XilinxIntC, cfg.intr_size, 0),
     DEFINE_PROP_UINT32("intc-level-edge", XilinxIntC, cfg.level_edge, 0),
@@ -120,7 +123,6 @@ static Property xlx_iom_properties[] = {
     DEFINE_PROP_BOOL("intc-has-fast", XilinxIntC, cfg.has_fast, 0),
     DEFINE_PROP_UINT32("intc-addr-width", XilinxIntC, cfg.addr_width, 32),
     DEFINE_PROP_UINT32("intc-base-vectors", XilinxIntC, cfg.base_vectors, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void iom_intc_irq_ack(RegisterInfo *reg, uint64_t val64);
@@ -130,9 +132,9 @@ static void xlx_iom_irq_update(XilinxIntC *s)
 {
     bool old_state = s->irq_output;
 
-    s->regs[R_IOM_IRQ_PENDING] = s->regs[R_IOM_IRQ_STATUS];
-    s->regs[R_IOM_IRQ_PENDING] &= s->regs[R_IOM_IRQ_ENABLE];
-    s->irq_output = s->regs[R_IOM_IRQ_PENDING];
+    s->regs1[R_IOM_IRQ_PENDING] = s->regs1[R_IOM_IRQ_STATUS];
+    s->regs1[R_IOM_IRQ_PENDING] &= s->regs1[R_IOM_IRQ_ENABLE];
+    s->irq_output = s->regs1[R_IOM_IRQ_PENDING];
     DB_PRINT_L(s->irq_output != old_state ? 1 : 2, "Setting IRQ output = %d\n",
                (int)s->irq_output);
     qemu_set_irq(s->parent_irq, s->irq_output);
@@ -143,11 +145,11 @@ static void iom_intc_irq_ack(RegisterInfo *reg, uint64_t val64)
     XilinxIntC *s = XILINX_IO_MODULE_INTC(reg->opaque);
     uint32_t val = val64;
     /* Only clear.  */
-    val &= s->regs[R_IOM_IRQ_STATUS];
-    s->regs[R_IOM_IRQ_STATUS] ^= val;
+    val &= s->regs1[R_IOM_IRQ_STATUS];
+    s->regs1[R_IOM_IRQ_STATUS] ^= val;
 
     /* Active level triggered interrupts stay high.  */
-    s->regs[R_IOM_IRQ_STATUS] |= s->irq_raw & ~s->cfg.level_edge;
+    s->regs1[R_IOM_IRQ_STATUS] |= s->irq_raw & ~s->cfg.level_edge;
 
     xlx_iom_irq_update(s);
 }
@@ -191,7 +193,7 @@ static void irq_handler(void *opaque, int irq, int level)
         /* Level triggered.  */
         p = s->irq_raw & mask;
     }
-    s->regs[R_IOM_IRQ_STATUS] |= p;
+    s->regs1[R_IOM_IRQ_STATUS] |= p;
     xlx_iom_irq_update(s);
 }
 
@@ -294,10 +296,15 @@ static void xlx_iom_init(Object *obj)
     XilinxIntC *s = XILINX_IO_MODULE_INTC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     unsigned int i;
+    uint32_t *regs[3];
 
     s->regs_infos[0] = s->regs_info0;
     s->regs_infos[1] = s->regs_info1;
     s->regs_infos[2] = s->regs_info2;
+
+    regs[0] = s->regs0;
+    regs[1] = s->regs1;
+    regs[2] = s->regs2;
 
     for (i = 0; i < ARRAY_SIZE(s->iomem); i++) {
         RegisterInfoArray *reg_array;
@@ -310,7 +317,7 @@ static void xlx_iom_init(Object *obj)
         reg_array =
              register_init_block32(DEVICE(obj), intc_reginfos[i],
                               intc_reginfo_sizes[i],
-                              s->regs_infos[i], s->regs,
+                              s->regs_infos[i], regs[i],
                               &iom_intc_ops,
                               XILINX_IO_MODULE_INTC_ERR_DEBUG,
                               intc_reginfo_sizes[i] * 4);
@@ -320,6 +327,7 @@ static void xlx_iom_init(Object *obj)
         sysbus_init_mmio(sbd, &s->iomem[i]);
     }
     qdev_init_gpio_out(DEVICE(obj), &s->parent_irq, 1);
+    sysbus_init_irq(sbd, &s->parent_irq);
 }
 
 static int xilinx_iom_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
@@ -340,12 +348,12 @@ static const VMStateDescription vmstate_xlx_iom = {
     }
 };
 
-static void xlx_iom_class_init(ObjectClass *klass, void *data)
+static void xlx_iom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
 
-    dc->reset = iom_intc_reset;
+    device_class_set_legacy_reset(dc, iom_intc_reset);
     dc->realize = xlx_iom_realize;
     device_class_set_props(dc, xlx_iom_properties);
     dc->vmsd = &vmstate_xlx_iom;

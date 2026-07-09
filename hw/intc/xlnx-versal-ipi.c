@@ -2699,7 +2699,7 @@ static void ipi_init(Object *obj)
     }
 }
 
-static Property ipi_properties[] = {
+static const Property ipi_properties[] = {
     DEFINE_PROP_UINT32("num-master-ids", XlnxVersalIPI,
                        cfg.num_master_ids, VERSAL_NUM_MASTER_IDS),
     DEFINE_PROP_UINT32("master-id0", XlnxVersalIPI,
@@ -2831,7 +2831,6 @@ static Property ipi_properties[] = {
                      cfg.master_id_ro[30], false),
     DEFINE_PROP_BOOL("master-id31-ro", XlnxVersalIPI,
                      cfg.master_id_ro[31], false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_ipi = {
@@ -2844,11 +2843,11 @@ static const VMStateDescription vmstate_ipi = {
     }
 };
 
-static void ipi_class_init(ObjectClass *klass, void *data)
+static void ipi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ipi_reset;
+    device_class_set_legacy_reset(dc, ipi_reset);
     dc->vmsd = &vmstate_ipi;
     dc->realize = ipi_realize;
     device_class_set_props(dc, ipi_properties);

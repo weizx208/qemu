@@ -654,7 +654,7 @@ static void asu_global_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void asu_global_reset_hold(Object *obj)
+static void asu_global_reset_hold(Object *obj, ResetType type)
 {
     ASU_GLOBAL *s = XILINX_ASU_GLOBAL(obj);
 
@@ -734,7 +734,7 @@ static const VMStateDescription vmstate_asu_global = {
     }
 };
 
-static void asu_global_class_init(ObjectClass *klass, void *data)
+static void asu_global_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

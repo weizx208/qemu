@@ -119,7 +119,7 @@ static const VMStateDescription vmstate_rv_ram_ecc_ctrl = {
     }
 };
 
-static void rv_ram_ecc_ctrl_class_init(ObjectClass *klass, void *data)
+static void rv_ram_ecc_ctrl_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

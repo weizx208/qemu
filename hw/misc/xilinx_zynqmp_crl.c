@@ -28,10 +28,11 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/config-file.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/option.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -1053,12 +1054,12 @@ static const FDTGenericGPIOSet crl_client_gpios [] = {
     { },
 };
 
-static void crl_apb_class_init(ObjectClass *klass, void *data)
+static void crl_apb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = crl_apb_reset;
+    device_class_set_legacy_reset(dc, crl_apb_reset);
     dc->realize = crl_apb_realize;
     dc->vmsd = &vmstate_crl_apb;
     fggc->controller_gpios = crl_gpios;

@@ -223,11 +223,11 @@ static const VMStateDescription vmstate_arm_gen_timer = {
     }
 };
 
-static void arm_gen_timer_class_init(ObjectClass *klass, void *data)
+static void arm_gen_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = arm_gen_timer_reset;
+    device_class_set_legacy_reset(dc, arm_gen_timer_reset);
     dc->vmsd = &vmstate_arm_gen_timer;
 }
 

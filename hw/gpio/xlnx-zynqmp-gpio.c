@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -874,12 +875,12 @@ static const FDTGenericGPIOSet xlnx_gpio_client_gpios[] = {
     { },
 };
 
-static void gpio_class_init(ObjectClass *klass, void *data)
+static void gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = gpio_reset;
+    device_class_set_legacy_reset(dc, gpio_reset);
     dc->realize = gpio_realize;
     dc->vmsd = &vmstate_gpio;
     fggc->controller_gpios = xlnx_gpio_controller_gpios;

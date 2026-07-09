@@ -219,18 +219,17 @@ static const VMStateDescription vmstate_noc_npi_dev = {
     }
 };
 
-static Property noc_npi_dev_prop[] = {
+static const Property noc_npi_dev_prop[] = {
     DEFINE_PROP_UINT64("map-size", NOC_NPI_DEV, map_size, 0x2000000),
     DEFINE_PROP_BOOL("custom", NOC_NPI_DEV, custom, false),
     DEFINE_PROP_UINT32("pcsr-status", NOC_NPI_DEV, pcsr_status, 0x700d7),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void noc_npi_dev_class_init(ObjectClass *klass, void *data)
+static void noc_npi_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = noc_npi_dev_reset;
+    device_class_set_legacy_reset(dc, noc_npi_dev_reset);
     dc->vmsd = &vmstate_noc_npi_dev;
     dc->realize = noc_npi_dev_realize;
     device_class_set_props(dc, noc_npi_dev_prop);

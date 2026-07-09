@@ -712,11 +712,11 @@ static const VMStateDescription vmstate_lpd_iou_slcr = {
     }
 };
 
-static void lpd_iou_slcr_class_init(ObjectClass *klass, void *data)
+static void lpd_iou_slcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = lpd_iou_slcr_reset;
+    device_class_set_legacy_reset(dc, lpd_iou_slcr_reset);
     dc->realize = lpd_iou_slcr_realize;
     dc->vmsd = &vmstate_lpd_iou_slcr;
 }

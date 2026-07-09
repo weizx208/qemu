@@ -26,11 +26,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/mdio/mdio_slave.h"
-#include "hw/fdt_generic_util.h"
 #include "trace.h"
 
 const char *mdio_frame_op_str(const MDIOFrame *f)
@@ -109,41 +106,17 @@ void mdio_transfer(MDIOBus *bus, MDIOFrame *frame)
     }
 }
 
-static Property mdio_props[] = {
+static const Property mdio_props[] = {
     DEFINE_PROP_UINT8("reg", MDIOSlave, addr, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static bool mdio_slave_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
-                                Error **errp)
-{
-    DeviceState *parent;
-
-    parent = (DeviceState *)object_dynamic_cast(reg.parents[0], TYPE_DEVICE);
-
-    if (!parent) {
-        return false;
-    }
-
-    if (!parent->realized) {
-        return true;
-    }
-
-    qdev_set_parent_bus(DEVICE(obj), qdev_get_child_bus(parent, "mdio-bus"),
-                        &error_abort);
-
-    return false;
-}
-
-static void mdio_slave_class_init(ObjectClass *klass, void *data)
+static void mdio_slave_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_MDIO_BUS;
     device_class_set_props(k, mdio_props);
-    fmc->parse_reg = mdio_slave_parse_reg;
 }
 
 static const TypeInfo mdio_slave_info = {
@@ -152,10 +125,6 @@ static const TypeInfo mdio_slave_info = {
     .instance_size = sizeof(MDIOSlave),
     .class_size = sizeof(MDIOSlaveClass),
     .class_init = mdio_slave_class_init,
-    .interfaces = (InterfaceInfo []) {
-        {TYPE_FDT_GENERIC_MMAP},
-        { },
-    },
 };
 
 static const TypeInfo mdio_bus_info = {

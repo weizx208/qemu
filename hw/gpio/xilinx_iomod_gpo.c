@@ -59,11 +59,10 @@ typedef struct XilinxGPO {
     const char *prefix;
 } XilinxGPO;
 
-static Property xlx_iom_properties[] = {
+static const Property xlx_iom_properties[] = {
     DEFINE_PROP_BOOL("use-gpo", XilinxGPO, cfg.use, 0),
     DEFINE_PROP_UINT32("gpo-size", XilinxGPO, cfg.size, 0),
     DEFINE_PROP_UINT32("gpo-init", XilinxGPO, cfg.init, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void gpo_pw(RegisterInfo *reg, uint64_t value)
@@ -142,11 +141,11 @@ static const VMStateDescription vmstate_xlx_iom = {
     }
 };
 
-static void xlx_iom_class_init(ObjectClass *klass, void *data)
+static void xlx_iom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = iom_gpo_reset;
+    device_class_set_legacy_reset(dc, iom_gpo_reset);
     dc->realize = xlx_iom_realize;
     device_class_set_props(dc, xlx_iom_properties);
     dc->vmsd = &vmstate_xlx_iom;

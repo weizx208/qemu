@@ -2592,11 +2592,11 @@ static const VMStateDescription vmstate_ddrmc_noc = {
     }
 };
 
-static void ddrmc_noc_class_init(ObjectClass *klass, void *data)
+static void ddrmc_noc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = ddrmc_noc_reset;
+    device_class_set_legacy_reset(dc, ddrmc_noc_reset);
     dc->vmsd = &vmstate_ddrmc_noc;
 }
 

@@ -31,9 +31,10 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"
 #include "hw/misc/xlnx-versal-pmc.h"
@@ -1837,10 +1838,7 @@ static void pmx_global_tamper_respond(PMX_GLOBAL *s, unsigned slot)
 
     /* Relay to external responder, if one is attached */
     irq = s->tamper_out[slot];
-    if (qemu_irq_is_connected(irq)) {
-        qemu_irq_pulse(irq);
-        return;
-    }
+    qemu_irq_pulse(irq);
 
     /* Otherwise, apply built-in responses */
     resp = pmx_global_tamper_response(s, slot);
@@ -3197,7 +3195,7 @@ static void pmx_global_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void pmx_global_reset_hold(Object *obj)
+static void pmx_global_reset_hold(Object *obj, ResetType type)
 {
     PMX_GLOBAL *s = XILINX_PMX_GLOBAL(obj);
 
@@ -3367,11 +3365,10 @@ static void pmx_global_prop_tamper_event_add(ObjectClass *klass)
                                           "Set to trigger tamper events");
 }
 
-static Property pmx_global_properties[] = {
+static const Property pmx_global_properties[] = {
     DEFINE_PROP_LINK("bbram", PMX_GLOBAL, bbram, TYPE_OBJECT, Object *),
     DEFINE_PROP_LINK("efuse", PMX_GLOBAL, efuse, TYPE_OBJECT, Object *),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pmx_global = {
@@ -3405,7 +3402,7 @@ static const FDTGenericGPIOSet pmx_global_gpios[] = {
     { },
 };
 
-static void pmx_global_class_init(ObjectClass *klass, void *data)
+static void pmx_global_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

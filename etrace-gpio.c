@@ -28,7 +28,7 @@
 #include "monitor/qdev.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qapi-events-ui.h"
-#include "sysemu/arch_init.h"
+#include "system/arch_init.h"
 #include "qemu/config-file.h"
 
 #include "qemu/etrace.h"

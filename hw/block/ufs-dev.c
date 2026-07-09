@@ -1168,16 +1168,15 @@ static void ufsdev_instance_init(Object *obj)
     s->bus = UFS_BUS(qbus_new(TYPE_UFS_BUS, DEVICE(obj), NULL));
 }
 
-static Property ufsdev_props[] = {
+static const Property ufsdev_props[] = {
     DEFINE_PROP_UINT8("num-luns", UFSDev, num_luns, 8),
     DEFINE_PROP_UINT8("boot-lun-a", UFSDev, BootLUA, 0),
     DEFINE_PROP_UINT8("boot-lun-b", UFSDev, BootLUB, 1),
     DEFINE_PROP_UINT8("boot-lun-active", UFSDev, attr.BootLunEn, 1),
     DEFINE_PROP_UINT8("devBootEn", UFSDev, ufsDesc.device[DEV_BOOT_ENABLE], 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ufsdev_class_init(ObjectClass *klass, void *data)
+static void ufsdev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

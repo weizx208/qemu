@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
@@ -380,13 +381,13 @@ static const FDTGenericGPIOSet crf_gpios[] = {
     { },
 };
 
-static void crf_class_init(ObjectClass *klass, void *data)
+static void crf_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
     ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
 
-    dc->reset = crf_reset;
+    device_class_set_legacy_reset(dc, crf_reset);
     dc->realize = crf_realize;
     dc->vmsd = &vmstate_crf;
     fggc->controller_gpios = crf_gpios;

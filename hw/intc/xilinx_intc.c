@@ -3,6 +3,9 @@
  *
  * Copyright (c) 2009 Edgar E. Iglesias.
  *
+ * https://docs.amd.com/v/u/en-US/xps_intc
+ * DS572: LogiCORE IP XPS Interrupt Controller (v2.01a)
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -23,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -30,6 +34,7 @@
 #include "hw/fdt_generic_util.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "qom/object.h"
 
 #define D(x)
@@ -52,6 +57,7 @@ struct XpsIntc
 {
     SysBusDevice parent_obj;
 
+    EndianMode model_endianness;
     MemoryRegion mmio;
     qemu_irq parent_irq;
 
@@ -143,14 +149,28 @@ static void pic_write(void *opaque, hwaddr addr,
     update_irq(p);
 }
 
-static const MemoryRegionOps pic_ops = {
-    .read = pic_read,
-    .write = pic_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4
-    }
+static const MemoryRegionOps pic_ops[2] = {
+    [0 ... 1] = {
+        .read = pic_read,
+        .write = pic_write,
+        .impl = {
+            .min_access_size = 4,
+            .max_access_size = 4,
+        },
+        .valid = {
+            /*
+             * All XPS INTC registers are accessed through the PLB interface.
+             * The base address for these registers is provided by the
+             * configuration parameter, C_BASEADDR. Each register is 32 bits
+             * although some bits may be unused and is accessed on a 4-byte
+             * boundary offset from the base address.
+             */
+            .min_access_size = 4,
+            .max_access_size = 4,
+        },
+    },
+    [0].endianness = DEVICE_LITTLE_ENDIAN,
+    [1].endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void irq_handler(void *opaque, int irq, int level)
@@ -173,10 +193,23 @@ static void xilinx_intc_init(Object *obj)
 
     qdev_init_gpio_in(DEVICE(obj), irq_handler, 32);
     qdev_init_gpio_out_named(DEVICE(obj), &p->parent_irq, "Outputs", 1);
-
-    memory_region_init_io(&p->mmio, obj, &pic_ops, p, "xlnx.xps-intc",
-                          R_MAX * 4);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &p->mmio);
+}
+
+static void xilinx_intc_realize(DeviceState *dev, Error **errp)
+{
+    XpsIntc *p = XILINX_INTC(dev);
+
+    if (p->model_endianness == ENDIAN_MODE_UNSPECIFIED) {
+        error_setg(errp, TYPE_XILINX_INTC " property 'endianness'"
+                         " must be set to 'big' or 'little'");
+        return;
+    }
+
+    memory_region_init_io(&p->mmio, OBJECT(dev),
+                          &pic_ops[p->model_endianness == ENDIAN_MODE_BIG],
+                          p, "xlnx.xps-intc",
+                          R_MAX * 4);
 }
 
 static int xilinx_intc_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
@@ -212,23 +245,32 @@ static int xilinx_intc_fdt_get_irq(FDTGenericIntc *obj, qemu_irq *irqs,
     return 1;
 };
 
-static Property xilinx_intc_properties[] = {
+static const Property xilinx_intc_properties[] = {
+    DEFINE_PROP_ENDIAN_NODEFAULT("endianness", XpsIntc, model_endianness),
     DEFINE_PROP_UINT32("kind-of-intr", XpsIntc, c_kind_of_intr, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_intc_fdt_auto_parent(FDTGenericIntc *obj, Error **errp)
 {
+    if (qdev_get_gpio_out_connector(DEVICE(obj), "Outputs", 0) != NULL) {
+        /*
+         * This function is legacy behaviour and can conflict with actual
+         * hwdtb connections. Do nothing if a connection already exists for
+         * this GPIO.
+         */
+        return;
+    }
+
     qdev_connect_gpio_out_named(DEVICE(obj), "Outputs", 0,
                                 qdev_get_gpio_in(DEVICE(first_cpu), 0));
 }
 
-
-static void xilinx_intc_class_init(ObjectClass *klass, void *data)
+static void xilinx_intc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(klass);
 
+    dc->realize = xilinx_intc_realize;
     device_class_set_props(dc, xilinx_intc_properties);
     fgic->get_irq = xilinx_intc_fdt_get_irq;
     fgic->auto_parent = xilinx_intc_fdt_auto_parent;

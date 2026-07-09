@@ -302,11 +302,11 @@ static const VMStateDescription vmstate_xpio_dci_component = {
     }
 };
 
-static void xpio_dci_component_class_init(ObjectClass *klass, void *data)
+static void xpio_dci_component_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xpio_dci_component_reset;
+    device_class_set_legacy_reset(dc, xpio_dci_component_reset);
     dc->realize = xpio_dci_component_realize;
     dc->vmsd = &vmstate_xpio_dci_component;
 }

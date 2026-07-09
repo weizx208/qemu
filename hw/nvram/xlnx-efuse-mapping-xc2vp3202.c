@@ -224,7 +224,7 @@ static size_t xc2vp3202_efuse_mapping_get_bit_idx(XlnxEfuseMapIf *iface,
     }
 }
 
-static void xc2vp3202_efuse_mapping_class_init(ObjectClass *c, void *data)
+static void xc2vp3202_efuse_mapping_class_init(ObjectClass *c, const void *data)
 {
     XlnxEfuseMapIfClass *xpefmic = XLNX_EFUSE_MAP_IF_CLASS(c);
 

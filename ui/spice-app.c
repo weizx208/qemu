@@ -36,7 +36,7 @@
 #include "qapi/error.h"
 #include "io/channel-command.h"
 #include "chardev/spice.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qom/object.h"
 
 static const char *tmp_dir;
@@ -101,7 +101,7 @@ static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     /* fqdn is dealt with in vc_chr_open() */
 }
 
-static void char_vc_class_init(ObjectClass *oc, void *data)
+static void char_vc_class_init(ObjectClass *oc, const void *data)
 {
     VCChardevClass *vc = CHARDEV_VC_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -153,7 +153,7 @@ static void spice_app_display_early_init(DisplayOptions *opts)
     if (qemu_name) {
         app_dir = g_build_filename(g_get_user_runtime_dir(),
                                    "qemu", qemu_name, NULL);
-        if (g_mkdir_with_parents(app_dir, S_IRWXU) < -1) {
+        if (g_mkdir_with_parents(app_dir, S_IRWXU) < 0) {
             error_report("Failed to create directory %s: %s",
                          app_dir, strerror(errno));
             exit(1);
@@ -173,7 +173,7 @@ static void spice_app_display_early_init(DisplayOptions *opts)
         exit(1);
     }
 
-    type_register(&char_vc_type_info);
+    type_register_static(&char_vc_type_info);
 
     sock_path = g_strjoin("", app_dir, "/", "spice.sock", NULL);
     qopts = qemu_opts_create(list, NULL, 0, &error_abort);

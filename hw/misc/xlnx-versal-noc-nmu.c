@@ -1778,11 +1778,11 @@ static const VMStateDescription vmstate_noc_nmu = {
     }
 };
 
-static void noc_nmu_class_init(ObjectClass *klass, void *data)
+static void noc_nmu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = noc_nmu_reset;
+    device_class_set_legacy_reset(dc, noc_nmu_reset);
     dc->vmsd = &vmstate_noc_nmu;
 }
 

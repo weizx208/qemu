@@ -461,7 +461,7 @@ static const VMStateDescription vmstate_cadence_timer = {
     .minimum_version_id = 1,
     .pre_save = cadence_timer_pre_save,
     .post_load = cadence_timer_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT32(reg_clock, CadenceTimerState),
         VMSTATE_UINT32(reg_count, CadenceTimerState),
         VMSTATE_UINT64(reg_value, CadenceTimerState),
@@ -479,7 +479,7 @@ static const VMStateDescription vmstate_cadence_ttc = {
     .name = "cadence_TTC",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_STRUCT_ARRAY(timer, CadenceTTCState, 3, 0,
                             vmstate_cadence_timer,
                             CadenceTimerState),
@@ -487,18 +487,17 @@ static const VMStateDescription vmstate_cadence_ttc = {
     }
 };
 
-static Property cadence_ttc_props[] = {
+static const Property cadence_ttc_props[] = {
     DEFINE_PROP_UINT8("width", CadenceTTCState, bit_width, 16),
     DEFINE_PROP_UINT32("clock-frequency", CadenceTTCState, clock_frequency,
                        133000000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void cadence_ttc_class_init(ObjectClass *klass, void *data)
+static void cadence_ttc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = cadence_ttc_reset;
+    device_class_set_legacy_reset(dc, cadence_ttc_reset);
     dc->vmsd = &vmstate_cadence_ttc;
     device_class_set_props(dc, cadence_ttc_props);
     dc->realize = cadence_ttc_realize;

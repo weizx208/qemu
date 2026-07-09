@@ -38,6 +38,7 @@ struct XlnxZynqMPEFuse {
     qemu_irq irq;
 
     XlnxEFuse *efuse;
+    RegisterInfoArray *reg_array;
     ZynqMPAESKeySink *aes_key_sink;
 
     uint32_t regs[XLNX_ZYNQMP_EFUSE_R_MAX];

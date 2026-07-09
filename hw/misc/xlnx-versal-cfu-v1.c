@@ -41,17 +41,17 @@
 #define XILINX_CFU_APB_ERR_DEBUG 0
 #endif
 
-#define TYPE_XILINX_CFU_APB "xlnx,versal-cfu"
+#define TYPE_XILINX_CFU_APB "xlnx-versal-cfu"
 
 #define XILINX_CFU_APB(obj) \
      OBJECT_CHECK(CFU, (obj), TYPE_XILINX_CFU_APB)
 
-#define TYPE_XILINX_CFU_FDRO "xlnx,versal-cfu-fdro"
+#define TYPE_XILINX_CFU_FDRO "xlnx-versal-cfu-fdro"
 
 #define XILINX_CFU_FDRO(obj) \
      OBJECT_CHECK(CFU_FDRO, (obj), TYPE_XILINX_CFU_FDRO)
 
-#define TYPE_XILINX_CFU_SFR "xlnx,versal-cfu-sfr"
+#define TYPE_XILINX_CFU_SFR "xlnx-versal-cfu-sfr"
 
 #define XILINX_CFU_SFR(obj) \
      OBJECT_CHECK(CFU_SFR, (obj), TYPE_XILINX_CFU_SFR)
@@ -242,7 +242,7 @@ typedef struct CFU {
     /* 128-bit wfifo.  */
     uint32_t wfifo[4];
 
-    CharBackend chr;
+    CharFrontend chr;
     uint32_t regs[R_MAX];
     RegisterInfo regs_info[R_MAX];
 
@@ -789,7 +789,7 @@ static void cfu_fdro_cfi_transfer_packet(XlnxCfiIf *cfi_if, XlnxCfiPacket *pkt)
     g_array_append_vals(s->fdro_data, &pkt->data[0], 4);
 }
 
-static Property cfu_props[] = {
+static const Property cfu_props[] = {
         DEFINE_PROP_CHR("chardev", CFU, chr),
         DEFINE_PROP_LINK("cframe0", CFU, cfg.cframe[0],
                          TYPE_XLNX_CFI_IF, XlnxCfiIf *),
@@ -821,12 +821,10 @@ static Property cfu_props[] = {
                          TYPE_XLNX_CFI_IF, XlnxCfiIf *),
         DEFINE_PROP_LINK("cframe14", CFU, cfg.cframe[14],
                          TYPE_XLNX_CFI_IF, XlnxCfiIf *),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
-static Property cfu_sfr_props[] = {
+static const Property cfu_sfr_props[] = {
         DEFINE_PROP_LINK("cfu", CFU_SFR, cfg.cfu, TYPE_XILINX_CFU_APB, CFU *),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_cfu_apb = {
@@ -839,26 +837,26 @@ static const VMStateDescription vmstate_cfu_apb = {
     }
 };
 
-static void cfu_apb_class_init(ObjectClass *klass, void *data)
+static void cfu_apb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XlnxCfiIfClass *xcic = XLNX_CFI_IF_CLASS(klass);
 
-    dc->reset = cfu_apb_reset;
+    device_class_set_legacy_reset(dc, cfu_apb_reset);
     dc->vmsd = &vmstate_cfu_apb;
     dc->realize = cfu_apb_realize;
     device_class_set_props(dc, cfu_props);
     xcic->cfi_transfer_packet = cfu_apb_cfi_transfer_packet;
 }
 
-static void cfu_fdro_class_init(ObjectClass *klass, void *data)
+static void cfu_fdro_class_init(ObjectClass *klass, const void *data)
 {
     XlnxCfiIfClass *xcic = XLNX_CFI_IF_CLASS(klass);
 
     xcic->cfi_transfer_packet = cfu_fdro_cfi_transfer_packet;
 }
 
-static void cfu_sfr_class_init(ObjectClass *klass, void *data)
+static void cfu_sfr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -302,10 +302,9 @@ static void swdt_init(Object *obj)
     s->rst_done_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, swdt_reset_done, s);
 }
 
-static Property swdt_properties[] = {
+static const Property swdt_properties[] = {
     /* pclk in Hz */
     DEFINE_PROP_UINT64("pclk", SWDTState, pclk, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const FDTGenericGPIOSet wdt_client_gpios[] = {
@@ -329,12 +328,12 @@ static const VMStateDescription vmstate_swdt = {
     }
 };
 
-static void swdt_class_init(ObjectClass *klass, void *data)
+static void swdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = swdt_reset;
+    device_class_set_legacy_reset(dc, swdt_reset);
     dc->realize = swdt_realize;
     dc->vmsd = &vmstate_swdt;
     device_class_set_props(dc, swdt_properties);

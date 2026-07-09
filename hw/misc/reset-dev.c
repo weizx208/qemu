@@ -9,9 +9,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
-#include "sysemu/reset.h"
+#include "system/system.h"
+#include "system/runstate.h"
+#include "system/reset.h"
 #include "qemu/log.h"
 #include "qapi/qmp/qerror.h"
 #include "migration/vmstate.h"

@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
@@ -443,19 +444,18 @@ static const FDTGenericGPIOSet gic_proxy_client_gpios[] = {
     { },
 };
 
-static Property gic_proxy_properties[] = {
+static const Property gic_proxy_properties[] = {
     DEFINE_PROP_UINT32("max-ints", GICProxy, cfg.max_ints, MAX_INTS),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void gic_proxy_class_init(ObjectClass *oc, void *data)
+static void gic_proxy_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(oc);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(oc);
 
+    device_class_set_legacy_reset(dc, gic_proxy_reset);
     dc->realize = gic_proxy_realize;
-    dc->reset = gic_proxy_reset;
     dc->vmsd = &vmstate_gic_proxy;
     fgic->get_irq = gic_proxy_get_irq;
     fggc->client_gpios = gic_proxy_client_gpios;

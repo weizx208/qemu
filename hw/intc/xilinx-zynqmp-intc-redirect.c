@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 
@@ -149,7 +150,7 @@ static const FDTGenericGPIOSet intc_redirect_controller_gpios[] = {
     { },
 };
 
-static void intc_redirect_class_init(ObjectClass *oc, void *data)
+static void intc_redirect_class_init(ObjectClass *oc, const void *data)
 {
     FDTGenericIntcClass *fgic = FDT_GENERIC_INTC_CLASS(oc);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(oc);

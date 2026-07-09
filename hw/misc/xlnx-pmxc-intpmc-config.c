@@ -4187,7 +4187,7 @@ static void pmxc_intpmx_config_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void pmxc_intpmx_config_class_init(ObjectClass *klass, void *data)
+static void pmxc_intpmx_config_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 

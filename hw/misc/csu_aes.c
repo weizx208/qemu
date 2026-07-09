@@ -9,13 +9,14 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 
 #include "hw/hw.h"
 #include "hw/stream.h"
 #include "qemu/bitops.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/register.h"
@@ -28,8 +29,8 @@
 #define ZYNQMP_CSU_AES_ERR_DEBUG 0
 #endif
 
-#define TYPE_ZYNQMP_CSU_AES "zynqmp,csu-aes"
-#define TYPE_ZYNQMP_CSU_DEVKEY_SINK "zynqmp.csu-aes.devkey-sink"
+#define TYPE_ZYNQMP_CSU_AES "zynqmp-csu-aes"
+#define TYPE_ZYNQMP_CSU_DEVKEY_SINK "zynqmp-csu-aes-devkey-sink"
 
 #define ZYNQMP_CSU_AES(obj) \
      OBJECT_CHECK(ZynqMPCSUAES, (obj), TYPE_ZYNQMP_CSU_AES)
@@ -553,7 +554,7 @@ static const VMStateDescription vmstate_aes = {
     }
 };
 
-static Property aes_properties[] = {
+static const Property aes_properties[] = {
     DEFINE_PROP_LINK("stream-connected-aes",
                      ZynqMPCSUAES, tx_dev,
                      TYPE_STREAM_SINK, StreamSink *),
@@ -564,7 +565,6 @@ static Property aes_properties[] = {
     DEFINE_PROP_STRING("family-key-id", ZynqMPCSUAES, family_key_id),
     DEFINE_PROP_STRING("puf-key-id", ZynqMPCSUAES, puf_key_id),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const FDTGenericGPIOSet aes_gpios[] = {
@@ -622,7 +622,7 @@ static void aes_select_device_key(ZynqMPAESKeySink *obj, uint8_t *key, size_t le
     return;
 }
 
-static void aes_class_init(ObjectClass *klass, void *data)
+static void aes_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
@@ -630,7 +630,7 @@ static void aes_class_init(ObjectClass *klass, void *data)
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
 
-    dc->reset = xlx_aes_reset;
+    device_class_set_legacy_reset(dc, xlx_aes_reset);
     dc->realize = aes_realize;
     dc->vmsd = &vmstate_aes;
     device_class_set_props(dc, aes_properties);
@@ -651,7 +651,7 @@ static void csu_devkey_sink_update(ZynqMPAESKeySink *obj,
     update_devkey_sink(ks, key);
 }
 
-static void csu_devkey_sink_class_init(ObjectClass *klass, void *data)
+static void csu_devkey_sink_class_init(ObjectClass *klass, const void *data)
 {
     ZynqMPAESKeySinkClass *c = ZYNQMP_AES_KEY_SINK_CLASS(klass);
     c->update = csu_devkey_sink_update;

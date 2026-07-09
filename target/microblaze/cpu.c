@@ -27,9 +27,12 @@
 #include "cpu.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "exec/exec-all.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "hw/irq.h"
 #include "exec/gdbstub.h"
+#include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 #include "hw/core/cpu-exec-gpio.h"
 
@@ -100,12 +103,23 @@ static vaddr mb_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
+static TCGTBCPUState mb_get_tb_cpu_state(CPUState *cs)
+{
+    CPUMBState *env = cpu_env(cs);
+
+    return (TCGTBCPUState){
+        .pc = env->pc,
+        .flags = (env->iflags & IFLAGS_TB_MASK) | (env->msr & MSR_TB_MASK),
+        .cs_base = (env->iflags & IMM_FLAG ? env->imm : 0),
+    };
+}
+
 static void mb_cpu_synchronize_from_tb(CPUState *cs,
                                        const TranslationBlock *tb)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
 
-    tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
+    tcg_debug_assert(!tcg_cflags_has(cs, CF_PCREL));
     cpu->env.pc = tb->pc;
     cpu->env.iflags = tb->flags & IFLAGS_TB_MASK;
 }
@@ -120,15 +134,32 @@ static void mb_restore_state_to_opc(CPUState *cs,
     cpu->env.iflags = data[1];
 }
 
+#ifndef CONFIG_USER_ONLY
 static bool mb_cpu_has_work(CPUState *cs)
 {
     CPUMBState *env = cpu_env(cs);
     bool r;
 
-    r = (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI))
+    r = (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI))
            || env->wakeup;
-
     return r;
+}
+#endif /* !CONFIG_USER_ONLY */
+
+static int mb_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    CPUMBState *env = cpu_env(cs);
+    MicroBlazeCPU *cpu = env_archcpu(env);
+
+    /* Are we in nommu mode?.  */
+    if (!(env->msr & MSR_VM) || !cpu->cfg.use_mmu) {
+        return MMU_NOMMU_IDX;
+    }
+
+    if (env->msr & MSR_UM) {
+        return MMU_USER_IDX;
+    }
+    return MMU_KERNEL_IDX;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -193,15 +224,15 @@ static void microblaze_set_wakeup(void *opaque, int irq, int level)
 }
 #endif
 
-static void mb_cpu_reset_hold(Object *obj)
+static void mb_cpu_reset_hold(Object *obj, ResetType type)
 {
-    CPUState *s = CPU(obj);
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(s);
-    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(cpu);
+    CPUState *cs = CPU(obj);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(obj);
     CPUMBState *env = &cpu->env;
 
     if (mcc->parent_phases.hold) {
-        mcc->parent_phases.hold(obj);
+        mcc->parent_phases.hold(obj, type);
     }
 
     memset(env, 0, offsetof(CPUMBState, end_reset_fields));
@@ -212,23 +243,25 @@ static void mb_cpu_reset_hold(Object *obj)
 
     env->pc = cpu->cfg.base_vectors;
 
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    /*
+     * TODO: this is probably not the correct NaN propagation rule for
+     * this architecture.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    /* Default NaN: sign bit set, most significant frac bit set */
+    set_float_default_nan_pattern(0b11000000, &env->fp_status);
+
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
     mb_cpu_write_msr(env, MSR_EE | MSR_IE | MSR_VM | MSR_UM);
 #else
     mb_cpu_write_msr(env, 0);
     mmu_init(&env->mmu);
-
-    if (cpu->env.memattr_p) {
-        s->neg.tlb.memattr[MEM_ATTR_NS].attrs = *cpu->env.memattr_p;
-        s->neg.tlb.memattr[MEM_ATTR_NS].attrs.secure = false;
-        s->neg.tlb.memattr[MEM_ATTR_SEC].attrs = *cpu->env.memattr_p;
-        s->neg.tlb.memattr[MEM_ATTR_SEC].attrs.secure = true;
-    }
 #endif
 
 #ifndef CONFIG_USER_ONLY
-    cpu_halt_update(s);
+    cpu_halt_update(cs);
 #endif
 }
 
@@ -236,6 +269,8 @@ static void mb_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     info->mach = bfd_arch_microblaze;
     info->print_insn = print_insn_microblaze;
+    info->endian = MICROBLAZE_CPU(cpu)->cfg.endi ? BFD_ENDIAN_LITTLE
+                                                 : BFD_ENDIAN_BIG;
 }
 
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
@@ -259,6 +294,11 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                    cpu->cfg.addr_size);
         return;
     }
+
+    gdb_register_coprocessor(cs, mb_cpu_gdb_read_stack_protect,
+                             mb_cpu_gdb_write_stack_protect,
+                             gdb_find_static_feature("microblaze-stack-protect.xml"),
+                             0);
 
     qemu_init_vcpu(cs);
 
@@ -322,8 +362,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     cpu->cfg.pvr_regs[11] = ((cpu->cfg.use_mmu ? PVR11_USE_MMU : 0) |
                              16 << 17);
 
-    mb_gen_dynamic_xml(cpu);
-
     cpu->cfg.mmu = 3;
     cpu->cfg.mmu_tlb_access = 3;
     cpu->cfg.mmu_zones = 16;
@@ -332,39 +370,43 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     if (cpu->cfg.lockstep_slave) {
         cs->reset_pin = true;
     }
+
+#ifndef CONFIG_USER_ONLY
+    cpu_address_space_set_memattrs(cs, 0,
+                                   hwdtb_memattrs_get(cpu->env.memattr_p));
+#endif
     mcc->parent_realize(dev, errp);
 }
 
 static void mb_cpu_initfn(Object *obj)
 {
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
-    CPUMBState *env = &cpu->env;
-
-    gdb_register_coprocessor(CPU(cpu), mb_cpu_gdb_read_stack_protect,
-                             mb_cpu_gdb_write_stack_protect, 2,
-                             "microblaze-stack-protect.xml", 0);
-
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
-
 #ifndef CONFIG_USER_ONLY
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
+
     /* Inbound IRQ and FIR lines */
-    qdev_init_gpio_in(DEVICE(cpu), microblaze_cpu_set_irq, 2);
-    qdev_init_gpio_in_named(DEVICE(cpu), microblaze_set_wakeup, "wakeup", 2);
+    qdev_init_gpio_in(DEVICE(obj), microblaze_cpu_set_irq, 2);
+    qdev_init_gpio_in_named(DEVICE(obj), microblaze_set_wakeup, "wakeup", 2);
+    qdev_init_gpio_out_named(DEVICE(obj), &cpu->mb_sleep, "mb_sleep", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dp, "ns_axi_dp", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
 
-    qdev_init_gpio_out_named(DEVICE(cpu), &cpu->mb_sleep, "mb_sleep", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_dp, "ns_axi_dp", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
-
-    object_property_add_link(obj, "memattr", TYPE_MEMORY_TRANSACTION_ATTR,
+    object_property_add_link(obj, "memattr", TYPE_HWDTB_MEMTXATTRS,
                              (Object **)&cpu->env.memattr_p,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
 #endif
+
+    /* Restricted 'endianness' property is equivalent of 'little-endian' */
+    object_property_add_alias(obj, "little-endian", obj, "endianness");
 }
 
-static Property mb_properties[] = {
+static const Property mb_properties[] = {
+    /*
+     * Following properties are used by Xilinx DTS conversion tool
+     * do not rename them.
+     */
     DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
                      false),
@@ -423,7 +465,9 @@ static Property mb_properties[] = {
     DEFINE_PROP_UINT8("pvr", MicroBlazeCPU, cfg.pvr, C_PVR_FULL),
     DEFINE_PROP_UINT8("pvr-user1", MicroBlazeCPU, cfg.pvr_user1, 0),
     DEFINE_PROP_UINT32("pvr-user2", MicroBlazeCPU, cfg.pvr_user2, 0),
-    DEFINE_PROP_END_OF_LIST(),
+    /*
+     * End of properties reserved by Xilinx DTS conversion tool.
+     */
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -454,27 +498,36 @@ static const gchar *mb_gdb_arch_name(CPUState *cs)
 #include "hw/core/sysemu-cpu-ops.h"
 
 static const struct SysemuCPUOps mb_sysemu_ops = {
+    .has_work = mb_cpu_has_work,
     .get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug,
 };
 #endif
 
-#include "hw/core/tcg-cpu-ops.h"
+static const TCGCPUOps mb_tcg_ops = {
+    /* MicroBlaze is always in-order. */
+    .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = true,
 
-static const struct TCGCPUOps mb_tcg_ops = {
     .initialize = mb_tcg_init,
+    .translate_code = mb_translate_code,
+    .get_tb_cpu_state = mb_get_tb_cpu_state,
     .synchronize_from_tb = mb_cpu_synchronize_from_tb,
     .restore_state_to_opc = mb_restore_state_to_opc,
+    .mmu_index = mb_cpu_mmu_index,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = mb_cpu_tlb_fill,
+    .pointer_wrap = cpu_pointer_wrap_uint32,
     .cpu_exec_interrupt = mb_cpu_exec_interrupt,
+    .cpu_exec_halt = mb_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = mb_cpu_do_interrupt,
     .do_transaction_failed = mb_cpu_transaction_failed,
     .do_unaligned_access = mb_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static void mb_cpu_class_init(ObjectClass *oc, void *data)
+static void mb_cpu_class_init(ObjectClass *oc, const void *data)
 {
 #ifndef CONFIG_USER_ONLY
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(oc);
@@ -490,8 +543,6 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
                                        &mcc->parent_phases);
 
     cc->class_by_name = mb_cpu_class_by_name;
-    cc->has_work = mb_cpu_has_work;
-
     cc->dump_state = mb_cpu_dump_state;
     cc->set_pc = mb_cpu_set_pc;
     cc->get_pc = mb_cpu_get_pc;
@@ -503,8 +554,6 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->sysemu_ops = &mb_sysemu_ops;
 #endif
     device_class_set_props(dc, mb_properties);
-    cc->gdb_num_core_regs = 32 + 27;
-    cc->gdb_get_dynamic_xml = mb_gdb_get_dynamic_xml;
     cc->gdb_core_xml_file = "microblaze-core.xml";
     cc->gdb_arch_name = mb_gdb_arch_name;
 

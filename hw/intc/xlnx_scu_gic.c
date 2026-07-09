@@ -84,7 +84,7 @@ void xlnx_scu_gic_set_intr(XlnxSCUGICState *s, unsigned int reg, uint32_t val,
     xlnx_scu_gic_update_irq(s, reg);
 }
 
-static void xlnx_scu_gic_class_init(ObjectClass *klass, void *data)
+static void xlnx_scu_gic_class_init(ObjectClass *klass, const void *data)
 {
     ARMGICClass *agc = ARM_GIC_CLASS(klass);
     XlnxSCUGICClass *xsgc = XLNX_SCU_GIC_CLASS(klass);

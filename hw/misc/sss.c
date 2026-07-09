@@ -288,7 +288,7 @@ static size_t sss_stream_push(StreamSink *obj, uint8_t *buf,
     return len - remaining;
 }
 
-static void sss_stream_class_init(ObjectClass *klass, void *data)
+static void sss_stream_class_init(ObjectClass *klass, const void *data)
 {
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 

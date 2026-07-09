@@ -409,20 +409,20 @@ static void ext_phy_reset(DeviceState *dev)
     }
 }
 
-static void ext_phy_class_init(ObjectClass *klass, void *data)
+static void ext_phy_class_init(ObjectClass *klass, const void *data)
 {
     MDIOSlaveClass *sc = MDIO_SLAVE_CLASS(klass);
 
     sc->transfer = ext_phy_mdio_transfer;
 }
 
-static void phy_class_init(ObjectClass *klass, void *data)
+static void phy_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ExtPhyClass *k = EXT_PHY_CLASS(klass);
 
     k->part = data;
-    dc->reset = ext_phy_reset;
+    device_class_set_legacy_reset(dc, ext_phy_reset);
 }
 
 static const TypeInfo ext_phy_info = {
@@ -448,7 +448,7 @@ static void ext_phy_register_types(void)
             .class_init = phy_class_init,
             .class_data = (void *)&devices[i],
         };
-        type_register(&ti);
+        type_register_static(&ti);
     }
 }
 

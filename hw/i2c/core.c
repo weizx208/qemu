@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
-#include "hw/fdt_generic_util.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -19,10 +18,9 @@
 
 #define I2C_BROADCAST 0x00
 
-static Property i2c_props[] = {
+static const Property i2c_props[] = {
     DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
     DEFINE_PROP_UINT8("address-range", struct I2CSlave, address_range, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const TypeInfo i2c_bus_info = {
@@ -52,7 +50,7 @@ static const VMStateDescription vmstate_i2c_bus = {
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = i2c_bus_pre_save,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(saved_address, I2CBus),
         VMSTATE_END_OF_LIST()
     }
@@ -370,7 +368,7 @@ const VMStateDescription vmstate_i2c_slave = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = i2c_slave_post_load,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_UINT8(address, I2CSlave),
         VMSTATE_UINT8(address_range, I2CSlave),
         VMSTATE_BOOL(broadcast, I2CBus),
@@ -400,31 +398,6 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
 
     return dev;
 }
-
-static bool i2c_slave_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
-                                Error **errp)
-{
-    DeviceState *parent;
-    I2CSlave *slave;
-
-    slave = I2C_SLAVE(obj);
-
-    slave->address = reg.a[0];
-    parent = (DeviceState *)object_dynamic_cast(reg.parents[0], TYPE_DEVICE);
-
-    if (!parent) {
-            return false;
-    }
-
-    if (!parent->realized) {
-        return true;
-    }
-
-    qdev_set_parent_bus(DEVICE(obj), qdev_get_child_bus(parent, "i2c"),
-                        &error_abort);
-    return false;
-}
-
 
 static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
                             bool broadcast, I2CNodeList *current_devs)
@@ -457,18 +430,15 @@ static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
     return false;
 }
 
-static void i2c_slave_class_init(ObjectClass *klass, void *data)
+static void i2c_slave_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_I2C_BUS;
     device_class_set_props(k, i2c_props);
     sc->match_and_add = i2c_slave_match;
-
-    fmc->parse_reg = i2c_slave_parse_reg;
 }
 
 static const TypeInfo i2c_slave_type_info = {
@@ -478,10 +448,6 @@ static const TypeInfo i2c_slave_type_info = {
     .abstract = true,
     .class_size = sizeof(I2CSlaveClass),
     .class_init = i2c_slave_class_init,
-    .interfaces = (InterfaceInfo []) {
-        { TYPE_FDT_GENERIC_MMAP },
-        { },
-    },
 };
 
 static void i2c_slave_register_types(void)

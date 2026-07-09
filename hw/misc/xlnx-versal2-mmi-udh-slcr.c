@@ -786,7 +786,7 @@ static void mmi_udh_slcr_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void mmi_udh_slcr_reset_hold(Object *obj)
+static void mmi_udh_slcr_reset_hold(Object *obj, ResetType type)
 {
     MMI_UDH_SLCR *s = XILINX_MMI_UDH_SLCR(obj);
 
@@ -859,7 +859,7 @@ static const VMStateDescription vmstate_mmi_udh_slcr = {
     }
 };
 
-static void mmi_udh_slcr_class_init(ObjectClass *klass, void *data)
+static void mmi_udh_slcr_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -11,7 +11,7 @@
 #define UFS_SCSI_IF_H
 
 #include "qom/object.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 #define TYPE_UFS_SCSI_IF "ufs-scsi-if"
 typedef struct ufs_scsi_if_class ufs_scsi_if_class;

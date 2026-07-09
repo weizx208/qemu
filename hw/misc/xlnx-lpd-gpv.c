@@ -876,11 +876,11 @@ static const VMStateDescription vmstate_lpd_gpv = {
     }
 };
 
-static void lpd_gpv_class_init(ObjectClass *klass, void *data)
+static void lpd_gpv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = lpd_gpv_reset;
+    device_class_set_legacy_reset(dc, lpd_gpv_reset);
     dc->vmsd = &vmstate_lpd_gpv;
 }
 

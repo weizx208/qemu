@@ -11,7 +11,7 @@
 
 #include "hw/qdev-core.h"
 #include "exec/hwaddr.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 
 #define TYPE_AMD_DDR_MEMORY "amd-ddr-memory"
 
@@ -22,7 +22,7 @@ struct AMDDDRMemory {
     MemoryRegion mr;
     hwaddr address;
     uint64_t size;
-    uint8_t max_ram_property;
+    OnOffAuto shared;
 };
 
 #endif /* HW_MISC_AMD_DDR_MEMORY_H */

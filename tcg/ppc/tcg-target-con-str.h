@@ -16,8 +16,10 @@ REGS('v', ALL_VECTOR_REGS)
  * Define constraint letters for constants:
  * CONST(letter, TCG_CT_CONST_* bit set)
  */
+CONST('C', TCG_CT_CONST_CMP)
 CONST('I', TCG_CT_CONST_S16)
 CONST('M', TCG_CT_CONST_MONE)
+CONST('N', TCG_CT_CONST_N16)
 CONST('T', TCG_CT_CONST_S32)
 CONST('U', TCG_CT_CONST_U32)
 CONST('W', TCG_CT_CONST_WSZ)

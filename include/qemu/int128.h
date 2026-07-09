@@ -234,13 +234,6 @@ static inline Int128 int128_rems(Int128 a, Int128 b)
 
 #else /* !CONFIG_INT128 */
 
-/* FIXME: Update the file with support for
- *     int128_mul(),
- *     int128_div(),
- *     int128_lshift()
- */
-_Static_assert(0, "arm generic timer needs __Int128 defined");
-
 typedef struct Int128 Int128;
 typedef struct Int128 __attribute__((aligned(16))) Int128Aligned;
 

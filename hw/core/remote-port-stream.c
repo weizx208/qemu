@@ -23,14 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
 #include "qemu/log.h"
-
-#include "qemu/bitops.h"
-#include "qapi/qmp/qerror.h"
 #include "hw/stream.h"
-#include "qapi/error.h"
-#include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/remote-port-device.h"
 #include "trace.h"
@@ -164,7 +158,6 @@ static size_t rp_stream_stream_push(StreamSink *obj, uint8_t *buf,
     trace_remote_port_stream_tx_busaccess(rp_cmd_to_string(in.cmd),
         in.id, in.flags, in.dev, in.addr, in.size, in.attr);
 
-    rp_rsp_mutex_lock(s->rp);
     rp_write(s->rp, (void *) &pkt, enclen);
     rp_write(s->rp, buf, len);
     rsp = rp_wait_resp(s->rp);
@@ -176,7 +169,6 @@ static size_t rp_stream_stream_push(StreamSink *obj, uint8_t *buf,
         rsp.pkt->busaccess.len, rsp.pkt->busaccess.attributes);
 
     rp_dpkt_invalidate(&rsp);
-    rp_rsp_mutex_unlock(s->rp);
     rp_restart_sync_timer(s->rp);
     return len;
 }
@@ -195,13 +187,12 @@ static void rp_stream_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static Property rp_properties[] = {
+static const Property rp_properties[] = {
     DEFINE_PROP_UINT32("rp-chan0", RemotePortStream, rp_dev, 0),
     DEFINE_PROP_UINT16("stream-width", RemotePortStream, stream_width, 4),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void rp_stream_class_init(ObjectClass *oc, void *data)
+static void rp_stream_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(oc);

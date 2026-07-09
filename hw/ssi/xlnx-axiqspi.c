@@ -37,11 +37,11 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/ssi/ssi.h"
 #include "hw/fdt_generic_util.h"
 
-#define TYPE_XLNX_AXIQSPI "xlnx,axi-quad-spi-3.2"
+#define TYPE_XLNX_AXIQSPI "xlnx-axi-quad-spi-3.2"
 
 #define XLNX_AXIQSPI(obj) \
      OBJECT_CHECK(XlnxAXIQSPI, (obj), TYPE_XLNX_AXIQSPI)
@@ -1957,7 +1957,6 @@ static void axiqspi_realize(DeviceState *dev, Error **errp)
 
     s->spi_bus = ssi_create_bus(dev, "spi0");
     s->cs_lines = g_new0(qemu_irq, s->conf.num_cs);
-    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi_bus);
     qdev_init_gpio_out(dev, s->cs_lines, s->conf.num_cs);
 
     DB_PRINT("axiqspi: realized\n");
@@ -1980,11 +1979,8 @@ static bool axiqspi_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
                               Error **errp)
 {
     XlnxAXIQSPI *s = XLNX_AXIQSPI(obj);
-    ObjectClass *klass = object_class_by_name(TYPE_XLNX_AXIQSPI);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    FDTGenericMMapClass *parent_fmc;
 
-    parent_fmc = FDT_GENERIC_MMAP_CLASS(object_class_get_parent(klass));
     if (s->conf.xip_mode) {
         if (reg.n != 2) {
             error_setg(errp, "axiqspi: XIP mode requires 1 region, but "
@@ -1997,7 +1993,7 @@ static bool axiqspi_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
         sysbus_init_mmio(sbd, &s->xip_mr);
     }
 
-    return parent_fmc ? parent_fmc->parse_reg(obj, reg, errp) : false;
+    return false;
 }
 
 static const VMStateDescription vmstate_axiqspi = {
@@ -2010,7 +2006,7 @@ static const VMStateDescription vmstate_axiqspi = {
     }
 };
 
-static Property xlnx_axiqspi_properties[] = {
+static const Property xlnx_axiqspi_properties[] = {
     /*
      * 0-1.
      * If XIP mode is enabled, the model expects another <addr, size> pair in
@@ -2048,15 +2044,14 @@ static Property xlnx_axiqspi_properties[] = {
     /* 1-32 */
     DEFINE_PROP_UINT8("num-ss-bits", XlnxAXIQSPI, conf.num_cs, 1),
 
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static void axiqspi_class_init(ObjectClass *klass, void *data)
+static void axiqspi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
-    dc->reset = axiqspi_reset;
+    device_class_set_legacy_reset(dc, axiqspi_reset);
     device_class_set_props(dc, xlnx_axiqspi_properties);
     dc->realize = axiqspi_realize;
     dc->vmsd = &vmstate_axiqspi;

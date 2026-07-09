@@ -29,13 +29,14 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/dma.h"
-#include "exec/address-spaces.h"
+#include "system/dma.h"
+#include "system/address-spaces.h"
 
 #include "hw/fdt_generic_util.h"
 #include "hw/misc/xlnx-xmpu.h"
@@ -632,14 +633,13 @@ static void xmpu_reset(DeviceState *dev)
 static XMPU *xmpu_from_mr(void *mr_accessor)
 {
     RegisterInfoArray *reg_array = mr_accessor;
-    Object *obj;
+    DeviceState *dev;
 
     assert(reg_array != NULL);
 
-    obj = reg_array->mem.owner;
-    assert(obj);
+    dev = register_array_get_owner(reg_array);
 
-    return XILINX_XMPU(obj);
+    return XILINX_XMPU(dev);
 }
 
 static MemTxResult xmpu_read(void *opaque, hwaddr addr, uint64_t *value,
@@ -818,11 +818,10 @@ static bool xmpu_parse_reg(FDTGenericMMap *obj, FDTGenericRegPropInfo reg,
                                  &zero_ops, reg, obj, errp);
 }
 
-static Property xmpu_properties[] = {
+static const Property xmpu_properties[] = {
     XMPU_COMMON_PROPS(),
     DEFINE_PROP_BOOL("align", XMPU, cfg.align, 0),
     DEFINE_PROP_BOOL("poison", XMPU, cfg.poison, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_xmpu = {
@@ -835,19 +834,20 @@ static const VMStateDescription vmstate_xmpu = {
     }
 };
 
-static void xmpu_class_init(ObjectClass *klass, void *data)
+static void xmpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericMMapClass *fmc = FDT_GENERIC_MMAP_CLASS(klass);
 
-    dc->reset = xmpu_reset;
+    device_class_set_legacy_reset(dc, xmpu_reset);
     dc->realize = xmpu_realize;
     dc->vmsd = &vmstate_xmpu;
     device_class_set_props(dc, xmpu_properties);
     fmc->parse_reg = xmpu_parse_reg;
 }
 
-static void xmpu_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+static void xmpu_iommu_memory_region_class_init(ObjectClass *klass,
+                                                const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

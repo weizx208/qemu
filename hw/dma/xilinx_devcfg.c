@@ -25,8 +25,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
+#include "system/system.h"
+#include "system/dma.h"
 #include "hw/sysbus.h"
 #include "qemu/bitops.h"
 #include "hw/register.h"
@@ -425,11 +425,11 @@ static void xilinx_devcfg_init(Object *obj)
                              OBJ_PROP_LINK_UNREF_ON_RELEASE);
 }
 
-static void xilinx_devcfg_class_init(ObjectClass *klass, void *data)
+static void xilinx_devcfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->reset = xilinx_devcfg_reset;
+    device_class_set_legacy_reset(dc, xilinx_devcfg_reset);
     dc->vmsd = &vmstate_xilinx_devcfg;
     dc->realize = xilinx_devcfg_realize;
 }

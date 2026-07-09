@@ -191,7 +191,7 @@ static void mmi_udh_pll_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void mmi_udh_pll_reset_hold(Object *obj)
+static void mmi_udh_pll_reset_hold(Object *obj, ResetType type)
 {
     MMI_UDH_PLL *s = XILINX_MMI_UDH_PLL(obj);
 
@@ -245,7 +245,7 @@ static const VMStateDescription vmstate_mmi_udh_pll = {
     }
 };
 
-static void mmi_udh_pll_class_init(ObjectClass *klass, void *data)
+static void mmi_udh_pll_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

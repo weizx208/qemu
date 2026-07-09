@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -805,8 +806,6 @@ static void zynqmp_rpu_1_handle_wfi(void *opaque, int irq, int level)
 static void rpu_realize(DeviceState *dev, Error **errp)
 {
     XlnxZynqMPRPUCtrl *s = XLNX_RPU_CTRL(dev);
-    hwaddr region_addr;
-    MemoryRegion *region_container;
     uint32_t region_priority;
 
     if (!s->atcm1_for_rpu0) {
@@ -849,27 +848,17 @@ static void rpu_realize(DeviceState *dev, Error **errp)
      */
     memory_region_init_io(&s->atcm1_mask, OBJECT(s), &disabled_tcm_ops, s,
                           "atcm1_mask", memory_region_size(s->atcm1_for_rpu0));
-    region_container = MEMORY_REGION(object_property_get_link(
-                                                OBJECT(s->atcm1_for_rpu0),
-                                                "container", NULL));
-    region_addr = object_property_get_int(OBJECT(s->atcm1_for_rpu0), "addr",
-                                          NULL);
     region_priority = object_property_get_int(OBJECT(s->atcm1_for_rpu0),
                                               "priority", NULL) + 1;
     object_property_set_int(OBJECT(&s->atcm1_mask), "priority", region_priority, NULL);
-    memory_region_add_subregion(region_container, region_addr, &s->atcm1_mask);
+    memory_region_add_subregion(s->atcm1_for_rpu0, 0, &s->atcm1_mask);
 
     memory_region_init_io(&s->btcm1_mask, OBJECT(s), &disabled_tcm_ops, s,
                           "btcm1_mask", memory_region_size(s->btcm1_for_rpu0));
-    region_container = MEMORY_REGION(object_property_get_link(
-                                                OBJECT(s->btcm1_for_rpu0),
-                                                "container", NULL));
-    region_addr = object_property_get_int(OBJECT(s->btcm1_for_rpu0), "addr",
-                                          NULL);
     region_priority = object_property_get_int(OBJECT(s->btcm1_for_rpu0),
                                               "priority", NULL) + 1;
     object_property_set_int(OBJECT(&s->btcm1_mask), "priority", region_priority, NULL);
-    memory_region_add_subregion(region_container, region_addr, &s->btcm1_mask);
+    memory_region_add_subregion(s->btcm1_for_rpu0, 0, &s->btcm1_mask);
 }
 
 static void rpu_init(Object *obj)
@@ -995,12 +984,12 @@ static const FDTGenericGPIOSet rpu_client_gpios [] = {
     { },
 };
 
-static void rpu_class_init(ObjectClass *klass, void *data)
+static void rpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     FDTGenericGPIOClass *fggc = FDT_GENERIC_GPIO_CLASS(klass);
 
-    dc->reset = rpu_reset;
+    device_class_set_legacy_reset(dc, rpu_reset);
     dc->realize = rpu_realize;
     dc->vmsd = &vmstate_rpu;
     fggc->controller_gpios = rpu_controller_gpios;

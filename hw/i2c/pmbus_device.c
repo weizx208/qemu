@@ -1886,7 +1886,7 @@ const VMStateDescription vmstate_pmbus_device = {
     .name = TYPE_PMBUS_DEVICE,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
+    .fields = (const VMStateField[]) {
         VMSTATE_SMBUS_DEVICE(smb, PMBusDevice),
         VMSTATE_UINT8(num_pages, PMBusDevice),
         VMSTATE_UINT8(code, PMBusDevice),
@@ -1902,7 +1902,7 @@ static void pmbus_device_finalize(Object *obj)
     g_free(pmdev->pages);
 }
 
-static void pmbus_device_class_init(ObjectClass *klass, void *data)
+static void pmbus_device_class_init(ObjectClass *klass, const void *data)
 {
     SMBusDeviceClass *k = SMBUS_DEVICE_CLASS(klass);
 
