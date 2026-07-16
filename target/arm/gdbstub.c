@@ -647,27 +647,6 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                                      0);
         }
     }
-#ifdef TARGET_AARCH64
-    /* Xilinx */
-    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
-        gdb_register_coprocessor(cs, aarch64_el1_gdb_get_reg,
-                                 aarch64_el1_gdb_set_reg,
-                                 gdb_find_static_feature("aarch64-el1.xml"), 0);
-        if (arm_feature(env, ARM_FEATURE_EL2)) {
-            gdb_register_coprocessor(cs, aarch64_el2_gdb_get_reg,
-                                     aarch64_el2_gdb_set_reg,
-                                     gdb_find_static_feature("aarch64-el2.xml"),
-                                     0);
-        }
-
-        if (arm_feature(env, ARM_FEATURE_EL3)) {
-            gdb_register_coprocessor(cs, aarch64_el3_gdb_get_reg,
-                                     aarch64_el3_gdb_set_reg,
-                                     gdb_find_static_feature("aarch64-el3.xml"),
-                                     0);
-        }
-    }
-#endif
     if (cpu_isar_feature(aa32_mve, cpu) && tcg_enabled()) {
         gdb_register_coprocessor(cs, mve_gdb_get_reg, mve_gdb_set_reg,
                                  gdb_find_static_feature("arm-m-profile-mve.xml"),
