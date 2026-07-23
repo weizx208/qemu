@@ -726,6 +726,7 @@ static const CompatTranslate STATIC_TRANSLATE_TABLE[] = {
     { "arasan,sdhci-8.9a", "xilinx.zynqmp-sdhci" },
     { "xlnx,xps-gpio-1.00.a", "xlnx.axi-gpio" },
     { "xlnx,axi-dpdma-1.0", "xlnx.dpdma" },
+    { "xlnx,zynq-can-1.0", "xlnx.zynqmp-can" },
     { "xlnx,ps7-can-1.00.a", "xlnx.zynqmp-can" },
     { "xlnx.ps7-ethernet", "cadence_gem" },
     { "cdns,gem", "cadence_gem" },
