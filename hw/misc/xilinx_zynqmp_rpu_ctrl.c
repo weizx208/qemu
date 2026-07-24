@@ -405,12 +405,57 @@ typedef struct XlnxZynqMPRPUCtrl {
     qemu_irq comp_fault[2];
     /* General outbound GPIO lines */
     qemu_irq cont_out_gpios[NUM_CONT_OUT_IRQS];
+    qemu_irq reset_out_gpios[2];
 
     bool cpu_in_wfi[2];
+    bool reset_in[2];
+    bool reset_out[2];
 
     uint32_t regs[RPU_CTRL_R_MAX];
     RegisterInfo regs_info[RPU_CTRL_R_MAX];
 } XlnxZynqMPRPUCtrl;
+
+static void rpu_0_update_reset_out(XlnxZynqMPRPUCtrl *s)
+{
+    bool reset_out;
+
+    reset_out = s->reset_out[0];
+
+    if (s->reset_in[0]) {
+        reset_out = true;
+    } else {
+        if (s->regs[R_RPU_0_CFG] & R_RPU_0_CFG_NCPUHALT_MASK) {
+            /* nCPUHALT 0 -> 1: starts the CPU.  */
+            reset_out = false;
+        }
+    }
+
+    if (reset_out ^ s->reset_out[0]) {
+        s->reset_out[0] = reset_out;
+        qemu_set_irq(s->reset_out_gpios[0], reset_out);
+    }
+}
+
+static void rpu_1_update_reset_out(XlnxZynqMPRPUCtrl *s)
+{
+    bool reset_out;
+
+    reset_out = s->reset_out[1];
+
+    if (s->reset_in[1]) {
+        reset_out = true;
+    } else {
+        if (s->regs[R_RPU_1_CFG] & R_RPU_1_CFG_NCPUHALT_MASK) {
+            /* nCPUHALT 0 -> 1: starts the CPU.  */
+            reset_out = false;
+        }
+    }
+
+    if (reset_out ^ s->reset_out[1]) {
+        s->reset_out[1] = reset_out;
+        qemu_set_irq(s->reset_out_gpios[1], reset_out);
+    }
+}
 
 static void rpu_1_update_irq(XlnxZynqMPRPUCtrl *s)
 {
@@ -418,30 +463,16 @@ static void rpu_1_update_irq(XlnxZynqMPRPUCtrl *s)
     qemu_set_irq(s->irq_rpu_1, pending);
 }
 
-static void rpu_0_update_halt_gpio(XlnxZynqMPRPUCtrl *s)
-{
-    /* Inverse polarity */
-    qemu_set_irq(s->cont_out_gpios[R5_0_HALT],
-                !(s->regs[R_RPU_0_CFG] & R_RPU_0_CFG_NCPUHALT_MASK));
-}
-
-static void rpu_1_update_halt_gpio(XlnxZynqMPRPUCtrl *s)
-{
-    /* Inverse polarity */
-    qemu_set_irq(s->cont_out_gpios[R5_1_HALT],
-                !(s->regs[R_RPU_1_CFG] & R_RPU_1_CFG_NCPUHALT_MASK));
-}
-
 static void rpu_0_update_vinithi_gpio(XlnxZynqMPRPUCtrl *s)
 {
     qemu_set_irq(s->cont_out_gpios[R5_0_VINITHI],
-                !!(s->regs[R_RPU_0_CFG] & R_RPU_0_CFG_VINITHI_MASK));
+                 !!(s->regs[R_RPU_0_CFG] & R_RPU_0_CFG_VINITHI_MASK));
 }
 
 static void rpu_1_update_vinithi_gpio(XlnxZynqMPRPUCtrl *s)
 {
     qemu_set_irq(s->cont_out_gpios[R5_1_VINITHI],
-                !!(s->regs[R_RPU_1_CFG] & R_RPU_1_CFG_VINITHI_MASK));
+                 !!(s->regs[R_RPU_1_CFG] & R_RPU_1_CFG_VINITHI_MASK));
 }
 
 static void rpu_0_update_pwrdn_gpio(XlnxZynqMPRPUCtrl *s)
@@ -596,11 +627,11 @@ static void zynqmp_rpu_cfg_post_write(RegisterInfo *reg, uint64_t val)
     XlnxZynqMPRPUCtrl *s = XLNX_RPU_CTRL(reg->opaque);
 
     if (reg->access->addr == A_RPU_0_CFG) {
-        rpu_0_update_halt_gpio(s);
         rpu_0_update_vinithi_gpio(s);
+        rpu_0_update_reset_out(s);
     } else if (reg->access->addr == A_RPU_1_CFG) {
-        rpu_1_update_halt_gpio(s);
         rpu_1_update_vinithi_gpio(s);
+        rpu_1_update_reset_out(s);
     } else {
         g_assert_not_reached();
     }
@@ -736,12 +767,17 @@ static void rpu_reset(DeviceState *dev)
         register_reset(&s->regs_info[i]);
     }
 
+    s->reset_in[0] = true;
+    s->reset_out[0] = false;
+    s->reset_in[1] = true;
+    s->reset_out[1] = false;
+    rpu_0_update_reset_out(s);
+    rpu_1_update_reset_out(s);
+
     rpu_1_update_irq(s);
     rpu_0_update_irq(s);
     rpu_update_split_gpio(s);
-    rpu_0_update_halt_gpio(s);
     rpu_0_update_vinithi_gpio(s);
-    rpu_1_update_halt_gpio(s);
     rpu_1_update_vinithi_gpio(s);
     rpu_0_update_pwrdn_gpio(s);
     rpu_1_update_pwrdn_gpio(s);
@@ -801,6 +837,22 @@ static void zynqmp_rpu_1_handle_wfi(void *opaque, int irq, int level)
 
     s->cpu_in_wfi[1] = level;
     update_wfi_out(s);
+}
+
+static void zynqmp_rpu_0_handle_reset(void *opaque, int irq, int level)
+{
+    XlnxZynqMPRPUCtrl *s = XLNX_RPU_CTRL(opaque);
+
+    s->reset_in[0] = level;
+    rpu_0_update_reset_out(s);
+}
+
+static void zynqmp_rpu_1_handle_reset(void *opaque, int irq, int level)
+{
+    XlnxZynqMPRPUCtrl *s = XLNX_RPU_CTRL(opaque);
+
+    s->reset_in[1] = level;
+    rpu_1_update_reset_out(s);
 }
 
 static void rpu_realize(DeviceState *dev, Error **errp)
@@ -932,6 +984,10 @@ static void rpu_init(Object *obj)
     qdev_init_gpio_out_named(DEVICE(obj), s->comp_fault, "comp_fault", 2);
     /* wfi_out is used to connect to PMU GPIs. */
     qdev_init_gpio_out_named(DEVICE(obj), s->wfi_out, "wfi_out", 2);
+    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_rpu_0_handle_reset,
+                            "rpu_reset_in_0", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_rpu_1_handle_reset,
+                            "rpu_reset_in_1", 1);
 
     for (i = 0; i < NUM_CONT_OUT_IRQS; i++) {
         qdev_init_gpio_out_named(DEVICE(obj), &s->cont_out_gpios[i],
@@ -939,8 +995,17 @@ static void rpu_init(Object *obj)
     }
 
     /* wfi_in is used as input from CPUs as wfi request. */
-    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_rpu_0_handle_wfi, "wfi_in_0", 1);
-    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_rpu_1_handle_wfi, "wfi_in_1", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_rpu_0_handle_wfi, "wfi_in_0",
+                            1);
+    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_rpu_1_handle_wfi, "wfi_in_1",
+                            1);
+    /* RPU reset signals from CRL.  */
+    qdev_init_gpio_out_named(DEVICE(obj), &s->reset_out_gpios[0],
+                             "rpu_reset_out_0",
+                             1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->reset_out_gpios[1],
+                             "rpu_reset_out_1",
+                             1);
 }
 
 static const VMStateDescription vmstate_rpu = {
@@ -966,6 +1031,8 @@ static const FDTGenericGPIOSet rpu_controller_gpios [] = {
             { .name = "R5_1_VINITHI",       .fdt_index = R5_1_VINITHI },
             { .name = "wfi_in_0",           .fdt_index = 7 },
             { .name = "wfi_in_1",           .fdt_index = 8 },
+            { .name = "rpu_reset_out_0",    .fdt_index = 9 },
+            { .name = "rpu_reset_out_1",    .fdt_index = 10 },
             { },
         },
     },
@@ -978,6 +1045,8 @@ static const FDTGenericGPIOSet rpu_client_gpios [] = {
         .gpios = (FDTGenericGPIOConnection [])  {
             { .name = "comp_fault",         .fdt_index = 0, .range = 2 },
             { .name = "wfi_out",            .fdt_index = 2, .range = 2 },
+            { .name = "rpu_reset_in_0",     .fdt_index = 4 },
+            { .name = "rpu_reset_in_1",     .fdt_index = 5 },
             { },
         },
     },
