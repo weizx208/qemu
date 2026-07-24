@@ -843,35 +843,6 @@ static void arm_wfxt_timer_cb(void *opaque)
 #endif
 
 #ifndef CONFIG_USER_ONLY
-static void arm_cpu_set_ncpuhalt(void *opaque, int irq, int level)
-{
-    CPUState *cs = opaque;
-    ARMCPU *cpu = ARM_CPU(cs);
-    int old_value = cs->arch_halt_pin;
-
-    /* FIXME: This code should be active in order to implement the semantic
-     * where an already running CPU cannot be halted. This doesn't work though,
-     * as QEMU can not make any guarantees on initial ordering of setting the
-     * halt/reset GPIOs on machine init. So just make nCPUHALT a regular halt
-     * for the moment.
-     */
-#if 0
-    if (!cs->reset_pin) {
-        return;
-    }
-#endif
-    cs->arch_halt_pin = level;
-    /* As we set the powered_off status on CPU reset we need to make sure that
-     * we unset it as well.
-     */
-    cpu->power_state = level ? PSCI_OFF : PSCI_ON;
-    cpu_halt_update(cs);
-
-    if (cs->arch_halt_pin != old_value && !cs->arch_halt_pin) {
-        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
-    }
-}
-
 static void arm_cpu_set_vinithi(void *opaque, int irq, int level)
 {
     ARMCPU *cpu = ARM_CPU(opaque);
@@ -1235,7 +1206,11 @@ static void arm_cpu_initfn(Object *obj)
         qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 6);
     }
 
-    qdev_init_gpio_in_named(DEVICE(cpu), arm_cpu_set_ncpuhalt, "ncpuhalt", 1);
+    /*
+     * "ncpuhalt" is replaced by the "halt" signal, keep it for backward
+     * compatibility.
+     */
+    qdev_init_gpio_in_named(DEVICE(cpu), cpu_halt_gpio, "ncpuhalt", 1);
     qdev_init_gpio_in_named(DEVICE(cpu), arm_cpu_set_vinithi, "vinithi", 1);
 
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
