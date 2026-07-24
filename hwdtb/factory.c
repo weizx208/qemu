@@ -703,10 +703,53 @@ static void gem_set_enabled_pcs_prop(HwDtbNode *node, void *opaque)
     qdev_prop_set_bit(dev, "pcs-enabled", true);
 }
 
-static Object *hwdtb_factory_gem_enable_pcs(HwDtbNode *node)
+static bool is_zynq7000(HwDtbNode *root)
+{
+    const char *compat;
+    bool ret = false;
+
+    compat = hwdtb_node_get_prop_strings(root, "compatible", NULL);
+
+    while (compat) {
+        if (!strcmp(compat, "xlnx,zynq-7000")) {
+            ret = true;
+            break;
+        }
+
+        compat = hwdtb_node_get_prop_strings(root, "compatible", compat);
+    }
+
+    return ret;
+}
+
+static void gem_set_mdio(HwDtbNode *node, void *opaque)
+{
+    DeviceState *dev = HWDTB_NODE_AS(node, DEVICE);
+    uint32_t phy_phandle, reg;
+    HwDtbNode *mdio_node;
+
+    if (hwdtb_node_get_prop_uint32(node, "phy-handle", &phy_phandle)) {
+        mdio_node = hwdtb_get_node_by_phandle(node->hwdtb, phy_phandle);
+
+        if (mdio_node && !hwdtb_node_has_prop(mdio_node, "compatible")) {
+            if (!hwdtb_node_get_prop_nth_uint32(mdio_node,
+                                               "reg", 0, &reg)) {
+                reg = 0;
+            }
+            qdev_prop_set_uint32(dev, "phy-addr", reg);
+        }
+    }
+}
+
+static Object *hwdtb_factory_gem_set_props(HwDtbNode *node)
 {
     hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
                                  gem_set_enabled_pcs_prop, NULL);
+
+    if (is_zynq7000(node->hwdtb->root)) {
+        hwdtb_node_register_callback(node, HWDTB_PASS_SET_PROPERTIES,
+                                     gem_set_mdio, NULL);
+    }
 
     return hwdtb_factory_from_oc(node);
 }
@@ -786,7 +829,7 @@ static const CompatHandler STATIC_COMPAT_HANDLER[] = {
     { "xlnx.xps-ethernetlite", hwdtb_factory_set_endianness_prop },
     { "xlnx.xps-spi", hwdtb_factory_set_endianness_prop },
     { "xlnx.xps-timer", hwdtb_factory_set_endianness_prop },
-    { TYPE_CADENCE_GEM, hwdtb_factory_gem_enable_pcs },
+    { TYPE_CADENCE_GEM, hwdtb_factory_gem_set_props },
 };
 
 const char *hwdtb_compat_translate(const char *compat)
