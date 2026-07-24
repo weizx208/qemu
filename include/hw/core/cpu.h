@@ -584,7 +584,6 @@ struct CPUState {
 
     bool reset_pin; /* state of reset pin */
     bool halt_pin; /* state of halt pin */
-    bool arch_halt_pin;
 
     char *gdb_id;
 

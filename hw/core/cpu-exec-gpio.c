@@ -65,7 +65,7 @@ static void cpu_reset_exit(CPUState *cpu, run_on_cpu_data data)
 
 static void cpu_exec_pin_update(CPUState *cpu)
 {
-    bool val = cpu->reset_pin || cpu->halt_pin || cpu->arch_halt_pin;
+    bool val = cpu->reset_pin || cpu->halt_pin;
     bool async = runstate_is_running();
 
     /*
