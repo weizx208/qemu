@@ -156,6 +156,9 @@ void cpu_halt_gpio(void *opaque, int irq, int level)
     changed = cpu->halt_pin != level;
 
     if (changed) {
+#ifdef TARGET_ARM
+        ARM_CPU(cpu)->power_state = level ? PSCI_OFF : PSCI_ON;
+#endif
         cpu->halt_pin = level;
         cpu_exec_pin_update(cpu); /* TBD: _sync not working */
     }
