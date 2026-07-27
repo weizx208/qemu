@@ -15,7 +15,9 @@ static void amd_ddr_memory_realize(DeviceState *dev, Error **errp)
 {
     AMDDDRMemory *s = AMD_DDR_MEMORY(dev);
     g_autofree char *name = NULL;
+#ifdef CONFIG_POSIX
     g_autoptr(GString) filename = NULL;
+#endif
 
     if (s->size == 0) {
         error_setg(errp, "ddr-memory: size must be non-zero");
@@ -23,7 +25,11 @@ static void amd_ddr_memory_realize(DeviceState *dev, Error **errp)
     }
 
     if (s->shared == ON_OFF_AUTO_AUTO) {
+#ifdef CONFIG_POSIX
         s->shared = machine_path ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+#else
+        s->shared = ON_OFF_AUTO_OFF;
+#endif
     }
 
     name = g_strdup_printf("ddr@0x%" PRIx64, (uint64_t)s->address);
@@ -34,12 +40,17 @@ static void amd_ddr_memory_realize(DeviceState *dev, Error **errp)
         break;
 
     case ON_OFF_AUTO_ON:
+#ifdef CONFIG_POSIX
         filename = g_string_new("");
 
         g_string_append_printf(filename, "%s%cqemu-memory-%s",
                                machine_path ?: ".", G_DIR_SEPARATOR, name);
         memory_region_init_ram_from_file(&s->mr, OBJECT(dev), name, s->size, 0,
                                          RAM_SHARED, filename->str, 0, errp);
+#else
+        error_setg(errp,
+                   "ddr-memory: shared memory backend is not supported on this host");
+#endif
         break;
 
     default:

@@ -246,7 +246,9 @@ static Object *hwdtb_factory_memory_region(HwDtbNode *node)
     HwDtbNode *aliased = NULL;
     MemoryRegion *mr, *aliased_mr = NULL;
     uint64_t size;
+#ifdef CONFIG_POSIX
     GString *filename;
+#endif
 
     /*
      * -- Legacy --
@@ -316,12 +318,17 @@ static Object *hwdtb_factory_memory_region(HwDtbNode *node)
         break;
 
     case HWDTB_MR_RAM_FROM_FILE:
+#ifdef CONFIG_POSIX
         filename = get_legacy_mr_filename(node);
         memory_region_init_ram_from_file(mr, NULL, NULL, size, 0, RAM_SHARED,
                                          filename->str, 0, &error_abort);
         trace_hwdtb_node_memory_region_create_ram_from_file(node->path, size,
                                                             filename->str);
         g_string_free(filename, true);
+#else
+        error_setg(&error_abort,
+                   "hwdtb: file-backed shared memory is not supported on this host");
+#endif
         break;
     }
 

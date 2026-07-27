@@ -494,8 +494,10 @@ static QIOChannel *rp_autoconnect(RemotePort *s, Error **errp)
     socket_exists = g_file_test(socket_path, G_FILE_TEST_EXISTS);
 
     addr.type = SOCKET_ADDRESS_TYPE_UNIX;
+#ifdef CONFIG_LINUX
     addr.u.q_unix.abstract = false;
     addr.u.q_unix.tight = false;
+#endif
     addr.u.q_unix.path = socket_path;
 
     if (socket_exists) {
