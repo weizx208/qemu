@@ -290,6 +290,31 @@ static void fpx_dfx_err_imr_update_irq(AmdFpxSlcr *s)
     qemu_set_irq(s->irq_fpx_dfx_err_imr, pending);
 }
 
+/*
+ * BISR: when TRIGGER is set, immediately mark all PGEN-selected
+ * chains as DONE+PASS in STATUS0/STATUS1.
+ */
+static void bisr_cache_ctrl0_postw_raw(AmdFpxSlcr *s)
+{
+    uint32_t pgen = s->regs[R_BISR_CACHE_CTRL_1];
+    unsigned i;
+
+    if (!ARRAY_FIELD_EX32(s->regs, BISR_CACHE_CTRL_0, TRIGGER)) {
+        return;
+    }
+
+    /* Set DONE+PASS for each PGEN-selected chain */
+    for (i = 0; i < 21; i++) {
+        if (pgen & (1u << i)) {
+            if (i <= 14) {
+                s->regs[R_BISR_CACHE_STATUS0] |= 3u << (2 * (i + 1));
+            } else {
+                s->regs[R_BISR_CACHE_STATUS1] |= 3u << (2 * (i - 15));
+            }
+        }
+    }
+}
+
 static void fpx_slcr_reset_enter(Object *obj, ResetType type)
 {
     AmdFpxSlcr *s = AMD_FPX_SLCR(obj);
@@ -394,6 +419,7 @@ static void fpx_slcr_write(void *opaque, hwaddr addr,
         return;
     case A_BISR_CACHE_CTRL_0:
         s->regs[r] = val & 0x11;
+        bisr_cache_ctrl0_postw_raw(s);
         return;
     case A_BISR_CACHE_CTRL_1:
         s->regs[r] = val & 0x1fffff;
