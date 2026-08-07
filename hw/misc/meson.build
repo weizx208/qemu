@@ -156,7 +156,8 @@ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
   'xlnx-versal2-mmi-udh-pll.c',
   'xlnx-psxc-afi-fs.c',
   'amd-ddr-memory.c',
-  'amd-fpx-slcr.c'
+  'amd-fpx-slcr.c',
+  'amd-lpx-slcr.c'
 ))
 
 system_ss.add(when: 'CONFIG_XLNX_VERSAL_PMC', if_true: files(
