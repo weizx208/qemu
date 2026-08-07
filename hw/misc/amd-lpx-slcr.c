@@ -686,6 +686,28 @@ static void rpu_pcil_isr_postw(RegisterInfo *reg, uint64_t val64)
     rpu_pcil_imr_update_irq(s);
 }
 
+/*
+ * BISR: when TRIGGER is set, immediately mark all PGEN-selected
+ * chains as DONE+PASS in BISR_CACHE_STATUS.
+ */
+static void bisr_cache_ctrl0_postw(RegisterInfo *reg, uint64_t val64)
+{
+    AmdLpxSlcr *s = AMD_LPX_SLCR(reg->opaque);
+    uint32_t pgen = s->regs[R_BISR_CACHE_CTRL_1];
+    unsigned int i;
+
+    if (!ARRAY_FIELD_EX32(s->regs, BISR_CACHE_CTRL_0, TRIGGER)) {
+        return;
+    }
+
+    /* Set DONE+PASS for each PGEN-selected chain (5 chains for RPU) */
+    for (i = 0; i < 5; i++) {
+        if (pgen & (1u << i)) {
+            s->regs[R_BISR_CACHE_STATUS] |= 3u << (2 * i);
+        }
+    }
+}
+
 static uint64_t rpu_pcil_ien_prew(RegisterInfo *reg, uint64_t val64)
 {
     AmdLpxSlcr *s = AMD_LPX_SLCR(reg->opaque);
@@ -786,6 +808,7 @@ static const RegisterAccessInfo lpx_slcr_regs_info[] = {
         .ro = 0x1,
     },{ .name = "BISR_CACHE_CTRL_0",  .addr = A_BISR_CACHE_CTRL_0,
         .rsvd = 0xe,
+        .post_write = bisr_cache_ctrl0_postw,
     },{ .name = "BISR_CACHE_CTRL_1",  .addr = A_BISR_CACHE_CTRL_1,
     },{ .name = "BISR_CACHE_STATUS",  .addr = A_BISR_CACHE_STATUS,
         .ro = 0xc00003ff,
